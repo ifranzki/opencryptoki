@@ -21,6 +21,8 @@
 #include "p11util.h"
 #include "p11sak.h"
 
+#include <openssl/rsa.h>
+
 static const char *default_pkcs11lib = "libopencryptoki.so";
 
 static void *pkcs11lib = NULL;
@@ -369,7 +371,7 @@ static void print_gen_help(void)
     printf("      des\n");
     printf("      3des\n");
     printf("      aes [128 | 192 | 256]\n");
-    printf("      rsa [1024 | 2048 | 4096]\n");
+    printf("      rsa [1024 | 2048 | 4096 | ...]\n");
     printf("      ec [prime256v1 | secp384r1 | secp521r1]\n");
     printf("\n Options:\n");
     printf(
@@ -442,6 +444,7 @@ static void print_gen_rsa_help(void)
     printf("      1024\n");
     printf("      2048\n");
     printf("      4096\n");
+    printf("      ...\n");
     printf("\n Options:\n");
     printf(
             "      --slot SLOTID                           openCryptoki repository token SLOTID.\n");
@@ -1493,11 +1496,12 @@ static CK_RV check_args_gen_key(p11sak_kt *kt, CK_ULONG keylength,
         }
         break;
     case kt_RSAPKCS:
-        if ((keylength == 1024) || (keylength == 2048) || (keylength == 4096)) {
+        if (keylength < 512 || keylength > OPENSSL_RSA_MAX_MODULUS_BITS ||
+            (keylength % 8) != 0) {
             break;
         } else {
             printf(
-                    "[%d] RSA modulus bit length %ld NOT supported. Try adding argument -bits <1024|2048|4096>\n",
+                    "[%d] RSA modulus bit length %ld NOT supported. Try adding argument -bits <1024|2048|4096|...>\n",
                     *kt, keylength);
         }
         break;
