@@ -12,11 +12,13 @@
 #define _RSA_H_
 #endif
 
+#include <openssl/rsa.h>
+
 #include "pkcs11types.h"
 #define MAX_MODULUS_SIZE 256
 #define MAX_EXPONENT_SIZE 256
-#define MAX_MESSAGE_SIZE 512
-#define MAX_SIGNATURE_SIZE 512
+#define MAX_MESSAGE_SIZE (OPENSSL_RSA_MAX_MODULUS_BITS / 8)
+#define MAX_SIGNATURE_SIZE (OPENSSL_RSA_MAX_MODULUS_BITS / 8)
 #define MAX_PRIME_SIZE  128
 #define MAX_COEFFICIENT_SIZE 128
 #define PKCS11_MAX_KEY_LEN 512
@@ -1478,6 +1480,202 @@ static struct RSA_GENERATED_TEST_VECTOR rsa_generated_tv[] = {
         .inputlen = 0,
         .num_chunks = 0,
     },
+    {                           //tv[34]
+        .modbits = 7680,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           //tv[35]
+        .modbits = 7680,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[36]
+        .modbits = 7680,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           //tv[37]
+        .modbits = 7680,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[38]
+        .modbits = 7680,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           //tv[39]
+        .modbits = 7680,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[40]
+        .modbits = 7680,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+        .num_chunks = 0,
+    },
+    {                           //tv[41]
+        .modbits = 8192,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           //tv[42]
+        .modbits = 8192,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[43]
+        .modbits = 8192,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           //tv[44]
+        .modbits = 8192,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[45]
+        .modbits = 8192,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           //tv[46]
+        .modbits = 8192,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[47]
+        .modbits = 8192,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+        .num_chunks = 0,
+    },
+    {                           //tv[48]
+        .modbits = 15360,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           //tv[49]
+        .modbits = 15360,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[50]
+        .modbits = 15360,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           //tv[51]
+        .modbits = 15360,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[52]
+        .modbits = 15360,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           //tv[53]
+        .modbits = 15360,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[54]
+        .modbits = 15360,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+        .num_chunks = 0,
+    },
+    {                           //tv[55]
+        .modbits = 16384,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           //tv[56]
+        .modbits = 16384,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[57]
+        .modbits = 16384,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           //tv[58]
+        .modbits = 16384,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[59]
+        .modbits = 16384,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           //tv[60]
+        .modbits = 16384,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 501,
+        .chunks = {125, 125, 125, 125, 1},
+        .num_chunks = 5,
+    },
+    {                           //tv[61]
+        .modbits = 16384,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+        .num_chunks = 0,
+    },
 };
 
 static struct RSA_GENERATED_TEST_VECTOR rsa_x509_generated_tv[] = {
@@ -1685,7 +1883,174 @@ static struct RSA_GENERATED_TEST_VECTOR rsa_x509_generated_tv[] = {
         .publ_exp = {0x03, 0x00, 0x01},
         .inputlen = 0,
     },
-
+    {                           // tv[34]
+        .modbits = 7680,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           // tv[35]
+        .modbits = 7680,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 64,
+    },
+    {                           // tv[36]
+        .modbits = 7680,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           // tv[37]
+        .modbits = 7680,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 64,
+    },
+    {                           // tv[38]
+        .modbits = 7680,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           // tv[39]
+        .modbits = 7680,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 64,
+    },
+    {                           // tv[40]
+        .modbits = 7680,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+    },
+    {                           // tv[41]
+        .modbits = 8192,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           // tv[42]
+        .modbits = 8192,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 64,
+    },
+    {                           // tv[43]
+        .modbits = 8192,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           // tv[44]
+        .modbits = 8192,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 64,
+    },
+    {                           // tv[45]
+        .modbits = 8192,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           // tv[46]
+        .modbits = 8192,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 64,
+    },
+    {                           // tv[47]
+        .modbits = 8192,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+    },
+    {                           // tv[48]
+        .modbits = 15360,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           // tv[49]
+        .modbits = 15360,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 64,
+    },
+    {                           // tv[50]
+        .modbits = 15360,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           // tv[51]
+        .modbits = 15360,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 64,
+    },
+    {                           // tv[52]
+        .modbits = 15360,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           // tv[53]
+        .modbits = 15360,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 64,
+    },
+    {                           // tv[54]
+        .modbits = 15360,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+    },
+    {                           // tv[55]
+        .modbits = 16384,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 1,
+    },
+    {                           // tv[56]
+        .modbits = 16384,
+        .publ_exp_len = 1,
+        .publ_exp = {0x03},
+        .inputlen = 64,
+    },
+    {                           // tv[57]
+        .modbits = 16384,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 1,
+    },
+    {                           // tv[58]
+        .modbits = 16384,
+        .publ_exp_len = 2,
+        .publ_exp = {0x00, 0x11},
+        .inputlen = 64,
+    },
+    {                           // tv[59]
+        .modbits = 16384,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 1,
+    },
+    {                           // tv[60]
+        .modbits = 16384,
+        .publ_exp_len = 3,
+        .publ_exp = {0x01, 0x00, 0x01},
+        .inputlen = 64,
+    },
+    {                           // tv[61]
+        .modbits = 16384,
+        .publ_exp_len = 3,
+        .publ_exp = {0x03, 0x00, 0x01},
+        .inputlen = 0,
+    },
 };
 
 #define NUM_OF_GENERATED_KEYWRAP_TESTSUITES 2
@@ -1709,43 +2074,43 @@ struct GENERATED_TEST_SUITE_INFO generated_keywrap_test_suites[] = {
 struct GENERATED_TEST_SUITE_INFO generated_sigver_test_suites[] = {
     {
         .name = "RSA PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA SHA1 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_SHA1_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA SHA224 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_SHA224_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA SHA256 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_SHA256_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA MD2 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_MD2_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA MD5 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_MD5_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA X.509",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_x509_generated_tv,
         .mech = {CKM_RSA_X_509, 0, 0},
     }
@@ -1756,31 +2121,31 @@ struct GENERATED_TEST_SUITE_INFO generated_sigver_test_suites[] = {
 struct GENERATED_TEST_SUITE_INFO generated_sigver_update_test_suites[] = {
     {
         .name = "RSA SHA1 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_SHA1_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA SHA224 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_SHA224_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA SHA256 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_SHA256_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA MD2 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_MD2_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA MD5 PKCS",
-        .tvcount = 34,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_MD5_RSA_PKCS, 0, 0},
     }
@@ -1790,13 +2155,13 @@ struct GENERATED_TEST_SUITE_INFO generated_sigver_update_test_suites[] = {
 struct GENERATED_TEST_SUITE_INFO generated_crypto_test_suites[] = {
     {
         .name = "RSA PKCS",
-        .tvcount = 30,
+        .tvcount = 62,
         .tv = rsa_generated_tv,
         .mech = {CKM_RSA_PKCS, 0, 0},
     },
     {
         .name = "RSA X.509",
-        .tvcount = 30,
+        .tvcount = 62,
         .tv = rsa_x509_generated_tv,
         .mech = {CKM_RSA_X_509, 0, 0},
     }
