@@ -3575,7 +3575,6 @@ static CK_RV import_IBM_Dilithium_key(STDLL_TokData_t *tokdata, SESSION *sess,
     unsigned char *ep11_pin_blob = NULL;
     CK_ULONG ep11_pin_blob_len = 0;
     ep11_session_t *ep11_session = (ep11_session_t *) sess->private_data;
-    CK_BYTE *pubkey = NULL;
 
     memcpy(iv, "1234567812345678", AES_BLOCK_SIZE);
 
@@ -3734,9 +3733,6 @@ static CK_RV import_IBM_Dilithium_key(STDLL_TokData_t *tokdata, SESSION *sess,
     }
 
 done:
-
-    if (pubkey)
-        free(pubkey);
     if (data) {
         OPENSSL_cleanse(data, data_len);
         free(data);
@@ -5486,7 +5482,6 @@ static CK_RV dh_generate_keypair(STDLL_TokData_t *tokdata,
     CK_ATTRIBUTE *opaque_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *attr = NULL;
-    CK_ATTRIBUTE *pPublicKeyTemplate_new = NULL;
     CK_ATTRIBUTE_PTR dh_pPublicKeyTemplate = NULL;
     CK_ULONG dh_ulPublicKeyAttributeCount = 0;
     CK_ATTRIBUTE_PTR dh_pPrivateKeyTemplate = NULL;
@@ -5746,7 +5741,6 @@ static CK_RV dh_generate_keypair(STDLL_TokData_t *tokdata,
     }
 
 dh_generate_keypair_end:
-    free(pPublicKeyTemplate_new);
     if (dh_pgs.pg != NULL)
         free(dh_pgs.pg);
     if (dh_pPublicKeyTemplate)
@@ -5778,7 +5772,6 @@ static CK_RV dsa_generate_keypair(STDLL_TokData_t *tokdata,
     CK_ATTRIBUTE *opaque_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *attr = NULL;
-    CK_ATTRIBUTE *pPublicKeyTemplate_new = NULL;
     CK_BYTE *key;
     CK_BYTE *data, *oid, *parm;
     CK_ULONG data_len, field_len, bit_str_len, oid_len, parm_len;
@@ -6047,7 +6040,6 @@ static CK_RV dsa_generate_keypair(STDLL_TokData_t *tokdata,
     }
 
 dsa_generate_keypair_end:
-    free(pPublicKeyTemplate_new);
     if (dsa_pqgs.pqg != NULL)
         free(dsa_pqgs.pqg);
     if (dsa_pPublicKeyTemplate)
@@ -6080,10 +6072,6 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
     CK_BYTE *data, *oid, *parm;
     CK_ULONG data_len, oid_len, parm_len;
     CK_ULONG field_len;
-    CK_ATTRIBUTE_PTR new_pPublicKeyTemplate = NULL;
-    CK_ULONG new_ulPublicKeyAttributeCount = 0;
-    CK_ATTRIBUTE_PTR new_pPrivateKeyTemplate = NULL;
-    CK_ULONG new_ulPrivateKeyAttributeCount = 0;
     CK_ULONG ktype;
     unsigned char *ep11_pin_blob = NULL;
     CK_ULONG ep11_pin_blob_len = 0;
@@ -6399,12 +6387,6 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
     }
 
 error:
-    if (new_pPrivateKeyTemplate)
-        free_attribute_array(new_pPrivateKeyTemplate,
-                             new_ulPrivateKeyAttributeCount);
-    if (new_pPublicKeyTemplate)
-        free_attribute_array(new_pPublicKeyTemplate,
-                             new_ulPublicKeyAttributeCount);
     if (new_publ_attrs)
         free_attribute_array(new_publ_attrs, new_publ_attrs_len);
     if (new_priv_attrs)
@@ -6432,10 +6414,6 @@ static CK_RV ibm_dilithium_generate_keypair(STDLL_TokData_t *tokdata,
     CK_BYTE *data, *oid, *parm;
     CK_ULONG data_len, oid_len, parm_len;
     CK_ULONG field_len;
-    CK_ATTRIBUTE_PTR new_pPublicKeyTemplate = NULL;
-    CK_ULONG new_ulPublicKeyAttributeCount = 0;
-    CK_ATTRIBUTE_PTR new_pPrivateKeyTemplate = NULL;
-    CK_ULONG new_ulPrivateKeyAttributeCount = 0;
     CK_ULONG ktype = CKK_IBM_PQC_DILITHIUM;
     unsigned char *ep11_pin_blob = NULL;
     CK_ULONG ep11_pin_blob_len = 0;
@@ -6679,12 +6657,6 @@ static CK_RV ibm_dilithium_generate_keypair(STDLL_TokData_t *tokdata,
     }
 
 error:
-    if (new_pPrivateKeyTemplate)
-        free_attribute_array(new_pPrivateKeyTemplate,
-                             new_ulPrivateKeyAttributeCount);
-    if (new_pPublicKeyTemplate)
-        free_attribute_array(new_pPublicKeyTemplate,
-                             new_ulPublicKeyAttributeCount);
     if (new_publ_attrs)
         free_attribute_array(new_publ_attrs, new_publ_attrs_len);
     if (new_priv_attrs)
