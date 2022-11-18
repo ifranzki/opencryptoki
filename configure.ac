@@ -311,15 +311,15 @@ if test "x$with_libica" != "xno"; then
 		fi
 		with_libica=no
 	])
-	if test "x$with_libica" != "xno"; then
-		AC_CHECK_LIB([ica], [ica_open_adapter],
-			[with_libica=yes], [
-				if test "x$with_libica" != "xcheck"; then
-					AC_MSG_ERROR([Build with Libica requested but Libica libraries (v 2.x or higher) couldn't be found])
-				fi
-				with_libica=no
-		])
-	fi
+#	if test "x$with_libica" != "xno"; then
+#		AC_CHECK_LIB([ica], [ica_open_adapter],
+#			[with_libica=yes], [
+#				if test "x$with_libica" != "xcheck"; then
+#					AC_MSG_ERROR([Build with Libica requested but Libica libraries (v 2.x or higher) couldn't be found])
+#				fi
+#				with_libica=no
+#		])
+#	fi
 	if test "x$with_libica" = "xno"; then
 		CFLAGS="$old_cflags"
 		LIBS="$old_libs"
@@ -486,18 +486,18 @@ if test "x$enable_ep11tok" = "xyes"; then
 	AC_CHECK_HEADER([ica_api.h], [], [
 		AC_MSG_ERROR([ep11 token build requested but Libica headers couldn't be found])
 	])
-	AC_CHECK_HEADER([asm/pkey.h], [], [
-		AC_MSG_ERROR([ep11 token build requested but Kernel's pkey header couldn't be found])
-	])	
+#	AC_CHECK_HEADER([asm/pkey.h], [], [
+#		AC_MSG_ERROR([ep11 token build requested but Kernel's pkey header couldn't be found])
+#	])	
 fi
 if test "x$enable_ep11tok" != "xno"; then
 	enable_ep11tok=yes
 	AC_CHECK_HEADER([ica_api.h], [], [
 		enable_ep11tok=no
 	])
-	AC_CHECK_HEADER([asm/pkey.h], [], [
-		enable_ep11tok=no
-	])
+#	AC_CHECK_HEADER([asm/pkey.h], [], [
+#		enable_ep11tok=no
+#	])
 else
 	enable_ep11tok=no
 fi

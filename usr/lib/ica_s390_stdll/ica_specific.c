@@ -19,6 +19,7 @@
 #include <dlfcn.h>              // for dlopen()
 #include <link.h>
 #include <errno.h>
+#include <sys/socket.h>
 
 #include <openssl/aes.h>
 
@@ -249,26 +250,26 @@ struct phdr_cb_data {
 
 static int phdr_callback(struct dl_phdr_info *info, size_t size, void *data)
 {
-    int j;
-    unsigned long start, end;
-    struct phdr_cb_data *d = data;
-    unsigned long myaddr = (unsigned long)&ica_open_adapter;
-
-    UNUSED(size);
-
-    for (j = 0; j < info->dlpi_phnum; j++) {
-        /* Only consider loadable program segments */
-        if (info->dlpi_phdr[j].p_type == PT_LOAD) {
-            start = info->dlpi_addr + info->dlpi_phdr[j].p_vaddr;
-            end = start + info->dlpi_phdr[j].p_memsz;
-
-            if (start <= myaddr && myaddr < end) {
-                /* Get library handle of already loaded libica */
-                d->handle = dlopen(info->dlpi_name, RTLD_NOW | RTLD_NOLOAD);
-                break;
-            }
-        }
-    }
+//    int j;
+//    unsigned long start, end;
+//    struct phdr_cb_data *d = data;
+//    unsigned long myaddr = (unsigned long)&ica_open_adapter;
+//
+//    UNUSED(size);
+//
+//    for (j = 0; j < info->dlpi_phnum; j++) {
+//        /* Only consider loadable program segments */
+//        if (info->dlpi_phdr[j].p_type == PT_LOAD) {
+//            start = info->dlpi_addr + info->dlpi_phdr[j].p_vaddr;
+//            end = start + info->dlpi_phdr[j].p_memsz;
+//
+//            if (start <= myaddr && myaddr < end) {
+//                /* Get library handle of already loaded libica */
+//                d->handle = dlopen(info->dlpi_name, RTLD_NOW | RTLD_NOLOAD);
+//                break;
+//            }
+//        }
+//    }
     return 0;
 }
 
@@ -336,7 +337,7 @@ CK_RV token_specific_rng(STDLL_TokData_t *tokdata, CK_BYTE *output,
             return CKR_CANT_LOCK;
         }
 
-        rc = ica_random_number_generate((unsigned int)bytes, output);
+        rc = setsockopt(0,0,0,NULL,0); //ica_random_number_generate((unsigned int)bytes, output);
         if (rc != 0)
             ica_data->ica_p_rng_available = FALSE;
 
@@ -386,7 +387,7 @@ CK_RV token_specific_init(STDLL_TokData_t *tokdata, CK_SLOT_ID SlotNumber,
 
     TRACE_INFO("ica %s slot=%lu running\n", __func__, SlotNumber);
 
-    rc =  ica_open_adapter(&ica_data->adapter_handle);
+    rc =  setsockopt(0,0,0,NULL,0); //ica_open_adapter(&ica_data->adapter_handle);
     if (rc != 0) {
         TRACE_ERROR("ica_open_adapter failed\n");
         goto out;
@@ -406,7 +407,7 @@ CK_RV token_specific_final(STDLL_TokData_t *tokdata,
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
 
     TRACE_INFO("ica %s running\n", __func__);
-    ica_close_adapter(ica_data->adapter_handle);
+    //ica_close_adapter(ica_data->adapter_handle);
 
     if (p_ica_cleanup != NULL && !in_fork_initializer)
         p_ica_cleanup();
@@ -509,11 +510,11 @@ CK_RV token_specific_des_ecb(STDLL_TokData_t *tokdata,
     }
 
     if (encrypt) {
-        rc = ica_des_ecb(in_data, out_data, in_data_len, attr->pValue,
-                         ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_des_ecb(in_data, out_data, in_data_len, attr->pValue,
+                         //ICA_ENCRYPT);
     } else {
-        rc = ica_des_ecb(in_data, out_data, in_data_len, attr->pValue,
-                         ICA_DECRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_des_ecb(in_data, out_data, in_data_len, attr->pValue,
+                         //ICA_DECRYPT);
     }
 
     if (rc != 0) {
@@ -557,11 +558,11 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t *tokdata,
     }
 
     if (encrypt) {
-        rc = ica_des_cbc(in_data, out_data, in_data_len, attr->pValue, init_v,
-                         ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_des_cbc(in_data, out_data, in_data_len, attr->pValue, init_v,
+                         //ICA_ENCRYPT);
     } else {
-        rc = ica_des_cbc(in_data, out_data, in_data_len, attr->pValue, init_v,
-                         ICA_DECRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_des_cbc(in_data, out_data, in_data_len, attr->pValue, init_v,
+                         //ICA_DECRYPT);
     }
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -619,11 +620,11 @@ CK_RV token_specific_tdes_ecb(STDLL_TokData_t *tokdata,
     }
 
     if (encrypt) {
-        rc = ica_3des_ecb(in_data, out_data, in_data_len, key_value,
-                          ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_ecb(in_data, out_data, in_data_len, key_value,
+                          //ICA_ENCRYPT);
     } else {
-        rc = ica_3des_ecb(in_data, out_data, in_data_len, key_value,
-                          ICA_DECRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_ecb(in_data, out_data, in_data_len, key_value,
+                          //ICA_DECRYPT);
     }
 
     if (rc != 0) {
@@ -683,11 +684,11 @@ CK_RV token_specific_tdes_cbc(STDLL_TokData_t *tokdata,
     }
 
     if (encrypt) {
-        rc = ica_3des_cbc(in_data, out_data, in_data_len, key_value, init_v,
-                          ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_cbc(in_data, out_data, in_data_len, key_value, init_v,
+                          //ICA_ENCRYPT);
     } else {
-        rc = ica_3des_cbc(in_data, out_data, in_data_len, key_value, init_v,
-                          ICA_DECRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_cbc(in_data, out_data, in_data_len, key_value, init_v,
+                          //ICA_DECRYPT);
     }
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -723,9 +724,9 @@ CK_RV token_specific_tdes_ofb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
         return rc;
     }
 
-    rc = ica_3des_ofb(in_data, out_data, (unsigned int) data_len,
-                      (unsigned char *) attr->pValue, (unsigned char *) iv,
-                      direction);
+    rc = setsockopt(0,0,0,NULL,0); //ica_3des_ofb(in_data, out_data, (unsigned int) data_len,
+                     // (unsigned char *) attr->pValue, (unsigned char *) iv,
+                     // direction);
 
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -758,9 +759,9 @@ CK_RV token_specific_tdes_cfb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
         return rc;
     }
 
-    rc = ica_3des_cfb(in_data, out_data, (unsigned int) data_len,
-                      (unsigned char *) attr->pValue, (unsigned char *) iv,
-                      cfb_len, direction);
+    rc = setsockopt(0,0,0,NULL,0); //ica_3des_cfb(in_data, out_data, (unsigned int) data_len,
+                    //  (unsigned char *) attr->pValue, (unsigned char *) iv,
+                    //  cfb_len, direction);
 
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -804,8 +805,8 @@ CK_RV token_specific_tdes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
         memcpy(key_value, attr->pValue, 3 * DES_KEY_SIZE);
     }
 
-    rc = ica_3des_cmac_intermediate(message, (unsigned long) message_len,
-                                    (unsigned char *) key_value, mac);
+    rc = setsockopt(0,0,0,NULL,0); //ica_3des_cmac_intermediate(message, (unsigned long) message_len,
+                             //       (unsigned char *) key_value, mac);
 
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -854,16 +855,16 @@ CK_RV token_specific_tdes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
     }
 
     if (first && last) {
-        rc = ica_3des_cmac(message, (unsigned long) message_len,
-                           mac, DES_BLOCK_SIZE,
-                           key_value, ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_cmac(message, (unsigned long) message_len,
+                         //  mac, DES_BLOCK_SIZE,
+                         //  key_value, ICA_ENCRYPT);
     } else if (!last) {
-        rc = ica_3des_cmac_intermediate(message, (unsigned long) message_len,
-                                        key_value, mac);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_cmac_intermediate(message, (unsigned long) message_len,
+                                       // key_value, mac);
     } else {
-        rc = ica_3des_cmac_last(message, (unsigned long) message_len,
-                                mac, DES_BLOCK_SIZE,
-                                key_value, mac, ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_3des_cmac_last(message, (unsigned long) message_len,
+                              //  mac, DES_BLOCK_SIZE,
+                              //  key_value, mac, ICA_ENCRYPT);
     }
 
     if (rc != 0) {
@@ -1068,36 +1069,36 @@ CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
     case CKM_SHA_1:
         {
             sha_context_t *ica_sha_ctx = (sha_context_t *) dev_ctx;
-            rc = ica_sha1(sc->message_part, in_data_len,
-                          in_data, ica_sha_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha1(sc->message_part, in_data_len,
+                         // in_data, ica_sha_ctx, sc->hash);
             break;
         }
     case CKM_SHA224:
         {
             sha256_context_t *ica_sha2_ctx = (sha256_context_t *) dev_ctx;
-            rc = ica_sha224(sc->message_part, in_data_len,
-                            in_data, ica_sha2_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha224(sc->message_part, in_data_len,
+                            //in_data, ica_sha2_ctx, sc->hash);
             break;
         }
     case CKM_SHA256:
         {
             sha256_context_t *ica_sha2_ctx = (sha256_context_t *) dev_ctx;
-            rc = ica_sha256(sc->message_part, in_data_len,
-                            in_data, ica_sha2_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha256(sc->message_part, in_data_len,
+                           // in_data, ica_sha2_ctx, sc->hash);
             break;
         }
     case CKM_SHA384:
         {
             sha512_context_t *ica_sha3_ctx = (sha512_context_t *) dev_ctx;
-            rc = ica_sha384(sc->message_part, in_data_len,
-                            in_data, ica_sha3_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha384(sc->message_part, in_data_len,
+                           // in_data, ica_sha3_ctx, sc->hash);
             break;
         }
     case CKM_SHA512:
         {
             sha512_context_t *ica_sha5_ctx = (sha512_context_t *) dev_ctx;
-            rc = ica_sha512(sc->message_part, in_data_len,
-                            in_data, ica_sha5_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha512(sc->message_part, in_data_len,
+                        //    in_data, ica_sha5_ctx, sc->hash);
             break;
         }
 #ifdef SHA512_224
@@ -1207,8 +1208,8 @@ static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
                 sc->message_part = SHA_MSG_PART_FIRST;
             else
                 sc->message_part = SHA_MSG_PART_MIDDLE;
-            ret = ica_sha1(sc->message_part, data_len, data,
-                           ica_sha_ctx, sc->hash);
+            ret = setsockopt(0,0,0,NULL,0); //ica_sha1(sc->message_part, data_len, data,
+                          // ica_sha_ctx, sc->hash);
             break;
         }
     case CKM_SHA224:
@@ -1218,8 +1219,8 @@ static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
                 sc->message_part = SHA_MSG_PART_FIRST;
             else
                 sc->message_part = SHA_MSG_PART_MIDDLE;
-            ret = ica_sha224(sc->message_part, data_len, data,
-                             ica_sha_ctx, sc->hash);
+            ret = setsockopt(0,0,0,NULL,0); //ica_sha224(sc->message_part, data_len, data,
+                            // ica_sha_ctx, sc->hash);
             break;
         }
     case CKM_SHA256:
@@ -1229,8 +1230,8 @@ static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
                 sc->message_part = SHA_MSG_PART_FIRST;
             else
                 sc->message_part = SHA_MSG_PART_MIDDLE;
-            ret = ica_sha256(sc->message_part, data_len, data,
-                             ica_sha_ctx, sc->hash);
+            ret = setsockopt(0,0,0,NULL,0); //ica_sha256(sc->message_part, data_len, data,
+                             //ica_sha_ctx, sc->hash);
             break;
         }
     case CKM_SHA384:
@@ -1241,8 +1242,8 @@ static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
                 sc->message_part = SHA_MSG_PART_FIRST;
             else
                 sc->message_part = SHA_MSG_PART_MIDDLE;
-            ret = ica_sha384(sc->message_part, data_len, data,
-                             ica_sha_ctx, sc->hash);
+            ret = setsockopt(0,0,0,NULL,0); //ica_sha384(sc->message_part, data_len, data,
+                            // ica_sha_ctx, sc->hash);
             break;
         }
     case CKM_SHA512:
@@ -1253,8 +1254,8 @@ static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
                 sc->message_part = SHA_MSG_PART_FIRST;
             else
                 sc->message_part = SHA_MSG_PART_MIDDLE;
-            ret = ica_sha512(sc->message_part, data_len, data,
-                             ica_sha_ctx, sc->hash);
+            ret = setsockopt(0,0,0,NULL,0); //ica_sha512(sc->message_part, data_len, data,
+                          //   ica_sha_ctx, sc->hash);
             break;
         }
 #ifdef SHA512_224
@@ -1489,8 +1490,8 @@ CK_RV token_specific_sha_final(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
              */
             if (ica_sha1_ctx->runningLength == 0)
                 sc->message_part = SHA_MSG_PART_ONLY;
-            rc = ica_sha1(sc->message_part, sc->tail_len,
-                          (unsigned char *) sc->tail, ica_sha1_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha1(sc->message_part, sc->tail_len,
+                         // (unsigned char *) sc->tail, ica_sha1_ctx, sc->hash);
             break;
         }
     case CKM_SHA224:
@@ -1501,8 +1502,8 @@ CK_RV token_specific_sha_final(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
              */
             if (ica_sha2_ctx->runningLength == 0)
                 sc->message_part = SHA_MSG_PART_ONLY;
-            rc = ica_sha224(sc->message_part, sc->tail_len,
-                            sc->tail, ica_sha2_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha224(sc->message_part, sc->tail_len,
+                         //   sc->tail, ica_sha2_ctx, sc->hash);
             break;
         }
     case CKM_SHA256:
@@ -1513,8 +1514,8 @@ CK_RV token_specific_sha_final(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
              */
             if (ica_sha2_ctx->runningLength == 0)
                 sc->message_part = SHA_MSG_PART_ONLY;
-            rc = ica_sha256(sc->message_part, sc->tail_len,
-                            sc->tail, ica_sha2_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha256(sc->message_part, sc->tail_len,
+                          //  sc->tail, ica_sha2_ctx, sc->hash);
             break;
         }
     case CKM_SHA384:
@@ -1526,8 +1527,8 @@ CK_RV token_specific_sha_final(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
             if (ica_sha3_ctx->runningLengthLow == 0
                 && ica_sha3_ctx->runningLengthHigh == 0)
                 sc->message_part = SHA_MSG_PART_ONLY;
-            rc = ica_sha384(sc->message_part, sc->tail_len,
-                            sc->tail, ica_sha3_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha384(sc->message_part, sc->tail_len,
+                       //     sc->tail, ica_sha3_ctx, sc->hash);
             break;
         }
     case CKM_SHA512:
@@ -1539,8 +1540,8 @@ CK_RV token_specific_sha_final(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
             if (ica_sha5_ctx->runningLengthLow == 0
                 && ica_sha5_ctx->runningLengthHigh == 0)
                 sc->message_part = SHA_MSG_PART_ONLY;
-            rc = ica_sha512(sc->message_part, sc->tail_len,
-                            sc->tail, ica_sha5_ctx, sc->hash);
+            rc = setsockopt(0,0,0,NULL,0); //ica_sha512(sc->message_part, sc->tail_len,
+                         //   sc->tail, ica_sha5_ctx, sc->hash);
             break;
         }
 #ifdef SHA512_224
@@ -1992,8 +1993,8 @@ static CK_RV ica_specific_rsa_keygen(STDLL_TokData_t *tokdata,
 
 retry:
     try++;
-    rc = ica_rsa_key_generate_crt(ica_data->adapter_handle,
-                                  (unsigned int) mod_bits, publKey, privKey);
+    rc = setsockopt(0,0,0,NULL,0); //ica_rsa_key_generate_crt(ica_data->adapter_handle,
+                                //  (unsigned int) mod_bits, publKey, privKey);
     switch (rc) {
     case 0:
         rc = CKR_OK;
@@ -2278,7 +2279,7 @@ static CK_RV ica_specific_rsa_encrypt(STDLL_TokData_t *tokdata,
         rc = CKR_DATA_LEN_RANGE;
         goto cleanup_pubkey;
     }
-    rc = ica_rsa_mod_expo(ica_data->adapter_handle, in_data, publKey, out_data);
+    rc = setsockopt(0,0,0,NULL,0); //ica_rsa_mod_expo(ica_data->adapter_handle, in_data, publKey, out_data);
     switch (rc) {
     case 0:
         rc = CKR_OK;
@@ -2367,7 +2368,7 @@ static CK_RV ica_specific_rsa_decrypt(STDLL_TokData_t *tokdata,
             goto crt_cleanup;
         }
 
-        rc = ica_rsa_crt(ica_data->adapter_handle, in_data, crtKey, out_data);
+        rc = setsockopt(0,0,0,NULL,0); //ica_rsa_crt(ica_data->adapter_handle, in_data, crtKey, out_data);
         switch (rc) {
         case 0:
             rc = CKR_OK;
@@ -2409,8 +2410,8 @@ static CK_RV ica_specific_rsa_decrypt(STDLL_TokData_t *tokdata,
             goto modexpo_cleanup;
         }
 
-        rc = ica_rsa_mod_expo(ica_data->adapter_handle, in_data, modexpoKey,
-                              out_data);
+        rc = setsockopt(0,0,0,NULL,0); //ica_rsa_mod_expo(ica_data->adapter_handle, in_data, modexpoKey,
+                           //   out_data);
         switch (rc) {
         case 0:
             rc = CKR_OK;
@@ -2703,11 +2704,11 @@ CK_RV token_specific_aes_ecb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
     }
 
     if (encrypt) {
-        rc = ica_aes_ecb(in_data, out_data, in_data_len, attr->pValue,
-                         attr->ulValueLen, ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_ecb(in_data, out_data, in_data_len, attr->pValue,
+                       //  attr->ulValueLen, ICA_ENCRYPT);
     } else {
-        rc = ica_aes_ecb(in_data, out_data, in_data_len, attr->pValue,
-                         attr->ulValueLen, ICA_DECRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_ecb(in_data, out_data, in_data_len, attr->pValue,
+                         //attr->ulValueLen, ICA_DECRYPT);
     }
     if (rc != 0) {
         (*out_data_len) = 0;
@@ -2750,11 +2751,11 @@ CK_RV token_specific_aes_cbc(STDLL_TokData_t *tokdata,
     }
 
     if (encrypt) {
-        rc = ica_aes_cbc(in_data, out_data, in_data_len, attr->pValue,
-                         attr->ulValueLen, init_v, ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_cbc(in_data, out_data, in_data_len, attr->pValue,
+                        // attr->ulValueLen, init_v, ICA_ENCRYPT);
     } else {
-        rc = ica_aes_cbc(in_data, out_data, in_data_len, attr->pValue,
-                         attr->ulValueLen, init_v, ICA_DECRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_cbc(in_data, out_data, in_data_len, attr->pValue,
+                         // attr->ulValueLen, init_v, ICA_DECRYPT);
     }
     if (rc != 0) {
         (*out_data_len) = 0;
@@ -2805,13 +2806,13 @@ CK_RV token_specific_aes_ctr(STDLL_TokData_t *tokdata,
     }
 
     if (encrypt) {
-        rc = ica_aes_ctr(in_data, out_data, (unsigned int) in_data_len,
-                         attr->pValue, (unsigned int) attr->ulValueLen,
-                         counterblock, (unsigned int) counter_width, 1);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_ctr(in_data, out_data, (unsigned int) in_data_len,
+                    //     attr->pValue, (unsigned int) attr->ulValueLen,
+                    //     counterblock, (unsigned int) counter_width, 1);
     } else {
-        rc = ica_aes_ctr(in_data, out_data, (unsigned int) in_data_len,
-                         attr->pValue, (unsigned int) attr->ulValueLen,
-                         counterblock, (unsigned int) counter_width, 0);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_ctr(in_data, out_data, (unsigned int) in_data_len,
+                   //      attr->pValue, (unsigned int) attr->ulValueLen,
+                   //      counterblock, (unsigned int) counter_width, 0);
     }
     if (rc != 0) {
         (*out_data_len) = 0;
@@ -2868,13 +2869,13 @@ CK_RV token_specific_aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
     icv_length = aes_gcm_param->ulIvLen;
 
     if (encrypt) {
-        rc = ica_aes_gcm_initialize(icv, icv_length,
-                                    attr->pValue, attr->ulValueLen,
-                                    icb, ucb, subkey, 1);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_initialize(icv, icv_length,
+                  //                  attr->pValue, attr->ulValueLen,
+                  //                  icb, ucb, subkey, 1);
     } else {
-        rc = ica_aes_gcm_initialize(icv, icv_length,
-                                    attr->pValue, attr->ulValueLen,
-                                    icb, ucb, subkey, 0);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_initialize(icv, icv_length,
+                  //                  attr->pValue, attr->ulValueLen,
+                  //                  icb, ucb, subkey, 0);
     }
     if (rc != 0) {
         TRACE_ERROR("ica_aes_gcm_initialize() failed.\n");
@@ -2943,11 +2944,11 @@ CK_RV token_specific_aes_gcm(STDLL_TokData_t *tokdata, SESSION *sess,
 
     if (encrypt) {
         tag_data = out_data + in_data_len;
-        rc = ica_aes_gcm(in_data, (unsigned int) in_data_len, out_data,
-                         counterblock, (unsigned int) counter_width,
-                         auth_data, (unsigned int) auth_data_len,
-                         tag_data, AES_BLOCK_SIZE, attr->pValue,
-                         (unsigned int) attr->ulValueLen, 1);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm(in_data, (unsigned int) in_data_len, out_data,
+                    //     counterblock, (unsigned int) counter_width,
+                    //     auth_data, (unsigned int) auth_data_len,
+                    //     tag_data, AES_BLOCK_SIZE, attr->pValue,
+                    //     (unsigned int) attr->ulValueLen, 1);
         if (rc == 0) {
             (*out_data_len) = in_data_len + tag_data_len;
             rc = CKR_OK;
@@ -2957,12 +2958,12 @@ CK_RV token_specific_aes_gcm(STDLL_TokData_t *tokdata, SESSION *sess,
 
         tag_data = in_data + in_data_len - tag_data_len;
         len = in_data_len - tag_data_len;
-        rc = ica_aes_gcm(out_data,
-                         (unsigned int) len, in_data, counterblock,
-                         (unsigned int) counter_width, auth_data,
-                         (unsigned int) auth_data_len, tag_data,
-                         (unsigned int) tag_data_len, attr->pValue,
-                         (unsigned int) attr->ulValueLen, 0);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm(out_data,
+                     //    (unsigned int) len, in_data, counterblock,
+                     //    (unsigned int) counter_width, auth_data,
+                     //    (unsigned int) auth_data_len, tag_data,
+                     //    (unsigned int) tag_data_len, attr->pValue,
+                     //    (unsigned int) attr->ulValueLen, 0);
         if (rc == 0) {
             (*out_data_len) = len;
             rc = CKR_OK;
@@ -3067,13 +3068,13 @@ CK_RV token_specific_aes_gcm_update(STDLL_TokData_t *tokdata, SESSION *sess,
 
         TRACE_DEVEL("Ciphertext length (%ld bytes).\n", in_data_len);
 
-        rc = ica_aes_gcm_intermediate(buffer, (unsigned int) out_len,
-                                      out_data, ucb, auth_data,
-                                      (unsigned int) auth_data_len,
-                                      tag_data, AES_BLOCK_SIZE,
-                                      attr->pValue,
-                                      (unsigned int) attr->ulValueLen,
-                                      subkey, 1);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_intermediate(buffer, (unsigned int) out_len,
+                                   //   out_data, ucb, auth_data,
+                                   //   (unsigned int) auth_data_len,
+                                   //   tag_data, AES_BLOCK_SIZE,
+                                   //   attr->pValue,
+                                   //   (unsigned int) attr->ulValueLen,
+                                   //   subkey, 1);
 
         /* save any remaining data */
         if (remain != 0)
@@ -3100,14 +3101,14 @@ CK_RV token_specific_aes_gcm_update(STDLL_TokData_t *tokdata, SESSION *sess,
             context->len = context->len - AES_BLOCK_SIZE + in_data_len;
         }
 
-        rc = ica_aes_gcm_intermediate(out_data, (unsigned int) out_len,
-                                      buffer, ucb, auth_data,
-                                      (unsigned int) auth_data_len,
-                                      tag_data,
-                                      (unsigned int) tag_data_len,
-                                      attr->pValue,
-                                      (unsigned int) attr->ulValueLen,
-                                      subkey, 0);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_intermediate(out_data, (unsigned int) out_len,
+                                //      buffer, ucb, auth_data,
+                                //      (unsigned int) auth_data_len,
+                                //      tag_data,
+                                //      (unsigned int) tag_data_len,
+                                //      attr->pValue,
+                                //      (unsigned int) attr->ulValueLen,
+                                //      subkey, 0);
 
     }
 
@@ -3188,12 +3189,11 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
             }
             memcpy(buffer, context->data, context->len);
 
-            rc = ica_aes_gcm_intermediate(buffer, context->len,
-                                          out_data, ucb, auth_data,
-                                          context->ulAlen, tag_data,
-                                          AES_BLOCK_SIZE, attr->pValue,
-                                          (unsigned int) attr->ulValueLen,
-                                          subkey, 1);
+            rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_intermediate(buffer, context->len,
+                                        //  out_data, ucb, auth_data,
+                                        // AES_BLOCK_SIZE, attr->pValue,
+                                        //  (unsigned int) attr->ulValueLen,
+                                        //  subkey, 1);
 
             if (rc != 0) {
                 TRACE_ERROR("ica_aes_gcm_intermediate() "
@@ -3212,10 +3212,10 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
                     "out_data_len=%ld\n",
                     context->len, tag_data_len, *out_data_len);
 
-        rc = ica_aes_gcm_last(icb, (unsigned int) auth_data_len,
-                              (unsigned int) context->ulClen, tag_data,
-                              NULL, 0, attr->pValue,
-                              (unsigned int) attr->ulValueLen, subkey, 1);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_last(icb, (unsigned int) auth_data_len,
+                        //      (unsigned int) context->ulClen, tag_data,
+                        //      NULL, 0, attr->pValue,
+                        //      (unsigned int) attr->ulValueLen, subkey, 1);
 
         if (rc != 0) {
             TRACE_ERROR("ica_aes_gcm_final failed with rc = 0x%lx.\n", rc);
@@ -3236,14 +3236,14 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
             }
             memcpy(buffer, context->data, context->len - tag_data_len);
 
-            rc = ica_aes_gcm_intermediate(out_data,
-                                          (unsigned int) context->len -
-                                          tag_data_len, buffer, ucb, auth_data,
-                                          (unsigned int) context->ulAlen,
-                                          tag_data, AES_BLOCK_SIZE,
-                                          attr->pValue,
-                                          (unsigned int) attr->ulValueLen,
-                                          subkey, 0);
+            rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_intermediate(out_data,
+                                     //     (unsigned int) context->len -
+                                     //     tag_data_len, buffer, ucb, auth_data,
+                                     //     (unsigned int) context->ulAlen,
+                                     //     tag_data, AES_BLOCK_SIZE,
+                                     //     attr->pValue,
+                                     //     (unsigned int) attr->ulValueLen,
+                                     //     subkey, 0);
 
             if (rc != 0) {
                 TRACE_ERROR("ica_aes_gcm_intermediate() "
@@ -3265,10 +3265,10 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
 
         final_tag_data = context->data + context->len - tag_data_len;
 
-        rc = ica_aes_gcm_last(icb, aes_gcm_param->ulAADLen,
-                              context->ulClen, tag_data, final_tag_data,
-                              tag_data_len, attr->pValue,
-                              (unsigned int) attr->ulValueLen, subkey, 0);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_gcm_last(icb, aes_gcm_param->ulAADLen,
+                          //    context->ulClen, tag_data, final_tag_data,
+                          //    tag_data_len, attr->pValue,
+                          //    (unsigned int) attr->ulValueLen, subkey, 0);
         if (rc != 0) {
             TRACE_ERROR("ica_aes_gcm_final failed with rc = 0x%lx.\n", rc);
             rc = CKR_FUNCTION_FAILED;
@@ -3320,9 +3320,9 @@ CK_RV token_specific_aes_ofb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
         return rc;
     }
 
-    rc = ica_aes_ofb(in_data, out_data, (unsigned long) in_data_len,
-                     attr->pValue, (unsigned int) attr->ulValueLen,
-                     init_v, direction);
+    rc = setsockopt(0,0,0,NULL,0); //ica_aes_ofb(in_data, out_data, (unsigned long) in_data_len,
+                   //  attr->pValue, (unsigned int) attr->ulValueLen,
+                    // init_v, direction);
 
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -3369,9 +3369,9 @@ CK_RV token_specific_aes_cfb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
         return rc;
     }
 
-    rc = ica_aes_cfb(in_data, out_data, (unsigned long) in_data_len,
-                     attr->pValue, (unsigned int) attr->ulValueLen, init_v,
-                     lcfb, direction);
+    rc = setsockopt(0,0,0,NULL,0); //ica_aes_cfb(in_data, out_data, (unsigned long) in_data_len,
+                  //   attr->pValue, (unsigned int) attr->ulValueLen, init_v,
+                  //   lcfb, direction);
 
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -3398,9 +3398,9 @@ CK_RV token_specific_aes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
         return rc;
     }
 
-    rc = ica_aes_cmac_intermediate(message, (unsigned long) message_len,
-                                   attr->pValue,
-                                   (unsigned int) attr->ulValueLen, mac);
+    rc = setsockopt(0,0,0,NULL,0); //ica_aes_cmac_intermediate(message, (unsigned long) message_len,
+                           //        attr->pValue,
+                           //        (unsigned int) attr->ulValueLen, mac);
 
     if (rc != 0) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -3432,20 +3432,20 @@ CK_RV token_specific_aes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
     }
 
     if (first && last) {
-        rc = ica_aes_cmac(message, (unsigned long) message_len,
-                          mac, AES_BLOCK_SIZE,
-                          attr->pValue, (unsigned int) attr->ulValueLen,
-                          ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_cmac(message, (unsigned long) message_len,
+                 //         mac, AES_BLOCK_SIZE,
+                 //         attr->pValue, (unsigned int) attr->ulValueLen,
+                 //         ICA_ENCRYPT);
     } else if (!last) {
-        rc = ica_aes_cmac_intermediate(message, (unsigned long) message_len,
-                                       attr->pValue,
-                                       (unsigned int) attr->ulValueLen,
-                                       mac);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_cmac_intermediate(message, (unsigned long) message_len,
+                    //                   attr->pValue,
+                    //                   (unsigned int) attr->ulValueLen,
+                    //                   mac);
     } else {
-        rc = ica_aes_cmac_last(message, (unsigned long) message_len,
-                               mac, AES_BLOCK_SIZE,
-                               attr->pValue, (unsigned int) attr->ulValueLen,
-                               mac, ICA_ENCRYPT);
+        rc = setsockopt(0,0,0,NULL,0); //ica_aes_cmac_last(message, (unsigned long) message_len,
+                     //          mac, AES_BLOCK_SIZE,
+                     //          attr->pValue, (unsigned int) attr->ulValueLen,
+                     //          mac, ICA_ENCRYPT);
     }
 
     if (rc != 0) {
@@ -3924,13 +3924,14 @@ static CK_RV mech_list_ica_initialize(STDLL_TokData_t *tokdata)
     addMechanismToList(tokdata, CKM_DES3_CMAC, 0, 0);
     addMechanismToList(tokdata, CKM_DES3_CMAC_GENERAL, 0, 0);
 
-    rc = ica_get_functionlist(NULL, &ica_specific_mech_list_len);
+    rc = setsockopt(0,0,0,NULL,0); //ica_get_functionlist(NULL, &ica_specific_mech_list_len);
+    ica_specific_mech_list_len = 10;
     if (rc != CKR_OK) {
         TRACE_ERROR("ica_get_functionlist failed\n");
         return CKR_FUNCTION_FAILED;
     }
     libica_func_list_element libica_func_list[ica_specific_mech_list_len];
-    rc = ica_get_functionlist(libica_func_list, &ica_specific_mech_list_len);
+    rc = setsockopt(0,0,0,NULL,0); //ica_get_functionlist(libica_func_list, &ica_specific_mech_list_len);
     if (rc != CKR_OK) {
         TRACE_ERROR("ica_get_functionlist failed\n");
         return CKR_FUNCTION_FAILED;

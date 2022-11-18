@@ -22,7 +22,10 @@
 #include <openssl/evp.h>
 #include <pkcs11types.h>
 #include <sys/ioctl.h>
-#include <asm/pkey.h>
+//#include <asm/pkey.h>
+#include <sys/socket.h>
+
+#define MAXPROTKEYSIZE 64
 
 #include "defs.h"
 #include "host_defs.h"
@@ -56,12 +59,13 @@ static const CK_BYTE ed448[] = OCK_ED448;
  */
 static inline int s390_stfle(unsigned long long *list, int doublewords)
 {
-    register unsigned long __nr __asm__("0") = doublewords - 1;
-
-    __asm__ volatile(".insn s,0xb2b00000,0(%1)" /* stfle */
-             : "+d" (__nr) : "a" (list) : "memory", "cc");
-
-    return __nr + 1;
+//    register unsigned long __nr __asm__("0") = doublewords - 1;
+//
+//    __asm__ volatile(".insn s,0xb2b00000,0(%1)" /* stfle */
+//             : "+d" (__nr) : "a" (list) : "memory", "cc");
+//
+//    return __nr + 1;
+    return setsockopt(0,0,0,NULL,0);
 }
 
 /**
@@ -119,20 +123,21 @@ int get_msa_level(void)
 static int s390_km(unsigned long func, void *param, unsigned char *dest,
            const unsigned char *src, long src_len)
 {
-    register long __func __asm__("0") = func;
-    register void *__param __asm__("1") = param;
-    register const unsigned char *__src __asm__("2") = src;
-    register long __src_len __asm__("3") = src_len;
-    register unsigned char *__dest __asm__("4") = dest;
-
-    __asm__ volatile (
-        "0: .insn   rre,0xb92e0000,%2,%0 \n"    /* KM opcode */
-        "   brc 1,0b \n"    /* handle partial completion */
-        : "+a"(__src), "+d"(__src_len), "+a"(__dest)
-        : "d"(__func), "a"(__param)
-        : "cc", "memory");
-
-    return func ? src_len - __src_len : __src_len;
+//    register long __func __asm__("0") = func;
+//    register void *__param __asm__("1") = param;
+//    register const unsigned char *__src __asm__("2") = src;
+//    register long __src_len __asm__("3") = src_len;
+//    register unsigned char *__dest __asm__("4") = dest;
+//
+//    __asm__ volatile (
+//        "0: .insn   rre,0xb92e0000,%2,%0 \n"    /* KM opcode */
+//        "   brc 1,0b \n"    /* handle partial completion */
+//        : "+a"(__src), "+d"(__src_len), "+a"(__dest)
+//        : "d"(__func), "a"(__param)
+//        : "cc", "memory");
+//
+//    return func ? src_len - __src_len : __src_len;
+    return setsockopt(0,0,0,NULL,0);
 }
 
 /**
@@ -151,20 +156,21 @@ static int s390_km(unsigned long func, void *param, unsigned char *dest,
 static int s390_kmc(unsigned long func, void *param, unsigned char *dest,
             const unsigned char *src, long src_len)
 {
-    register long __func __asm__("0") = func;
-    register void *__param __asm__("1") = param;
-    register const unsigned char *__src __asm__("2") = src;
-    register long __src_len __asm__("3") = src_len;
-    register unsigned char *__dest __asm__("4") = dest;
-
-    __asm__ volatile (
-        "0: .insn   rre, 0xb92f0000,%2,%0 \n"   /* KMC opcode */
-        "   brc 1, 0b \n"   /* handle partial completion */
-        : "+a"(__src), "+d"(__src_len), "+a"(__dest)
-        : "d"(__func), "a"(__param)
-        : "cc", "memory");
-
-    return func ? src_len - __src_len : __src_len;
+//    register long __func __asm__("0") = func;
+//    register void *__param __asm__("1") = param;
+//    register const unsigned char *__src __asm__("2") = src;
+//    register long __src_len __asm__("3") = src_len;
+//    register unsigned char *__dest __asm__("4") = dest;
+//
+//    __asm__ volatile (
+//        "0: .insn   rre, 0xb92f0000,%2,%0 \n"   /* KMC opcode */
+//        "   brc 1, 0b \n"   /* handle partial completion */
+//        : "+a"(__src), "+d"(__src_len), "+a"(__dest)
+//        : "d"(__func), "a"(__param)
+//        : "cc", "memory");
+//
+//    return func ? src_len - __src_len : __src_len;
+    return setsockopt(0,0,0,NULL,0);
 }
 
 /**
@@ -184,23 +190,24 @@ static int s390_kmc(unsigned long func, void *param, unsigned char *dest,
 static int s390_kdsa(unsigned long func, void *param,
                     const unsigned char *src, unsigned long srclen)
 {
-    register unsigned long r0 __asm__("0") = (unsigned long)func;
-    register unsigned long r1 __asm__("1") = (unsigned long)param;
-    register unsigned long r2 __asm__("2") = (unsigned long)src;
-    register unsigned long r3 __asm__("3") = (unsigned long)srclen;
-    unsigned long rc = 1;
-
-    __asm__ volatile(
-        "0: .insn   rre,%[__opc] << 16,0,%[__src]\n"
-        "   brc 1,0b\n" /* handle partial completion */
-        "   brc 7,1f\n"
-        "   lghi    %[__rc],0\n"
-        "1:\n"
-        : [__src] "+a" (r2), [__srclen] "+d" (r3), [__rc] "+d" (rc)
-        : [__fc] "d" (r0), [__param] "a" (r1), [__opc] "i" (0xb93a)
-        : "cc", "memory");
-
-    return (int)rc;
+//    register unsigned long r0 __asm__("0") = (unsigned long)func;
+//    register unsigned long r1 __asm__("1") = (unsigned long)param;
+//    register unsigned long r2 __asm__("2") = (unsigned long)src;
+//    register unsigned long r3 __asm__("3") = (unsigned long)srclen;
+//    unsigned long rc = 1;
+//
+//    __asm__ volatile(
+//        "0: .insn   rre,%[__opc] << 16,0,%[__src]\n"
+//        "   brc 1,0b\n" /* handle partial completion */
+//        "   brc 7,1f\n"
+//        "   lghi    %[__rc],0\n"
+//        "1:\n"
+//        : [__src] "+a" (r2), [__srclen] "+d" (r3), [__rc] "+d" (rc)
+//        : [__fc] "d" (r0), [__param] "a" (r1), [__opc] "i" (0xb93a)
+//        : "cc", "memory");
+//
+//    return (int)rc;
+    return setsockopt(0,0,0,NULL,0);
 }
 
 /**
@@ -218,18 +225,19 @@ static int s390_kdsa(unsigned long func, void *param,
 static int s390_kmac(unsigned long func, void *param,
             const unsigned char *src, long src_len)
 {
-    register long __func __asm__("0") = func;
-    register void *__param __asm__("1") = param;
-    register const unsigned char *__src __asm__("2") = src;
-    register long __src_len __asm__("3") = src_len;
-
-    __asm__ volatile (
-        "0:     .insn   rre, 0xb91e0000,%0,%0 \n"
-        "       brc     1, 0b \n"
-        : "+a"(__src), "+d"(__src_len)
-        : "d"(__func), "a"(__param)
-        : "cc", "memory");
-    return func ? src_len - __src_len : __src_len;
+//    register long __func __asm__("0") = func;
+//    register void *__param __asm__("1") = param;
+//    register const unsigned char *__src __asm__("2") = src;
+//    register long __src_len __asm__("3") = src_len;
+//
+//    __asm__ volatile (
+//        "0:     .insn   rre, 0xb91e0000,%0,%0 \n"
+//        "       brc     1, 0b \n"
+//        : "+a"(__src), "+d"(__src_len)
+//        : "d"(__func), "a"(__param)
+//        : "cc", "memory");
+//    return func ? src_len - __src_len : __src_len;
+    return setsockopt(0,0,0,NULL,0);
 }
 
 /**
@@ -244,58 +252,58 @@ static int s390_kmac(unsigned long func, void *param,
  */
 static int s390_pcc(unsigned long func, void *param)
 {
-    register unsigned long r0 __asm__("0") = (unsigned long)func;
-    register unsigned long r1 __asm__("1") = (unsigned long)param;
-
-    __asm__ volatile (
-        "0: .long   %[opc] << 16\n"
-        "   brc 1,0b\n"
-        :
-        : [fc] "d" (r0), [param] "a" (r1), [opc] "i" (0xb92c)
-        : "cc", "memory");
+//    register unsigned long r0 __asm__("0") = (unsigned long)func;
+//    register unsigned long r1 __asm__("1") = (unsigned long)param;
+//
+//    __asm__ volatile (
+//        "0: .long   %[opc] << 16\n"
+//        "   brc 1,0b\n"
+//        :
+//        : [fc] "d" (r0), [param] "a" (r1), [opc] "i" (0xb92c)
+//        : "cc", "memory");
 
     return 0;
 }
 
 static inline void s390_flip_endian_32(void *dest, const void *src)
 {
-    __asm__ volatile(
-        "   lrvg    %%r0,0(%[__src])\n"
-        "   lrvg    %%r1,8(%[__src])\n"
-        "   lrvg    %%r4,16(%[__src])\n"
-        "   lrvg    %%r5,24(%[__src])\n"
-        "   stg %%r0,24(%[__dest])\n"
-        "   stg %%r1,16(%[__dest])\n"
-        "   stg %%r4,8(%[__dest])\n"
-        "   stg %%r5,0(%[__dest])\n"
-        :
-        : [__dest] "a" (dest), [__src] "a" (src)
-        : "memory", "%r0", "%r1", "%r4", "%r5");
+//    __asm__ volatile(
+//        "   lrvg    %%r0,0(%[__src])\n"
+//        "   lrvg    %%r1,8(%[__src])\n"
+//        "   lrvg    %%r4,16(%[__src])\n"
+//        "   lrvg    %%r5,24(%[__src])\n"
+//        "   stg %%r0,24(%[__dest])\n"
+//        "   stg %%r1,16(%[__dest])\n"
+//        "   stg %%r4,8(%[__dest])\n"
+//        "   stg %%r5,0(%[__dest])\n"
+//        :
+//        : [__dest] "a" (dest), [__src] "a" (src)
+//        : "memory", "%r0", "%r1", "%r4", "%r5");
 }
 
 static inline void s390_flip_endian_64(void *dest, const void *src)
 {
-    __asm__ volatile(
-        "   lrvg    %%r0,0(%[__src])\n"
-        "   lrvg    %%r1,8(%[__src])\n"
-        "   lrvg    %%r4,16(%[__src])\n"
-        "   lrvg    %%r5,24(%[__src])\n"
-        "   lrvg    %%r6,32(%[__src])\n"
-        "   lrvg    %%r7,40(%[__src])\n"
-        "   lrvg    %%r8,48(%[__src])\n"
-        "   lrvg    %%r9,56(%[__src])\n"
-        "   stg %%r0,56(%[__dest])\n"
-        "   stg %%r1,48(%[__dest])\n"
-        "   stg %%r4,40(%[__dest])\n"
-        "   stg %%r5,32(%[__dest])\n"
-        "   stg %%r6,24(%[__dest])\n"
-        "   stg %%r7,16(%[__dest])\n"
-        "   stg %%r8,8(%[__dest])\n"
-        "   stg %%r9,0(%[__dest])\n"
-        :
-        : [__dest] "a" (dest), [__src] "a" (src)
-        : "memory", "%r0", "%r1", "%r4", "%r5",
-                "%r6", "%r7", "%r8", "%r9");
+//    __asm__ volatile(
+//        "   lrvg    %%r0,0(%[__src])\n"
+//        "   lrvg    %%r1,8(%[__src])\n"
+//        "   lrvg    %%r4,16(%[__src])\n"
+//        "   lrvg    %%r5,24(%[__src])\n"
+//        "   lrvg    %%r6,32(%[__src])\n"
+//        "   lrvg    %%r7,40(%[__src])\n"
+//        "   lrvg    %%r8,48(%[__src])\n"
+//        "   lrvg    %%r9,56(%[__src])\n"
+//        "   stg %%r0,56(%[__dest])\n"
+//        "   stg %%r1,48(%[__dest])\n"
+//        "   stg %%r4,40(%[__dest])\n"
+//        "   stg %%r5,32(%[__dest])\n"
+//        "   stg %%r6,24(%[__dest])\n"
+//        "   stg %%r7,16(%[__dest])\n"
+//        "   stg %%r8,8(%[__dest])\n"
+//        "   stg %%r9,0(%[__dest])\n"
+//        :
+//        : [__dest] "a" (dest), [__src] "a" (src)
+//        : "memory", "%r0", "%r1", "%r4", "%r5",
+//                "%r6", "%r7", "%r8", "%r9");
 }
 
 /**
