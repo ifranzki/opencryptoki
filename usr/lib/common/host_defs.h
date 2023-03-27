@@ -196,6 +196,15 @@ typedef struct _OBJECT {
     CK_ULONG count_lo;          // only significant for token objects
     CK_ULONG index;             // SAB  Index into the SHM
     CK_OBJECT_HANDLE map_handle;
+
+    /* Allow to attach external data to an object */
+    void *ex_data;
+    size_t ex_data_len;
+    pthread_rwlock_t ex_data_rwlock;
+    void (*ex_data_free)(struct _OBJECT *obj, void *ex_data,
+                         size_t ex_data_len);
+    CK_RV (*ex_data_reload)(struct _OBJECT *obj, void *ex_data,
+                            size_t ex_data_len);
 } OBJECT;
 
 
