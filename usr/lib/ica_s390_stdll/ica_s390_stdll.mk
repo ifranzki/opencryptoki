@@ -45,3 +45,8 @@ opencryptoki_stdll_libpkcs11_ica_la_LDFLAGS += -litm
 opencryptoki_stdll_libpkcs11_ica_la_SOURCES += 				\
 	usr/lib/common/btree.c usr/lib/common/sess_mgr.c
 endif
+
+if !HAVE_ALT_FIX_FOR_CVE_2022_4304
+opencryptoki_stdll_libpkcs11_ica_la_SOURCES +=				\
+	usr/lib/ica_s390_stdll/rsa_sup_mul.c
+endif
