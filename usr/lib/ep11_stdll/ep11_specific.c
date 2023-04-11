@@ -42,6 +42,7 @@
 #include "events.h"
 #include "cfgparser.h"
 #include "configuration.h"
+#include "constant_time.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -8815,8 +8816,10 @@ CK_RV ep11tok_decrypt_final(STDLL_TokData_t * tokdata, SESSION * session,
                                 target_info->target);
     RETRY_END(rc, tokdata, session)
 
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
@@ -8862,8 +8865,10 @@ CK_RV ep11tok_decrypt(STDLL_TokData_t * tokdata, SESSION * session,
                            target_info->target);
     RETRY_END(rc, tokdata, session)
 
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
@@ -8915,8 +8920,10 @@ CK_RV ep11tok_decrypt_update(STDLL_TokData_t * tokdata, SESSION * session,
                                  p_output_part_len, target_info->target);
     RETRY_END(rc, tokdata, session)
 
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
@@ -8972,8 +8979,11 @@ CK_RV ep11tok_decrypt_single(STDLL_TokData_t *tokdata, SESSION *session,
         else
             rc = CKR_KEY_SIZE_RANGE;
     RETRY_END(rc, tokdata, session)
+
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
