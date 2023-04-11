@@ -8003,6 +8003,8 @@ CK_RV ep11tok_check_single_mech_key(STDLL_TokData_t *tokdata, SESSION * session,
         goto error;
     }
 
+    INC_COUNTER(tokdata, session, mech, key_obj, POLICY_STRENGTH_IDX_0);
+
 error:
     object_put(tokdata, key_obj, TRUE);
     key_obj = NULL;
@@ -8363,6 +8365,8 @@ CK_RV ep11tok_sign_single(STDLL_TokData_t *tokdata, SESSION *session,
     OBJECT *key_obj = NULL;
     struct ECDSA_OTHER_MECH_PARAM mech_ep11;
 
+    UNUSED(length_only);
+
     rc = h_opaque_2_blob(tokdata, key, &keyblob, &keyblobsize, &key_obj,
                          READ_LOCK);
     if (rc != CKR_OK) {
@@ -8407,9 +8411,6 @@ CK_RV ep11tok_sign_single(STDLL_TokData_t *tokdata, SESSION *session,
     }
 
 done:
-    if (rc == CKR_OK && length_only == FALSE)
-        INC_COUNTER(tokdata, session, mech, key_obj, POLICY_STRENGTH_IDX_0);
-
     object_put(tokdata, key_obj, TRUE);
     key_obj = NULL;
 
@@ -8777,9 +8778,6 @@ CK_RV ep11tok_verify_single(STDLL_TokData_t *tokdata, SESSION *session,
     }
 
 done:
-    if (rc == CKR_OK || rc == CKR_SIGNATURE_INVALID)
-        INC_COUNTER(tokdata, session, mech, key_obj, POLICY_STRENGTH_IDX_0);
-
     object_put(tokdata, key_obj, TRUE);
     key_obj = NULL;
 
@@ -8948,6 +8946,8 @@ CK_RV ep11tok_decrypt_single(STDLL_TokData_t *tokdata, SESSION *session,
     CK_BYTE *keyblob;
     OBJECT *key_obj = NULL;
 
+    UNUSED(length_only);
+
     rc = h_opaque_2_blob(tokdata, key, &keyblob, &keyblobsize, &key_obj,
                          READ_LOCK);
     if (rc != CKR_OK) {
@@ -8989,10 +8989,7 @@ CK_RV ep11tok_decrypt_single(STDLL_TokData_t *tokdata, SESSION *session,
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
     }
 
-    if (rc == CKR_OK && length_only == FALSE)
-        INC_COUNTER(tokdata, session, mech, key_obj, POLICY_STRENGTH_IDX_0);
-
- done:
+done:
     object_put(tokdata, key_obj, TRUE);
     key_obj = NULL;
 
@@ -9155,6 +9152,8 @@ CK_RV ep11tok_encrypt_single(STDLL_TokData_t *tokdata, SESSION *session,
     CK_BYTE *keyblob;
     OBJECT *key_obj = NULL;
 
+    UNUSED(length_only);
+
     rc = h_opaque_2_blob(tokdata, key, &keyblob, &keyblobsize, &key_obj,
                          READ_LOCK);
     if (rc != CKR_OK) {
@@ -9203,9 +9202,6 @@ CK_RV ep11tok_encrypt_single(STDLL_TokData_t *tokdata, SESSION *session,
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
     }
-
-    if (rc == CKR_OK && length_only == FALSE)
-        INC_COUNTER(tokdata, session, mech, key_obj, POLICY_STRENGTH_IDX_0);
 
 done:
     object_put(tokdata, key_obj, TRUE);
