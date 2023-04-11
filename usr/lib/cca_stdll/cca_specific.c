@@ -40,6 +40,7 @@
 #include "trace.h"
 #include "ock_syslog.h"
 #include "cca_func.h"
+#include "constant_time.h"
 #include <openssl/crypto.h>
 
 /**
@@ -1376,16 +1377,16 @@ CK_RV token_specific_rsa_decrypt(STDLL_TokData_t * tokdata,
                 (long *) out_data_len,
                 out_data);
 
-    if (return_code != CCA_SUCCESS) {
-        TRACE_ERROR("CSNDPKD (RSA DECRYPT) failed. return:%ld, reason:%ld\n",
-                    return_code, reason_code);
-        return CKR_FUNCTION_FAILED;
-    } else if (reason_code != 0) {
-        TRACE_WARNING("CSNDPKD (RSA DECRYPT) succeeded, but"
-                      " returned reason:%ld\n", reason_code);
-    }
+    TRACE_DEVEL("CSNDPKD (RSA DECRYPT): return:%ld, reason:%ld\n",
+                return_code, reason_code);
 
-    return CKR_OK;
+    rc = constant_time_select(constant_time_eq(return_code, CCA_SUCCESS),
+                              CKR_OK, CKR_FUNCTION_FAILED);
+    rc = constant_time_select(constant_time_eq(return_code, 8) &
+                              constant_time_eq(reason_code, 66),
+                              CKR_ENCRYPTED_DATA_INVALID, rc);
+
+    return rc;
 }
 
 CK_RV token_specific_rsa_oaep_encrypt(STDLL_TokData_t *tokdata,
@@ -1598,15 +1599,14 @@ CK_RV token_specific_rsa_oaep_decrypt(STDLL_TokData_t *tokdata,
                 (long *)out_data_len,
                 out_data);
 
-    if (return_code != CCA_SUCCESS) {
-        TRACE_ERROR("CSNDPKD (RSA DECRYPT) failed. return:%ld, reason:%ld\n",
-                    return_code, reason_code);
-        rc = CKR_FUNCTION_FAILED;
-        goto done;
-    } else if (reason_code != 0) {
-        TRACE_WARNING("CSNDPKD (RSA DECRYPT) succeeded, but"
-                      " returned reason:%ld\n", reason_code);
-    }
+    TRACE_DEVEL("CSNDPKD (RSA DECRYPT): return:%ld, reason:%ld\n",
+                return_code, reason_code);
+
+    rc = constant_time_select(constant_time_eq(return_code, CCA_SUCCESS),
+                              CKR_OK, CKR_FUNCTION_FAILED);
+    rc = constant_time_select(constant_time_eq(return_code, 8) &
+                              constant_time_eq(reason_code, 2054),
+                              CKR_ENCRYPTED_DATA_INVALID, rc);
 
 done:
     object_put(tokdata, key_obj, TRUE);

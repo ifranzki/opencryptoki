@@ -39,6 +39,7 @@
 #include "ec_defs.h"
 #include "p11util.h"
 #include "events.h"
+#include "constant_time.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -7636,8 +7637,10 @@ CK_RV ep11tok_decrypt_final(STDLL_TokData_t * tokdata, SESSION * session,
                                 target_info->target);
     RETRY_END(rc, tokdata, session)
 
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
@@ -7683,8 +7686,10 @@ CK_RV ep11tok_decrypt(STDLL_TokData_t * tokdata, SESSION * session,
                            target_info->target);
     RETRY_END(rc, tokdata, session)
 
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
@@ -7736,8 +7741,10 @@ CK_RV ep11tok_decrypt_update(STDLL_TokData_t * tokdata, SESSION * session,
                                  p_output_part_len, target_info->target);
     RETRY_END(rc, tokdata, session)
 
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
@@ -7782,8 +7789,11 @@ CK_RV ep11tok_decrypt_single(STDLL_TokData_t *tokdata, SESSION *session,
                              input_data_len, output_data, p_output_data_len,
                              target_info->target);
     RETRY_END(rc, tokdata, session)
+
+    rc = constant_time_select(constant_time_eq(rc, CKR_OK),
+                              ep11_error_to_pkcs11_error(rc, session),
+                              rc);
     if (rc != CKR_OK) {
-        rc = ep11_error_to_pkcs11_error(rc, session);
         TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
     } else {
         TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
