@@ -27,3 +27,5 @@ endif
 
 include usr/sbin/pkcsslotd/pkcsslotd.mk
 include usr/sbin/pkcsconf/pkcsconf.mk
+
+include usr/sbin/p11kmip/p11kmip.mk
