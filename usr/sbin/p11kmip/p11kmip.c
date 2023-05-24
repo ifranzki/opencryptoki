@@ -52,7 +52,1447 @@
 #include <openssl/param_build.h>
 #endif
 
+/* PKCS11 */
+static void *pkcs11_lib = NULL;
+static bool pkcs11_initialized = false;
+static CK_FUNCTION_LIST *pkcs11_funcs = NULL;
+static CK_SESSION_HANDLE pkcs11_session = CK_INVALID_HANDLE;
+static CK_INFO pkcs11_info;
+static CK_TOKEN_INFO pkcs11_tokeninfo;
+static CK_SLOT_INFO pkcs11_slotinfo;
 
+/* Options */
+static bool opt_help = false;
+static bool opt_version = false;
+
+static CK_SLOT_ID opt_slot = (CK_SLOT_ID)-1;
+static char *opt_pin = NULL;
+static bool opt_force_pin_prompt = false;
+
+static char *opt_wrap_label = NULL;
+static char *opt_target_label = NULL;
+static bool opt_generate = false;
+
+/* Function prototypes */
+static CK_RV p11kmip_import_key(void);
+static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
+                                    EVP_PKEY **pkey, bool private,
+                                    CK_OBJECT_HANDLE key, const char *label);
+static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
+                               const char *label, const char *id,
+							   CK_OBJECT_HANDLE *key);
+
+static void free_attr_array_attr(CK_ATTRIBUTE *attr); // Was getting errors if I didn't add this
+
+/* Key object structure declarations */
+
+static const struct p11kmip_keytype p11kmip_aes_keytype = {
+    .name = "AES",  .type = CKK_AES, .ckk_name = "CKK_AES",
+    .keygen_mech = { .mechanism = CKM_AES_KEY_GEN, },
+    .is_asymmetric = false,
+    // .keygen_get_key_size = aes_get_key_size,
+    // .keygen_add_secret_attrs = aes_add_secret_attrs,
+    .sign_verify = true, .encrypt_decrypt = true,
+    .wrap_unwrap = true, .derive = true,
+    .filter_attr = CKA_KEY_TYPE, .filter_value = CKK_AES,
+    .keysize_attr = CKA_VALUE_LEN, 
+	// .key_keysize_adjust = aes_keysize_adjust,
+    // .secret_attrs = p11kmip_aes_attrs,
+    // .import_check_sym_keysize = p11kmip_import_check_aes_keysize,
+    // .import_sym_clear = p11kmip_import_sym_clear_des_3des_aes_generic,
+    // .export_sym_clear = p11kmip_export_sym_clear_des_3des_aes_generic,
+};
+
+static const struct p11kmip_keytype p11kmip_rsa_keytype = {
+    .name = "RSA",  .type = CKK_RSA, .ckk_name = "CKK_RSA",
+    .keygen_mech = { .mechanism = CKM_RSA_PKCS_KEY_PAIR_GEN, },
+    .is_asymmetric = true,
+    // .keygen_get_key_size = rsa_get_key_size,
+    // .keygen_add_public_attrs = rsa_add_public_attrs,
+    .sign_verify = true, .encrypt_decrypt = true,
+    .wrap_unwrap = true, .derive = false,
+    .filter_attr = CKA_KEY_TYPE, .filter_value = CKK_RSA,
+    .keysize_attr = CKA_MODULUS, .keysize_attr_value_len = true,
+    // .key_keysize_adjust = rsa_keysize_adjust,
+    // .public_attrs = p11kmip_public_rsa_attrs,
+    // .private_attrs = p11kmip_private_rsa_attrs,
+    // .import_asym_pkey = p11kmip_import_rsa_pkey,
+    .export_asym_pkey = p11kmip_export_rsa_pkey,
+};
+
+/* Commandline interface structure declarations */
+static const struct p11kmip_opt p11kmip_generic_opts[] = {
+    { .short_opt = 'h', .long_opt = "help", .required = false,
+      .arg = { .type = ARG_TYPE_PLAIN, .required = false,
+               .value.plain = &opt_help, },
+       .description = "Print this help, then exit." },
+    { .short_opt = 'v', .long_opt = "version", .required = false,
+      .arg = { .type = ARG_TYPE_PLAIN, .required = false,
+               .value.plain = &opt_version, },
+      .description = "Print version information, then exit."},
+    { .short_opt = 0, .long_opt = NULL, },
+};
+
+#define PKCS11_OPTS                                                            \
+    { .short_opt = 's', .long_opt = "slot", .required = true,                  \
+      .arg =  { .type = ARG_TYPE_NUMBER, .required = true,                     \
+                .value.number = &opt_slot, .is_set = opt_slot_is_set,          \
+                .name = "SLOT", },                                             \
+      .description = "The PKCS#11 slot ID.", },                                \
+    { .short_opt = 'p', .long_opt = "pin", .required = false,                  \
+      .arg = { .type = ARG_TYPE_STRING, .required = true,                      \
+               .value.string = &opt_pin, .name = "USER-PIN" },                 \
+      .description = "The PKCS#11 user pin. If this option is not specified, " \
+                     "and environment variable PKCS11_USER_PIN is not set, "   \
+                     "then you will be prompted for the PIN.", },              \
+    { .short_opt = 0, .long_opt = "force-pin-prompt", .required = false,       \
+      .long_opt_val = OPT_FORCE_PIN_PROMPT,                                    \
+      .arg = { .type = ARG_TYPE_PLAIN, .required = false,                      \
+               .value.plain = &opt_force_pin_prompt, },                        \
+      .description = "Enforce user PIN prompt, even if environment variable "  \
+                     "PKCS11_USER_PIN is set, or the '-p'/'--pin' option is "  \
+                     "specified.", }
+
+
+static const struct p11kmip_arg p11kmip_import_key_args[] = {
+    { .name = NULL },
+};
+static const struct p11kmip_opt p11kmip_import_key_opts[] = {
+	/*PKCS11_OPTS,*/
+	{ .short_opt = 'w', .long_opt = "wrapper-label", .required = true,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_wrap_label, .name = "WRAPPER-LABEL", },
+      .description = "The label of the public key to be used for wrapping.", },
+	{ .short_opt = 't', .long_opt = "target-label", .required = true,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_target_label, .name = "TARGET-LABEL", },
+      .description = "The label of the secret key to be imported from the "
+	  				 "KMIP server.", },
+	{ .short_opt = 'g', .long_opt = "generate", .required = false,
+      .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
+                .value.plain = &opt_generate, },
+      .description = "Generate a new secret key on the KMIP server to be"
+	  				 "imported.", },	
+};
+
+static const struct p11kmip_cmd p11kmip_commands[] = {
+    { .cmd = "import-key", .cmd_short1 = "import", .cmd_short2 = "imp",
+      .func = p11kmip_import_key,
+      .opts = p11kmip_import_key_opts, .args = p11kmip_import_key_args,
+      .description = "Import a key from a KMIP server.",
+      /*.help = print_generate_import_key_attr_help,*/
+      .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION, },
+    { .cmd = NULL, .func = NULL },
+};
+
+/* PKCS11 functions */
+
+static CK_RV load_pkcs11_lib(void)
+{
+    CK_RV rc;
+    CK_RV (*getfunclist)(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
+    const char *libname;
+
+    libname = secure_getenv(P11KMIP_PKCSLIB_ENV_NAME);
+    if (libname == NULL || strlen(libname) < 1)
+        libname = P11KMIP_DEFAULT_PKCS11_LIB;
+
+    pkcs11_lib = dlopen(libname, RTLD_NOW);
+    if (pkcs11_lib == NULL) {
+        warnx("Failed to load PKCS#11 library '%s': %s", libname, dlerror());
+        return CKR_FUNCTION_FAILED;
+    }
+
+    *(void**) (&getfunclist) = dlsym(pkcs11_lib, "C_GetFunctionList");
+    if (getfunclist == NULL) {
+        warnx("Failed to resolve symbol '%s' from PKCS#11 library '%s': %s",
+              "C_GetFunctionList", libname, dlerror());
+        return CKR_FUNCTION_FAILED;
+    }
+
+    rc = getfunclist(&pkcs11_funcs);
+    if (rc != CKR_OK) {
+        warnx("C_GetFunctionList() on PKCS#11 library '%s' failed with 0x%lX: %s)\n",
+              libname, rc, p11_get_ckr(rc));
+        return CKR_FUNCTION_FAILED;
+    }
+
+    return CKR_OK;
+}
+
+static CK_RV open_pkcs11_session(CK_SLOT_ID slot, CK_FLAGS flags,
+                                 const char *pin)
+{
+    CK_RV rc;
+
+    rc = pkcs11_funcs->C_GetInfo(&pkcs11_info);
+    if (rc != CKR_OK) {
+        warnx("Failed to getPKCS#11 info: C_GetInfo: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_GetSlotInfo(slot, &pkcs11_slotinfo);
+    if (rc != CKR_OK) {
+        warnx("Slot %lu is not available: C_GetSlotInfo: 0x%lX: %s", slot,
+              rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_GetTokenInfo(slot, &pkcs11_tokeninfo);
+    if (rc != CKR_OK) {
+        warnx("Token at slot %lu is not available: C_GetTokenInfo: 0x%lX: %s",
+              slot, rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_OpenSession(slot, flags, NULL, NULL, &pkcs11_session);
+    if (rc != CKR_OK) {
+        warnx("Opening a session failed: C_OpenSession: 0x%lX: %s)", rc,
+              p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_Login(pkcs11_session, CKU_USER, (CK_CHAR *)pin,
+                               strlen(pin));
+    if (rc != CKR_OK) {
+        warnx("Login failed: C_Login: 0x%lX: %s", rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    return CKR_OK;
+}
+
+static void close_pkcs11_session(void)
+{
+    CK_RV rc;
+
+    rc = pkcs11_funcs->C_Logout(pkcs11_session);
+    if (rc != CKR_OK && rc != CKR_USER_NOT_LOGGED_IN)
+        warnx("C_Logout failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+
+    rc = pkcs11_funcs->C_CloseSession(pkcs11_session);
+    if (rc != CKR_OK)
+        warnx("C_CloseSession failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+
+    pkcs11_session = CK_INVALID_HANDLE;
+}
+
+static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
+{
+    CK_RV rc;
+    char *buf_user_pin = NULL;
+    const char *pin = opt_pin;
+
+    if (command == NULL || command->session_flags == 0)
+        return CKR_OK;
+
+    if (pin == NULL)
+        pin = getenv(PKCS11_USER_PIN_ENV_NAME);
+    if (opt_force_pin_prompt || pin == NULL)
+        pin = pin_prompt(&buf_user_pin, "Please enter user PIN: ");
+    if (pin == NULL)
+        return CKR_FUNCTION_FAILED;
+
+    rc = load_pkcs11_lib();
+    if (rc != CKR_OK)
+        goto done;
+
+    rc = pkcs11_funcs->C_Initialize(NULL);
+    if (rc != CKR_OK) {
+        warnx("C_Initialize failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+        goto done;
+    }
+
+    pkcs11_initialized = true;
+
+    rc = open_pkcs11_session(opt_slot, command->session_flags, pin);
+    if (rc != CKR_OK)
+        goto done;
+
+done:
+    pin_free(&buf_user_pin);
+
+    return rc;
+}
+
+static void term_pkcs11(void)
+{
+    CK_RV rc;
+
+    if (pkcs11_session != CK_INVALID_HANDLE)
+        close_pkcs11_session();
+
+    if (pkcs11_funcs != NULL && pkcs11_initialized) {
+        rc = pkcs11_funcs->C_Finalize(NULL);
+        if (rc != CKR_OK)
+            warnx("C_Finalize failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+    }
+
+    if (pkcs11_lib != NULL)
+        dlclose(pkcs11_lib);
+
+    pkcs11_lib = NULL;
+    pkcs11_funcs = NULL;
+}
+
+
+/* Commandline interface functions */
+static const struct p11kmip_cmd *find_command(const char *cmd)
+{
+    unsigned int i;
+
+    for (i = 0; p11kmip_commands[i].cmd != NULL; i++) {
+        if (strcasecmp(cmd, p11kmip_commands[i].cmd) == 0)
+            return &p11kmip_commands[i];
+        if (p11kmip_commands[i].cmd_short1 != NULL &&
+            strcasecmp(cmd, p11kmip_commands[i].cmd_short1) == 0)
+            return &p11kmip_commands[i];
+        if (p11kmip_commands[i].cmd_short2 != NULL &&
+            strcasecmp(cmd, p11kmip_commands[i].cmd_short2) == 0)
+            return &p11kmip_commands[i];
+    }
+
+    return NULL;
+}
+
+
+static void count_opts(const struct p11kmip_opt *opts,
+                       unsigned int *optstring_len,
+                       unsigned int *longopts_count)
+{
+    const struct p11kmip_opt *opt;
+
+    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
+        if (opt->short_opt != 0) {
+            (*optstring_len)++;
+            if (opt->arg.type != ARG_TYPE_PLAIN) {
+                (*optstring_len)++;
+                if (!opt->arg.required)
+                    (*optstring_len)++;
+            }
+        }
+
+        if (opt->long_opt != NULL)
+            (*longopts_count)++;
+    }
+}
+
+static CK_RV build_opts(const struct p11kmip_opt *opts,
+                        char *optstring,
+                        struct option *longopts)
+{
+    const struct p11kmip_opt *opt;
+    unsigned int opts_idx, long_idx;
+
+    opts_idx = strlen(optstring);
+
+    for (long_idx = 0; longopts[long_idx].name != NULL; long_idx++)
+        ;
+
+    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
+        if (opt->short_opt != 0) {
+            optstring[opts_idx++] = opt->short_opt;
+            if (opt->arg.type != ARG_TYPE_PLAIN) {
+                optstring[opts_idx++] = ':';
+                if (!opt->arg.required)
+                    optstring[opts_idx++] = ':';
+            }
+        }
+
+        if (opt->long_opt != NULL) {
+            longopts[long_idx].name = opt->long_opt;
+            longopts[long_idx].has_arg = opt->arg.type != ARG_TYPE_PLAIN ?
+                              (opt->arg.required ?
+                                      required_argument : optional_argument ) :
+                              no_argument;
+            longopts[long_idx].flag = NULL;
+            longopts[long_idx].val = opt->short_opt != 0 ?
+                                        opt->short_opt : opt->long_opt_val;
+            long_idx++;
+        }
+    }
+
+    return CKR_OK;
+}
+
+static CK_RV build_cmd_opts(const struct p11kmip_opt *cmd_opts,
+                            char **optstring, struct option **longopts)
+{
+    unsigned int optstring_len = 0, longopts_count = 0;
+    CK_RV rc;
+
+    count_opts(p11kmip_generic_opts, &optstring_len, &longopts_count);
+    if (cmd_opts != NULL)
+        count_opts(cmd_opts, &optstring_len, &longopts_count);
+
+    *optstring = calloc(1 + optstring_len + 1, 1);
+    *longopts = calloc(longopts_count + 1, sizeof(struct option));
+    if (*optstring == NULL || *longopts == NULL) {
+        rc = CKR_HOST_MEMORY;
+        goto error;
+    }
+
+    (*optstring)[0] = ':'; /* Let getopt return ':' on missing argument */
+
+    rc = build_opts(p11kmip_generic_opts, *optstring, *longopts);
+    if (rc != CKR_OK)
+        goto error;
+
+    if (cmd_opts != NULL) {
+        rc = build_opts(cmd_opts, *optstring, *longopts);
+        if (rc != CKR_OK)
+            goto error;
+    }
+
+    return CKR_OK;
+
+error:
+    if (*optstring != NULL)
+        free(*optstring);
+    *optstring = NULL;
+
+    if (*longopts != NULL)
+        free(*longopts);
+    *longopts = NULL;
+
+    return rc;
+}
+
+static CK_RV process_plain_argument(const struct p11kmip_arg *arg)
+{
+    *arg->value.plain = true;
+
+    return CKR_OK;
+}
+
+static CK_RV process_string_argument(const struct p11kmip_arg *arg, char *val)
+{
+    *arg->value.string = val;
+
+    return CKR_OK;
+}
+
+static CK_RV process_enum_argument(const struct p11kmip_arg *arg, char *val)
+{
+    const struct p11kmip_enum_value *enum_val, *any_val = NULL;
+
+    for (enum_val = arg->enum_values; enum_val->value != NULL; enum_val++) {
+
+        if (enum_val->any_value != NULL) {
+            any_val = enum_val;
+        } else if (arg->case_sensitive ?
+                            strcasecmp(val, enum_val->value) == 0 :
+                            strcmp(val, enum_val->value) == 0) {
+
+            *arg->value.enum_value = (struct p11kmip_enum_value *)enum_val;
+            return CKR_OK;
+        }
+    }
+
+    /* process ANY enumeration value after all others */
+    if (any_val != NULL) {
+        *any_val->any_value = val;
+        *arg->value.enum_value = (struct p11kmip_enum_value *)any_val;
+        return CKR_OK;
+    }
+
+    return CKR_ARGUMENTS_BAD;
+}
+
+static CK_RV process_number_argument(const struct p11kmip_arg *arg, char *val)
+{
+    char *endptr;
+
+    *arg->value.number = strtoul(val, &endptr, 0);
+
+    if ((errno == ERANGE && *arg->value.number == ULONG_MAX) ||
+        (errno != 0 && *arg->value.number == 0) ||
+        endptr == val) {
+        return CKR_ARGUMENTS_BAD;
+    }
+
+    return CKR_OK;
+}
+
+static CK_RV processs_argument(const struct p11kmip_arg *arg, char *val)
+{
+    switch (arg->type) {
+    case ARG_TYPE_PLAIN:
+        return process_plain_argument(arg);
+    case ARG_TYPE_STRING:
+        return process_string_argument(arg, val);
+    case ARG_TYPE_ENUM:
+        return process_enum_argument(arg, val);
+    case ARG_TYPE_NUMBER:
+        return process_number_argument(arg, val);
+    default:
+        return CKR_ARGUMENTS_BAD;
+    }
+}
+
+static bool argument_is_set(const struct p11kmip_arg *arg)
+{
+    if (arg->is_set != NULL)
+       return arg->is_set(arg);
+
+    switch (arg->type) {
+    case ARG_TYPE_PLAIN:
+        return *arg->value.plain;
+    case ARG_TYPE_STRING:
+        return *arg->value.string != NULL;
+    case ARG_TYPE_ENUM:
+        return *arg->value.enum_value != NULL;
+    case ARG_TYPE_NUMBER:
+        return *arg->value.number != 0;
+    default:
+        return false;
+    }
+}
+
+static void option_arg_error(const struct p11kmip_opt *opt, const char *arg)
+{
+    if (opt->short_opt != 0 && opt->long_opt != NULL)
+        warnx("Invalid argument '%s' for option '-%c/--%s'", arg,
+             opt->short_opt, opt->long_opt);
+    else if (opt->long_opt != NULL)
+        warnx("Invalid argument '%s' for option '--%s'", arg, opt->long_opt);
+    else
+        warnx("Invalid argument '%s' for option '-%c'", arg, opt->short_opt);
+}
+
+static void option_missing_error(const struct p11kmip_opt *opt)
+{
+    if (opt->short_opt != 0 && opt->long_opt != NULL)
+        warnx("Option '-%c/--%s' is required but not specified", opt->short_opt,
+             opt->long_opt);
+    else if (opt->long_opt != NULL)
+        warnx("Option '--%s is required but not specified'", opt->long_opt);
+    else
+        warnx("Option '-%c' is required but not specified", opt->short_opt);
+}
+
+static CK_RV process_option(const struct p11kmip_opt *opts, int ch, char *val)
+{
+    const struct p11kmip_opt *opt;
+    CK_RV rc;
+
+    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
+        if (ch == (opt->short_opt != 0 ? opt->short_opt : opt->long_opt_val)) {
+            rc = processs_argument(&opt->arg, val);
+            if (rc != CKR_OK) {
+                option_arg_error(opt, val);
+                return rc;
+            }
+
+            return CKR_OK;
+        }
+    }
+
+    return CKR_ARGUMENTS_BAD;
+}
+
+static CK_RV process_cmd_option(const struct p11kmip_opt *cmd_opts,
+                                int opt, char *arg)
+{
+    CK_RV rc;
+
+    rc = process_option(p11kmip_generic_opts, opt, arg);
+    if (rc == CKR_OK)
+        return CKR_OK;
+
+    if (cmd_opts != NULL) {
+        rc = process_option(cmd_opts, opt, arg);
+        if (rc == CKR_OK)
+            return CKR_OK;
+    }
+
+    return rc;
+}
+
+static CK_RV check_required_opts(const struct p11kmip_opt *opts)
+{
+    const struct p11kmip_opt *opt;
+    CK_RV rc = CKR_OK;
+
+    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
+        if (opt->required && opt->arg.required &&
+            argument_is_set(&opt->arg) == false) {
+            option_missing_error(opt);
+            rc = CKR_ARGUMENTS_BAD;
+            /* No break, report all missing options */
+        }
+    }
+
+    return rc;
+}
+
+static CK_RV check_required_cmd_opts(const struct p11kmip_opt *cmd_opts)
+{
+    CK_RV rc;
+
+    rc = check_required_opts(p11kmip_generic_opts);
+    if (rc != CKR_OK)
+        return rc;
+
+    if (cmd_opts != NULL) {
+        rc = check_required_opts(cmd_opts);
+        if (rc != CKR_OK)
+            return rc;
+    }
+
+    return CKR_OK;
+}
+
+static CK_RV parse_cmd_options(const struct p11kmip_cmd *cmd,
+                               int argc, char *argv[])
+{
+    char *optstring = NULL;
+    struct option *longopts = NULL;
+    CK_RV rc;
+    int c;
+
+    rc = build_cmd_opts(cmd != NULL ? cmd->opts : NULL, &optstring, &longopts);
+    if (rc != CKR_OK)
+        goto done;
+
+    opterr = 0;
+    while (1) {
+        c = getopt_long(argc, argv, optstring, longopts, NULL);
+        if (c == -1)
+            break;
+
+        switch (c) {
+        case ':':
+            warnx("Option '%s' requires an argument", argv[optind - 1]);
+            rc = CKR_ARGUMENTS_BAD;
+            goto done;
+
+        case '?': /* An invalid option has been specified */
+            if (optopt)
+                warnx("Invalid option '-%c'", optopt);
+            else
+                warnx("Invalid option '%s'", argv[optind - 1]);
+            rc = CKR_ARGUMENTS_BAD;
+            goto done;
+
+        default:
+            rc = process_cmd_option(cmd != NULL ? cmd->opts : NULL, c, optarg);
+            if (rc != CKR_OK)
+                goto done;
+            break;
+        }
+    }
+
+    if (optind < argc) {
+        warnx("Invalid argument '%s'", argv[optind]);
+        rc = CKR_ARGUMENTS_BAD;
+        goto done;
+    }
+
+done:
+    if (optstring != NULL)
+        free(optstring);
+    if (longopts != NULL)
+        free(longopts);
+
+    return rc;
+}
+
+static CK_RV check_required_args(const struct p11kmip_arg *args)
+{
+    const struct p11kmip_arg *arg;
+    CK_RV rc2, rc = CKR_OK;
+
+    for (arg = args; arg != NULL && arg->name != NULL; arg++) {
+        if (arg->required && argument_is_set(arg) == false) {
+            warnx("Argument '%s' is required but not specified", arg->name);
+            rc = CKR_ARGUMENTS_BAD;
+            /* No break, report all missing arguments */
+        }
+
+        /* Check enumeration value specific arguments (if any) */
+        if (arg->type == ARG_TYPE_ENUM && *arg->value.enum_value != NULL &&
+            (*arg->value.enum_value)->args != NULL) {
+            rc2 = check_required_args((*arg->value.enum_value)->args);
+            if (rc2 != CKR_OK)
+                rc = rc2;
+            /* No break, report all missing arguments */
+        }
+    }
+
+    return rc;
+}
+
+static CK_RV parse_arguments(const struct p11kmip_arg *args,
+                             int *argc, char **argv[])
+{
+    const struct p11kmip_arg *arg;
+    CK_RV rc = CKR_OK;
+
+    for (arg = args; arg->name != NULL; arg++) {
+        if (*argc < 2 || strncmp((*argv)[1], "-", 1) == 0)
+            break;
+
+        rc = processs_argument(arg, (*argv)[1]);
+        if (rc != CKR_OK) {
+            if (rc == CKR_ARGUMENTS_BAD)
+                warnx("Invalid argument '%s' for '%s'", (*argv)[1], arg->name);
+            break;
+        }
+
+        (*argc)--;
+        (*argv)++;
+
+        /* Process enumeration value specific arguments (if any) */
+        if (arg->type == ARG_TYPE_ENUM && *arg->value.enum_value != NULL &&
+            (*arg->value.enum_value)->args != NULL) {
+            rc = parse_arguments((*arg->value.enum_value)->args, argc, argv);
+            if (rc != CKR_OK)
+                break;
+        }
+    }
+
+    return rc;
+}
+
+static CK_RV parse_cmd_arguments(const struct p11kmip_cmd *cmd,
+                                 int *argc, char **argv[])
+{
+    if (cmd == NULL)
+        return CKR_OK;
+
+    return parse_arguments(cmd->args, argc, argv);
+}
+
+static void print_indented(const char *str, int indent)
+{
+    char *word, *line, *desc, *desc_ptr;
+    int word_len, pos = indent;
+
+    desc = desc_ptr = strdup(str);
+    if (desc == NULL)
+        return;
+
+    line = strsep(&desc, "\n");
+    while (line != NULL) {
+        word = strsep(&line, " ");
+        pos = indent;
+        while (word != NULL) {
+            word_len = strlen(word);
+            if (pos + word_len + 1 > MAX_PRINT_LINE_LENGTH) {
+                printf("\n%*s", indent, "");
+                pos = indent;
+            }
+            if (pos == indent)
+                printf("%s", word);
+            else
+                printf(" %s", word);
+            pos += word_len + 1;
+            word = strsep(&line, " ");
+        }
+        if (desc)
+            printf("\n%*s", indent, "");
+        line =  strsep(&desc, "\n");
+    }
+
+    printf("\n");
+    free(desc_ptr);
+}
+
+static void print_options_help(const struct p11kmip_opt *opts)
+{
+    const struct p11kmip_opt *opt;
+    char tmp[200];
+    int len;
+
+    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
+        if (opt->short_opt != 0 && opt->long_opt != NULL)
+            len = snprintf(tmp, sizeof(tmp), "-%c, --%s", opt->short_opt,
+                           opt->long_opt);
+        else if (opt->short_opt == 0 && opt->long_opt != NULL)
+            len = snprintf(tmp, sizeof(tmp),"    --%s", opt->long_opt);
+        else
+            len = snprintf(tmp, sizeof(tmp),"-%c", opt->short_opt);
+
+        if (opt->arg.type != ARG_TYPE_PLAIN) {
+            if (opt->arg.required)
+                snprintf(&tmp[len], sizeof(tmp) - len, " %s", opt->arg.name);
+            else if (opt->long_opt == NULL)
+                snprintf(&tmp[len], sizeof(tmp) - len, "[%s]", opt->arg.name);
+            else
+                snprintf(&tmp[len], sizeof(tmp) - len, "[=%s]", opt->arg.name);
+        }
+
+        printf("    %-30.30s ", tmp);
+        print_indented(opt->description, PRINT_INDENT_POS);
+    }
+}
+
+static void print_arguments_help(const struct p11kmip_cmd *cmd,
+                                 const struct p11kmip_arg *args,
+                                 int indent)
+{
+    const struct p11kmip_arg *arg;
+    const struct p11kmip_enum_value *val;
+    int width;
+    bool newline = false;
+
+    if (indent > 0) {
+        for (arg = args; arg->name != NULL; arg++) {
+            if (arg->required)
+                printf(" %s", arg->name);
+            else
+                printf(" [%s]", arg->name);
+        }
+        printf("\n\n");
+    }
+
+    for (arg = args; arg->name != NULL; arg++) {
+        width = 30 - indent;
+        if (width < (int)strlen(arg->name))
+            width = (int)strlen(arg->name);
+
+        printf("%*s    %-*.*s ", indent, "", width, width, arg->name);
+        print_indented(arg->description, PRINT_INDENT_POS);
+
+        newline = false;
+
+        if (arg->type != ARG_TYPE_ENUM)
+            continue;
+
+        /* Enumeration: print possible values */
+        for (val = arg->enum_values; val->value != NULL; val++) {
+            if (arg == cmd->args && argument_is_set(arg) &&
+                *arg->value.enum_value != val)
+                continue;
+
+            newline = true;
+
+            printf("%*s        %s", indent, "", val->value);
+
+            if (val->args != NULL) {
+                print_arguments_help(cmd, val->args, indent + 8);
+                newline = false;
+            } else {
+                printf("\n");
+            }
+        }
+    }
+
+    if (indent > 0 || newline)
+        printf("\n");
+}
+
+static void print_help(void)
+{
+    const struct p11kmip_cmd *cmd;
+
+    printf("\n");
+    printf("Usage: p11kmip COMMAND [ARGS] [OPTIONS]\n");
+    printf("\n");
+    printf("COMMANDS:\n");
+    for (cmd = p11kmip_commands; cmd->cmd != NULL; cmd++) {
+        printf("    %-30.30s ", cmd->cmd);
+        print_indented(cmd->description, PRINT_INDENT_POS);
+    }
+    printf("\n");
+    printf("COMMON OPTIONS\n");
+    print_options_help(p11kmip_generic_opts);
+    printf("\n");
+    printf("For more information use 'p11kmip COMMAND --help'.\n");
+    printf("\n");
+}
+
+static void print_command_help(const struct p11kmip_cmd *cmd)
+{
+    printf("\n");
+    printf("Usage: p11kmip %s [ARGS] [OPTIONS]\n", cmd->cmd);
+    printf("\n");
+    printf("ARGS:\n");
+    print_arguments_help(cmd, cmd->args, 0);
+    printf("OPTIONS:\n");
+    print_options_help(cmd->opts);
+    print_options_help(p11kmip_generic_opts);
+    printf("\n");
+    if (cmd->help != NULL)
+        cmd->help();
+}
+
+static void print_version(void)
+{
+    printf("p11kmip version %s\n", PACKAGE_VERSION);
+}
+
+static bool opt_slot_is_set(const struct p11kmip_arg *arg)
+{
+    return (*arg->value.number != (CK_ULONG)-1);
+}
+
+static int openssl_err_cb(const char *str, size_t len, void *u)
+{
+    UNUSED(u);
+
+    if (str[len - 1] == '\n')
+        len--;
+
+    warnx("OpenSSL error: %.*s", (int)len, str);
+    return 1;
+}
+
+/* Key object functions */
+
+static CK_RV add_attribute(CK_ATTRIBUTE_TYPE type, const void *value,
+                           CK_ULONG value_len, CK_ATTRIBUTE **attrs,
+                           CK_ULONG *num_attrs)
+{
+    CK_ATTRIBUTE *tmp;
+
+    tmp = realloc(*attrs, (*num_attrs + 1) * sizeof(CK_ATTRIBUTE));
+    if (tmp == NULL) {
+        warnx("Failed to allocate memory for attribute list");
+        return CKR_HOST_MEMORY;
+    }
+
+    *attrs = tmp;
+
+    tmp[*num_attrs].type = type;
+    tmp[*num_attrs].ulValueLen = value_len;
+    tmp[*num_attrs].pValue = malloc(value_len);
+    if (tmp[*num_attrs].pValue == NULL) {
+        warnx("Failed to allocate memory attribute to add to list");
+        return CKR_HOST_MEMORY;
+    }
+    memcpy(tmp[*num_attrs].pValue, value, value_len);
+
+    (*num_attrs)++;
+
+    return CKR_OK;
+}
+
+static CK_RV parse_id(const char *id_string, CK_ATTRIBUTE **attrs,
+                      CK_ULONG *num_attrs)
+{
+    unsigned char *buf = NULL;
+    BIGNUM *b = NULL;
+    int len;
+    CK_RV rc = CKR_OK;
+
+    len = BN_hex2bn(&b, id_string);
+    if (len < (int)strlen(id_string)) {
+        warnx("Hex string '%s' is not valid", id_string);
+        rc = CKR_ARGUMENTS_BAD;
+        goto done;
+    }
+
+    len = len / 2 + (len % 2 > 0 ? 1 : 0);
+    buf = calloc(1, len);
+    if (buf == NULL) {
+        warnx("Failed to allocate memory for CKA_ID attribute");
+        rc = CKR_HOST_MEMORY;
+        goto done;
+    }
+
+    if (BN_bn2binpad(b, buf, len) != len) {
+        warnx("Failed to prepare the value for CKA_ID attribute");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    rc = add_attribute(CKA_ID, buf, len, attrs, num_attrs);
+    if (rc != CKR_OK) {
+        warnx("Failed to add attribute CKA_ID: 0x%lX: %s", rc, p11_get_ckr(rc));
+        goto done;
+    }
+
+done:
+    if (buf != NULL)
+        free(buf);
+    if (b != NULL)
+        BN_free(b);
+
+    return rc;
+}
+
+
+static bool is_attr_array_attr(CK_ATTRIBUTE *attr)
+{
+    switch (attr->type) {
+    case CKA_WRAP_TEMPLATE:
+    case CKA_UNWRAP_TEMPLATE:
+    case CKA_DERIVE_TEMPLATE:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+static CK_RV alloc_attr_array_attr(CK_ATTRIBUTE *attr, bool *allocated)
+{
+    CK_ULONG i, num;
+    CK_ATTRIBUTE *elem;
+    CK_RV rc;
+
+    *allocated = false;
+
+    num = attr->ulValueLen / sizeof(CK_ATTRIBUTE);
+    for (i = 0, elem = attr->pValue; i < num; i++, elem++) {
+        if (elem->ulValueLen > 0 && elem->pValue == NULL) {
+            elem->pValue = calloc(elem->ulValueLen, 1);
+            if (elem->pValue == NULL) {
+                free_attr_array_attr(attr);
+                return CKR_HOST_MEMORY;
+            }
+
+            *allocated = true;
+            continue;
+        }
+
+        if (is_attr_array_attr(elem)) {
+            rc = alloc_attr_array_attr(elem, allocated);
+            if (rc != CKR_OK) {
+                free_attr_array_attr(attr);
+                return CKR_HOST_MEMORY;
+            }
+        }
+    }
+
+    return CKR_OK;
+}
+
+static void free_attr_array_attr(CK_ATTRIBUTE *attr)
+{
+    CK_ULONG i, num;
+    CK_ATTRIBUTE *elem;
+
+    num = attr->ulValueLen / sizeof(CK_ATTRIBUTE);
+    for (i = 0, elem = attr->pValue; elem != NULL && i < num; i++, elem++) {
+        if (elem->pValue != NULL) {
+            if (is_attr_array_attr(elem))
+                free_attr_array_attr(elem);
+            free(elem->pValue);
+            elem->pValue = NULL;
+        }
+    }
+}
+
+static CK_RV get_attribute(CK_OBJECT_HANDLE key, CK_ATTRIBUTE *attr)
+{
+    bool allocated;
+    CK_RV rc;
+
+    rc = pkcs11_funcs->C_GetAttributeValue(pkcs11_session, key, attr, 1);
+    if (rc != CKR_OK)
+        return rc;
+
+    if (attr->pValue == NULL && attr->ulValueLen > 0) {
+        attr->pValue = calloc(attr->ulValueLen, 1);
+        if (attr->pValue == NULL)
+            return CKR_HOST_MEMORY;
+
+        rc = pkcs11_funcs->C_GetAttributeValue(pkcs11_session, key, attr, 1);
+    }
+
+    if (is_attr_array_attr(attr) && rc == CKR_OK &&
+        attr->pValue != NULL && attr->ulValueLen > 0) {
+        do {
+            allocated = false;
+            rc = alloc_attr_array_attr(attr, &allocated);
+            if (rc != CKR_OK)
+                return rc;
+
+            if (!allocated)
+                break;
+
+            rc = pkcs11_funcs->C_GetAttributeValue(pkcs11_session, key,
+                                                   attr, 1);
+        } while (rc == CKR_OK);
+    }
+
+    return rc;
+}
+
+static CK_RV get_bignum_attr(CK_OBJECT_HANDLE key, CK_ATTRIBUTE_TYPE type,
+                             BIGNUM **bn)
+{
+    CK_ATTRIBUTE attr;
+    CK_RV rc;
+
+    attr.type = type;
+    attr.pValue = NULL;
+    attr.ulValueLen = 0;
+
+    if (is_attr_array_attr(&attr))
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+
+    rc = get_attribute(key, &attr);
+    if (rc != CKR_OK)
+        return rc;
+
+    if (attr.ulValueLen == 0 || attr.pValue == NULL)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+    *bn = BN_new();
+    if (*bn == NULL) {
+        rc = CKR_HOST_MEMORY;
+        goto done;
+    }
+
+    if (BN_bin2bn((unsigned char *)attr.pValue, attr.ulValueLen, *bn) == NULL) {
+        rc = CKR_FUNCTION_FAILED;
+        BN_free(*bn);
+        *bn = NULL;
+        goto done;
+    }
+
+done:
+    free(attr.pValue);
+
+    return rc;
+}
+
+static void free_attributes(CK_ATTRIBUTE *attrs, CK_ULONG num_attrs)
+{
+    CK_ULONG i;
+
+    if (attrs == NULL)
+        return;
+
+    for (i = 0; i < num_attrs; i++) {
+        if (attrs[i].pValue != NULL)
+            free(attrs[i].pValue);
+    }
+
+    free(attrs);
+}
+
+/* Commands */
+
+static CK_RV p11kmip_import_key(void){
+	CK_RV rc;
+    CK_OBJECT_HANDLE wrapping_key;
+    struct p11kmip_keytype pkey_keytype;
+
+    pkey_keytype = p11kmip_rsa_keytype;
+    pkey_keytype.class = CKO_PUBLIC_KEY;
+
+	rc = p11kmip_find_key(&pkey_keytype, opt_wrap_label, NULL, &wrapping_key);
+
+    if(rc != CKR_OK)
+        goto done;
+    
+    printf("Wrapping Key Handle: 0x%lX", wrapping_key);
+
+done:
+
+	return rc;
+}
+
+/* Routines */
+
+
+static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
+                               const char *label, const char *id,
+							   CK_OBJECT_HANDLE *key){
+	CK_RV rc;
+	CK_ATTRIBUTE *attrs = NULL;
+	CK_ULONG num_attrs = 0;
+	const CK_BBOOL ck_true = CK_TRUE;
+	CK_OBJECT_HANDLE keys[FIND_OBJECTS_COUNT];
+    CK_ULONG i, num_keys;
+
+	rc = add_attribute(CKA_TOKEN, &ck_true, sizeof(ck_true), &attrs, &num_attrs);
+    if (rc != CKR_OK)
+        goto done;
+	
+	if (keytype != NULL) {
+		// Set the filter attribute, if applicable
+		if(keytype->filter_attr != (CK_ATTRIBUTE_TYPE)-1){
+			rc = add_attribute(keytype->filter_attr, &keytype->filter_value,
+							sizeof(keytype->filter_value), &attrs, &num_attrs);
+			if (rc != CKR_OK)
+				goto done;
+		}
+
+		// Set an attribute for the class to give us more
+		// granularity
+		if(keytype->class != NULL){
+			rc = add_attribute(CKA_CLASS, &keytype->class,
+							sizeof(keytype->class), &attrs, &num_attrs);
+			if (rc != CKR_OK)
+				goto done;
+		}
+    }
+
+    if (label != NULL) {
+		rc = add_attribute(CKA_LABEL, label, strlen(label),
+							&attrs, &num_attrs);
+		if (rc != CKR_OK)
+			goto done;
+    }
+
+    if (id != NULL) {
+        rc = parse_id(id, &attrs, &num_attrs);
+        if (rc != CKR_OK)
+            return rc;
+    }
+
+	rc = pkcs11_funcs->C_FindObjectsInit(pkcs11_session, attrs, num_attrs);
+    if (rc != CKR_OK) {
+        warnx("Failed to initialize the find operation: C_FindObjectsInit: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
+        goto done;
+    }
+
+	memset(keys, 0, sizeof(keys));
+	num_keys = 0;
+
+	rc = pkcs11_funcs->C_FindObjects(pkcs11_session, keys,
+										FIND_OBJECTS_COUNT, &num_keys);
+	if (rc != CKR_OK) {
+		warnx("Failed to find objects: C_FindObjects: 0x%lX: %s",
+				rc, p11_get_ckr(rc));
+		//goto done;
+	}
+
+	rc = pkcs11_funcs->C_FindObjectsFinal(pkcs11_session);
+    if (rc != CKR_OK) {
+        warnx("Failed to finalize the find operation: C_FindObjectsFinal: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
+        
+		goto done;
+    }
+
+	if(num_keys == 0){
+		// TODO: set an RC indicating that no keys
+		//	     matching that description were found
+		//       let the caller decide how to error out
+        rc = CKR_GENERAL_ERROR;
+        warnx("Failed to find key matching label");
+
+		goto done;
+	} else if(num_keys > 1){
+		// TODO: complain about not being specific enough
+
+		goto done;
+	}
+
+	// Write back the key handle
+	*key = keys[0];
+
+done:
+	free_attributes(attrs, num_attrs);
+
+	return rc;
+}
+
+static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
+                                    EVP_PKEY **pkey, bool private,
+                                    CK_OBJECT_HANDLE key, const char *label)
+{
+    BIGNUM *bn_n = NULL, *bn_e = NULL, *bn_d = NULL, *bn_iqmp = NULL;
+    BIGNUM *bn_p = NULL, *bn_q = NULL, *bn_dmp1 = NULL, *bn_dmq1 = NULL;
+#if OPENSSL_VERSION_PREREQ(3, 0)
+    EVP_PKEY_CTX *pctx = NULL;
+    OSSL_PARAM_BLD *tmpl = NULL;
+    OSSL_PARAM *params = NULL;
+#else
+    RSA *rsa = NULL;
+#endif
+    CK_RV rc;
+
+    rc = get_bignum_attr(key, CKA_MODULUS, &bn_n);
+    if (rc == CKR_ATTRIBUTE_SENSITIVE)
+        goto done;
+    if (rc != CKR_OK) {
+        warnx("Failed to retrieve attribute CKA_MODULUS from %s key "
+              "object \"%s\": 0x%lX: %s", keytype->name, label, rc,
+              p11_get_ckr(rc));
+        goto done;
+    }
+
+    rc = get_bignum_attr(key, CKA_PUBLIC_EXPONENT, &bn_e);
+    if (rc == CKR_ATTRIBUTE_SENSITIVE)
+        goto done;
+    if (rc != CKR_OK) {
+        warnx("Failed to retrieve attribute CKA_PUBLIC_EXPONENT from %s key "
+              "object \"%s\": 0x%lX: %s", keytype->name, label, rc,
+              p11_get_ckr(rc));
+        goto done;
+    }
+
+    if (private) {
+        rc = get_bignum_attr(key, CKA_PRIVATE_EXPONENT, &bn_d);
+        if (rc == CKR_ATTRIBUTE_SENSITIVE)
+            goto done;
+
+        rc = get_bignum_attr(key, CKA_PRIME_1, &bn_p);
+        if (rc == CKR_ATTRIBUTE_SENSITIVE)
+            goto done;
+
+        rc = get_bignum_attr(key, CKA_PRIME_2, &bn_q);
+        if (rc == CKR_ATTRIBUTE_SENSITIVE)
+            goto done;
+
+        rc = get_bignum_attr(key, CKA_EXPONENT_1, &bn_dmp1);
+        if (rc == CKR_ATTRIBUTE_SENSITIVE)
+            goto done;
+
+        rc = get_bignum_attr(key, CKA_EXPONENT_2, &bn_dmq1);
+        if (rc == CKR_ATTRIBUTE_SENSITIVE)
+            goto done;
+
+        rc = get_bignum_attr(key, CKA_COEFFICIENT, &bn_iqmp);
+        if (rc == CKR_ATTRIBUTE_SENSITIVE)
+            goto done;
+    }
+
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+    rsa = RSA_new();
+    if (rsa == NULL) {
+        warnx("RSA_new failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    if (RSA_set0_key(rsa, bn_n, bn_e, bn_d) != 1) {
+        warnx("RSA_set0_key failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    bn_n = bn_e = bn_d = NULL;
+
+    if (private) {
+        if (RSA_set0_factors(rsa, bn_p, bn_q) != 1) {
+            warnx("RSA_set0_factors failed.");
+            ERR_print_errors_cb(openssl_err_cb, NULL);
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
+        bn_p = bn_q = NULL;
+
+        if (RSA_set0_crt_params(rsa, bn_dmp1, bn_dmq1, bn_iqmp) != 1) {
+            warnx("RSA_set0_crt_params failed.");
+            ERR_print_errors_cb(openssl_err_cb, NULL);
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
+        bn_dmp1 = bn_dmq1 = bn_iqmp = NULL;
+    }
+
+    *pkey = EVP_PKEY_new();
+    if (*pkey == NULL) {
+        warnx("EVP_PKEY_new failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    if (EVP_PKEY_assign_RSA(*pkey, rsa) != 1) {
+        warnx("EVP_PKEY_assign_RSA failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    rsa = NULL;
+#else
+    tmpl = OSSL_PARAM_BLD_new();
+    if (tmpl == NULL) {
+        warnx("OSSL_PARAM_BLD_new failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    if (!OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_N, bn_n) ||
+        !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_E, bn_e)) {
+        warnx("OSSL_PARAM_BLD_push_BN failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    if (private) {
+        if (!OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_D, bn_d) ||
+            !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_FACTOR1, bn_p) ||
+            !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_FACTOR2, bn_q) ||
+            !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_EXPONENT1,
+                                                                   bn_dmp1) ||
+            !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_EXPONENT2,
+                                                                   bn_dmq1) ||
+            !OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
+                                                                   bn_iqmp)) {
+            warnx("OSSL_PARAM_BLD_push_BN failed.");
+            ERR_print_errors_cb(openssl_err_cb, NULL);
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
+    }
+
+    params = OSSL_PARAM_BLD_to_param(tmpl);
+    if (params == NULL) {
+        warnx("OSSL_PARAM_BLD_to_param failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (pctx == NULL) {
+        warnx("EVP_PKEY_CTX_new_id failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    if (!EVP_PKEY_fromdata_init(pctx) ||
+        !EVP_PKEY_fromdata(pctx, pkey,
+                           private ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
+                           params)) {
+        warnx("EVP_PKEY_fromdata_init/EVP_PKEY_fromdata failed.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+#endif
+
+done:
+    if (bn_n != NULL)
+        BN_free(bn_n);
+    if (bn_e != NULL)
+        BN_free(bn_e);
+    if (bn_d != NULL)
+        BN_free(bn_d);
+    if (bn_p != NULL)
+        BN_free(bn_p);
+    if (bn_q != NULL)
+        BN_free(bn_q);
+    if (bn_dmp1 != NULL)
+        BN_free(bn_dmp1);
+    if (bn_dmq1 != NULL)
+        BN_free(bn_dmq1);
+    if (bn_iqmp != NULL)
+        BN_free(bn_iqmp);
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+    if (rsa != NULL)
+        RSA_free(rsa);
+#else
+    if (pctx != NULL)
+        EVP_PKEY_CTX_free(pctx);
+    if (tmpl != NULL)
+        OSSL_PARAM_BLD_free(tmpl);
+    if (params != NULL)
+        OSSL_PARAM_free(params);
+#endif
+    if (rc != CKR_OK && *pkey != NULL) {
+        EVP_PKEY_free(*pkey);
+        *pkey = NULL;
+    }
+
+    return rc;
+}
 
 static struct kmip_conn_config kmip_config = {
 	/** Encoding used for the KMIP messages */
@@ -456,13 +1896,82 @@ out:
 
 int main(int argc, char *argv[])
 {
+	const struct p11kmip_cmd *command = NULL;
     CK_RV rc = CKR_OK;
 
-	// TODO: parse args
-    
-    
+	    /* Get p11kmip command (if any) */
+    if (argc >= 2 && strncmp(argv[1], "-", 1) != 0) {
+        command = find_command(argv[1]);
+        if (command == NULL) {
+            warnx("Invalid command '%s'", argv[1]);
+            rc = CKR_ARGUMENTS_BAD;
+            goto done;
+        }
 
-    
+        argc--;
+        argv = &argv[1];
+    }
+
+    /* Get command arguments (if any) */
+    rc = parse_cmd_arguments(command, &argc, &argv);
+    if (rc != CKR_OK)
+        goto done;
+
+    /* Get generic and command specific options (if any) */
+    rc = parse_cmd_options(command, argc, argv);
+    if (rc != CKR_OK)
+        goto done;
+
+	if (opt_help) {
+        if (command == NULL)
+            print_help();
+        else
+            print_command_help(command);
+        goto done;
+    }
+
+    if (opt_version) {
+        print_version();
+        goto done;
+    }
+
+    if (command == NULL) {
+        warnx("A command is required. Use '-h'/'--help' to see the list of "
+              "supported commands");
+        rc = CKR_ARGUMENTS_BAD;
+        goto done;
+    }
+
+    rc = check_required_args(command->args);
+    if (rc != CKR_OK)
+        goto done;
+
+    rc = check_required_cmd_opts(command->opts);
+    if (rc != CKR_OK)
+        goto done;
+
+    rc = init_pkcs11(command);
+    if (rc != CKR_OK)
+        goto done;
+
+    // rc = parse_config_file();
+    // if (rc != CKR_OK)
+    //     goto done;
+
+	/* Run the command */
+    rc = command->func();
+    if (rc != CKR_OK) {
+        // warnx("Failed to perform the '%s' command: %s", command->cmd,
+        //       p11_get_ckr(rc));
+        goto done;
+    }
+
+done:
+	term_pkcs11();
+
+	// if (p11kmip_cfg != NULL)
+    //     confignode_deepfree(p11kmip_cfg);
+
     return rc;
 }
 
