@@ -35,11 +35,17 @@
 
 #define UNUSED(var)             ((void)(var))
 
+#define OPT_FORCE_PIN_PROMPT    256
+#define OPT_DETAILED_URI        257
+#define OPT_FORCE_PEM_PWD_PROMPT 258
+
 #define MAX_PRINT_LINE_LENGTH   80
 #define PRINT_INDENT_POS        35
 
 #define FIND_OBJECTS_COUNT      64
 #define LIST_KEYTYPE_CELL_SIZE  22
+
+#define MAX_SYM_CLEAR_KEY_SIZE  64
 
 /* CLI Struct definitions */
 

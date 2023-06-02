@@ -64,7 +64,6 @@ static CK_SLOT_INFO pkcs11_slotinfo;
 /* Options */
 static bool opt_help = false;
 static bool opt_version = false;
-
 static CK_SLOT_ID opt_slot = (CK_SLOT_ID)-1;
 static char *opt_pin = NULL;
 static bool opt_force_pin_prompt = false;
@@ -74,6 +73,7 @@ static char *opt_target_label = NULL;
 static bool opt_generate = false;
 
 /* Function prototypes */
+static bool opt_slot_is_set(const struct p11kmip_arg *arg);
 static CK_RV p11kmip_import_key(void);
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
@@ -158,7 +158,7 @@ static const struct p11kmip_arg p11kmip_import_key_args[] = {
     { .name = NULL },
 };
 static const struct p11kmip_opt p11kmip_import_key_opts[] = {
-	/*PKCS11_OPTS,*/
+	PKCS11_OPTS,
 	{ .short_opt = 'w', .long_opt = "wrapper-label", .required = true,
       .arg =  { .type = ARG_TYPE_STRING, .required = true,
                 .value.string = &opt_wrap_label, .name = "WRAPPER-LABEL", },
