@@ -61,6 +61,13 @@ static CK_INFO pkcs11_info;
 static CK_TOKEN_INFO pkcs11_tokeninfo;
 static CK_SLOT_INFO pkcs11_slotinfo;
 
+/* KMIP */
+struct kmip_connection *kmip_conn = NULL;
+struct kmip_conn_config *kmip_conf = NULL;
+
+/* Configuration */
+static struct ConfigBaseNode *p11kmip_cfg = NULL;
+
 /* Options */
 static bool opt_help = false;
 static bool opt_version = false;
@@ -72,12 +79,20 @@ static char *opt_wrap_label = NULL;
 static char *opt_target_label = NULL;
 static bool opt_generate = false;
 
+static char *opt_file = NULL;
+static char *opt_pem_password = NULL;
+static bool opt_force_pem_pwd_prompt = false;
+
+/* Config */
+
 /* Function prototypes */
 static bool opt_slot_is_set(const struct p11kmip_arg *arg);
 static CK_RV p11kmip_import_key(void);
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
                                     CK_OBJECT_HANDLE key, const char *label);
+static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
+                const char *wrapping_key_label, const char *wrapped_key_blob);
 static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
                                const char *label, const char *id,
 							   CK_OBJECT_HANDLE *key);
@@ -185,157 +200,75 @@ static const struct p11kmip_cmd p11kmip_commands[] = {
     { .cmd = NULL, .func = NULL },
 };
 
-/* PKCS11 functions */
+/* KMIP connection structure declarations */
 
-static CK_RV load_pkcs11_lib(void)
-{
-    CK_RV rc;
-    CK_RV (*getfunclist)(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
-    const char *libname;
+static struct kmip_conn_config kmip_default_config = {
+	/** Encoding used for the KMIP messages */
+	.encoding = KMIP_ENCODING_TTLV,
+	/** Transport method used to deliver KMIP messages */
+	.transport = KMIP_TRANSPORT_PLAIN_TLS,
+	/**
+	 * The KMIP server.
+	 * For Plain-TLS transport, only the hostname and optional port number.
+	 * For HTTPS transport, an URL in the form
+	 * 'https://hostname[:port]/uri'
+	 */
+	.server = "0.0.0.0:5696",
+	/** The client key as an OpenSSL PKEY object. */
+	.tls_client_key = NULL,
+	/** File name of the client certificate PEM file */
+	.tls_client_cert = "/tmp/certs/client_certificate_jane_doe.pem",
+	/**
+	 * Optional: File name of the CA bundle PEM file, or a name of a
+	 * directory the multiple CA certificates. If this is NULL, then the
+	 * default system path for CA certificates is used
+	 */
+	.tls_ca = NULL,
+	/**
+	 * Optional: File name of a PEM file holding a CA certificate of the
+	 * issuer
+	 */
+	.tls_issuer_cert = NULL,
+	/**
+	 * Optional: File name of a PEM file containing the servers pinned
+	 * public key. Public key pinning requires that verify_peer or
+	 * verify_host (or both) is true.
+	 */
+	.tls_pinned_pubkey = NULL,
+	/**
+	 * Optional: File name of a PEM file containing the server's
+	 * certificate. This can be used to allow peer verification with
+	 * self-signed server certificates
+	 */
+	.tls_server_cert = NULL,
+	/** If true, the peer certificate is verified */
+	.tls_verify_peer = false,
+	/**
+	 * If true, that the server certificate is for the server it is known
+	 * as (i.e. the hostname in the url)
+	 */
+	.tls_verify_host = false,
+	/**
+	 * Optional: A list of ciphers for TLSv1.2 and below. This is a colon
+	 * separated list of cipher strings. The format of the string is
+	 * described in
+	 * https://www.openssl.org/docs/man1.1.1/man1/ciphers.html
+	 */
+	.tls_cipher_list = NULL,
+	/**
+	 * Optional: A list of ciphers for TLSv1.3. This is a colon separated
+	 * list of TLSv1.3 ciphersuite names in order of preference. Valid
+	 * TLSv1.3 ciphersuite names are:
+	 * - TLS_AES_128_GCM_SHA256
+	 * - TLS_AES_256_GCM_SHA384
+	 * - TLS_CHACHA20_POLY1305_SHA256
+	 * - TLS_AES_128_CCM_SHA256
+	 * - TLS_AES_128_CCM_8_SHA256
+	 */
+	.tls13_cipher_list = NULL
+};
 
-    libname = secure_getenv(P11KMIP_PKCSLIB_ENV_NAME);
-    if (libname == NULL || strlen(libname) < 1)
-        libname = P11KMIP_DEFAULT_PKCS11_LIB;
-
-    pkcs11_lib = dlopen(libname, RTLD_NOW);
-    if (pkcs11_lib == NULL) {
-        warnx("Failed to load PKCS#11 library '%s': %s", libname, dlerror());
-        return CKR_FUNCTION_FAILED;
-    }
-
-    *(void**) (&getfunclist) = dlsym(pkcs11_lib, "C_GetFunctionList");
-    if (getfunclist == NULL) {
-        warnx("Failed to resolve symbol '%s' from PKCS#11 library '%s': %s",
-              "C_GetFunctionList", libname, dlerror());
-        return CKR_FUNCTION_FAILED;
-    }
-
-    rc = getfunclist(&pkcs11_funcs);
-    if (rc != CKR_OK) {
-        warnx("C_GetFunctionList() on PKCS#11 library '%s' failed with 0x%lX: %s)\n",
-              libname, rc, p11_get_ckr(rc));
-        return CKR_FUNCTION_FAILED;
-    }
-
-    return CKR_OK;
-}
-
-static CK_RV open_pkcs11_session(CK_SLOT_ID slot, CK_FLAGS flags,
-                                 const char *pin)
-{
-    CK_RV rc;
-
-    rc = pkcs11_funcs->C_GetInfo(&pkcs11_info);
-    if (rc != CKR_OK) {
-        warnx("Failed to getPKCS#11 info: C_GetInfo: 0x%lX: %s",
-              rc, p11_get_ckr(rc));
-        return rc;
-    }
-
-    rc = pkcs11_funcs->C_GetSlotInfo(slot, &pkcs11_slotinfo);
-    if (rc != CKR_OK) {
-        warnx("Slot %lu is not available: C_GetSlotInfo: 0x%lX: %s", slot,
-              rc, p11_get_ckr(rc));
-        return rc;
-    }
-
-    rc = pkcs11_funcs->C_GetTokenInfo(slot, &pkcs11_tokeninfo);
-    if (rc != CKR_OK) {
-        warnx("Token at slot %lu is not available: C_GetTokenInfo: 0x%lX: %s",
-              slot, rc, p11_get_ckr(rc));
-        return rc;
-    }
-
-    rc = pkcs11_funcs->C_OpenSession(slot, flags, NULL, NULL, &pkcs11_session);
-    if (rc != CKR_OK) {
-        warnx("Opening a session failed: C_OpenSession: 0x%lX: %s)", rc,
-              p11_get_ckr(rc));
-        return rc;
-    }
-
-    rc = pkcs11_funcs->C_Login(pkcs11_session, CKU_USER, (CK_CHAR *)pin,
-                               strlen(pin));
-    if (rc != CKR_OK) {
-        warnx("Login failed: C_Login: 0x%lX: %s", rc, p11_get_ckr(rc));
-        return rc;
-    }
-
-    return CKR_OK;
-}
-
-static void close_pkcs11_session(void)
-{
-    CK_RV rc;
-
-    rc = pkcs11_funcs->C_Logout(pkcs11_session);
-    if (rc != CKR_OK && rc != CKR_USER_NOT_LOGGED_IN)
-        warnx("C_Logout failed: 0x%lX: %s", rc, p11_get_ckr(rc));
-
-    rc = pkcs11_funcs->C_CloseSession(pkcs11_session);
-    if (rc != CKR_OK)
-        warnx("C_CloseSession failed: 0x%lX: %s", rc, p11_get_ckr(rc));
-
-    pkcs11_session = CK_INVALID_HANDLE;
-}
-
-static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
-{
-    CK_RV rc;
-    char *buf_user_pin = NULL;
-    const char *pin = opt_pin;
-
-    if (command == NULL || command->session_flags == 0)
-        return CKR_OK;
-
-    if (pin == NULL)
-        pin = getenv(PKCS11_USER_PIN_ENV_NAME);
-    if (opt_force_pin_prompt || pin == NULL)
-        pin = pin_prompt(&buf_user_pin, "Please enter user PIN: ");
-    if (pin == NULL)
-        return CKR_FUNCTION_FAILED;
-
-    rc = load_pkcs11_lib();
-    if (rc != CKR_OK)
-        goto done;
-
-    rc = pkcs11_funcs->C_Initialize(NULL);
-    if (rc != CKR_OK) {
-        warnx("C_Initialize failed: 0x%lX: %s", rc, p11_get_ckr(rc));
-        goto done;
-    }
-
-    pkcs11_initialized = true;
-
-    rc = open_pkcs11_session(opt_slot, command->session_flags, pin);
-    if (rc != CKR_OK)
-        goto done;
-
-done:
-    pin_free(&buf_user_pin);
-
-    return rc;
-}
-
-static void term_pkcs11(void)
-{
-    CK_RV rc;
-
-    if (pkcs11_session != CK_INVALID_HANDLE)
-        close_pkcs11_session();
-
-    if (pkcs11_funcs != NULL && pkcs11_initialized) {
-        rc = pkcs11_funcs->C_Finalize(NULL);
-        if (rc != CKR_OK)
-            warnx("C_Finalize failed: 0x%lX: %s", rc, p11_get_ckr(rc));
-    }
-
-    if (pkcs11_lib != NULL)
-        dlclose(pkcs11_lib);
-
-    pkcs11_lib = NULL;
-    pkcs11_funcs = NULL;
-}
-
+/* KMIP request structure declarations */
 
 /* Commandline interface functions */
 static const struct p11kmip_cmd *find_command(const char *cmd)
@@ -940,6 +873,384 @@ static int openssl_err_cb(const char *str, size_t len, void *u)
     return 1;
 }
 
+static int p11kmip_pem_password_cb(char *buf, int size, int rwflag,
+                                  void *userdata)
+{
+    const char *pem_password = opt_pem_password;
+    char *buf_pem_password = NULL;
+    char *msg = NULL;
+    int len;
+
+    UNUSED(rwflag);
+    UNUSED(userdata);
+
+    if (pem_password == NULL)
+        pem_password = getenv(PKCS11_PEM_PASSWORD_ENV_NAME);
+
+    if (opt_force_pem_pwd_prompt || pem_password == NULL) {
+        if (asprintf(&msg, "Please enter PEM password for '%s': ",
+                     opt_file) <= 0) {
+            warnx("Failed to allocate memory for message");
+            return -1;
+        }
+        pem_password = pin_prompt(&buf_pem_password, msg);
+        free(msg);
+        if (pem_password == NULL) {
+            warnx("Failed to prompt for PEM password");
+            return -1;
+        }
+    }
+
+    len = strlen(pem_password);
+    if (len > size) {
+        warnx("PEM password is too long");
+        return -1;
+    }
+
+    strncpy(buf, pem_password, size);
+
+    pin_free(&buf_pem_password);
+
+    return len;
+}
+
+/********************/
+/* PKCS11 functions */
+/********************/
+
+static CK_RV load_pkcs11_lib(void)
+{
+    CK_RV rc;
+    CK_RV (*getfunclist)(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
+    const char *libname;
+
+    libname = secure_getenv(P11KMIP_PKCSLIB_ENV_NAME);
+    if (libname == NULL || strlen(libname) < 1)
+        libname = P11KMIP_DEFAULT_PKCS11_LIB;
+
+    pkcs11_lib = dlopen(libname, RTLD_NOW);
+    if (pkcs11_lib == NULL) {
+        warnx("Failed to load PKCS#11 library '%s': %s", libname, dlerror());
+        return CKR_FUNCTION_FAILED;
+    }
+
+    *(void**) (&getfunclist) = dlsym(pkcs11_lib, "C_GetFunctionList");
+    if (getfunclist == NULL) {
+        warnx("Failed to resolve symbol '%s' from PKCS#11 library '%s': %s",
+              "C_GetFunctionList", libname, dlerror());
+        return CKR_FUNCTION_FAILED;
+    }
+
+    rc = getfunclist(&pkcs11_funcs);
+    if (rc != CKR_OK) {
+        warnx("C_GetFunctionList() on PKCS#11 library '%s' failed with 0x%lX: %s)\n",
+              libname, rc, p11_get_ckr(rc));
+        return CKR_FUNCTION_FAILED;
+    }
+
+    return CKR_OK;
+}
+
+static CK_RV open_pkcs11_session(CK_SLOT_ID slot, CK_FLAGS flags,
+                                 const char *pin)
+{
+    CK_RV rc;
+
+    rc = pkcs11_funcs->C_GetInfo(&pkcs11_info);
+    if (rc != CKR_OK) {
+        warnx("Failed to getPKCS#11 info: C_GetInfo: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_GetSlotInfo(slot, &pkcs11_slotinfo);
+    if (rc != CKR_OK) {
+        warnx("Slot %lu is not available: C_GetSlotInfo: 0x%lX: %s", slot,
+              rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_GetTokenInfo(slot, &pkcs11_tokeninfo);
+    if (rc != CKR_OK) {
+        warnx("Token at slot %lu is not available: C_GetTokenInfo: 0x%lX: %s",
+              slot, rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_OpenSession(slot, flags, NULL, NULL, &pkcs11_session);
+    if (rc != CKR_OK) {
+        warnx("Opening a session failed: C_OpenSession: 0x%lX: %s)", rc,
+              p11_get_ckr(rc));
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_Login(pkcs11_session, CKU_USER, (CK_CHAR *)pin,
+                               strlen(pin));
+    if (rc != CKR_OK) {
+        warnx("Login failed: C_Login: 0x%lX: %s", rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    return CKR_OK;
+}
+
+static void close_pkcs11_session(void)
+{
+    CK_RV rc;
+
+    rc = pkcs11_funcs->C_Logout(pkcs11_session);
+    if (rc != CKR_OK && rc != CKR_USER_NOT_LOGGED_IN)
+        warnx("C_Logout failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+
+    rc = pkcs11_funcs->C_CloseSession(pkcs11_session);
+    if (rc != CKR_OK)
+        warnx("C_CloseSession failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+
+    pkcs11_session = CK_INVALID_HANDLE;
+}
+
+static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
+{
+    CK_RV rc;
+    char *buf_user_pin = NULL;
+    const char *pin = opt_pin;
+
+    if (command == NULL || command->session_flags == 0)
+        return CKR_OK;
+
+    if (pin == NULL)
+        pin = getenv(PKCS11_USER_PIN_ENV_NAME);
+    if (opt_force_pin_prompt || pin == NULL)
+        pin = pin_prompt(&buf_user_pin, "Please enter user PIN: ");
+    if (pin == NULL)
+        return CKR_FUNCTION_FAILED;
+
+    rc = load_pkcs11_lib();
+    if (rc != CKR_OK)
+        goto done;
+
+    rc = pkcs11_funcs->C_Initialize(NULL);
+    if (rc != CKR_OK) {
+        warnx("C_Initialize failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+        goto done;
+    }
+
+    pkcs11_initialized = true;
+
+    rc = open_pkcs11_session(opt_slot, command->session_flags, pin);
+    if (rc != CKR_OK)
+        goto done;
+
+done:
+    pin_free(&buf_user_pin);
+
+    return rc;
+}
+
+static void term_pkcs11(void)
+{
+    CK_RV rc;
+
+    if (pkcs11_session != CK_INVALID_HANDLE)
+        close_pkcs11_session();
+
+    if (pkcs11_funcs != NULL && pkcs11_initialized) {
+        rc = pkcs11_funcs->C_Finalize(NULL);
+        if (rc != CKR_OK)
+            warnx("C_Finalize failed: 0x%lX: %s", rc, p11_get_ckr(rc));
+    }
+
+    if (pkcs11_lib != NULL)
+        dlclose(pkcs11_lib);
+
+    pkcs11_lib = NULL;
+    pkcs11_funcs = NULL;
+}
+
+/*******************/
+/* KMIP  functions */
+/*******************/
+
+/**
+ * @brief Uses the contents of the config file and the
+ * commandline arguments to construct the configuration
+ * for the KMIP connection. For optional fields it will
+ * use default values if none are found; for required fields
+ * it will throw an error if they are missing.
+ * 
+ * @return CK_RV 
+ */
+static CK_RV build_kmip_config(void)
+{
+    CK_RV rc;
+    int f;
+    struct ConfigBaseNode *c, *host, *tls_client_cert;
+    struct ConfigStructNode *structnode;
+    bool found;
+	FILE *tls_client_cert_file;
+
+    /* Populate the kmip_config global with static defaults */
+    kmip_conf = &kmip_default_config;
+
+    /* Iterate the configuration node(s) */
+    confignode_foreach(c, p11kmip_cfg, f) {
+        if (!confignode_hastype(c, CT_STRUCT) ||
+            strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0){
+            continue;
+        } else if(found){
+            warnx("Syntax error in config file: '%s' specified multiple times\n",
+                  P11KMIP_CONFIG_KEYWORD_SERVER);
+            rc = -EINVAL;
+            goto done;
+        }
+           
+        structnode = confignode_to_struct(c);
+        host = confignode_find(structnode->value,
+                               P11KMIP_CONFIG_KEYWORD_HOST);
+        tls_client_cert = confignode_find(structnode->value,
+                               P11KMIP_CONFIG_KEYWORD_CLIENT_CERT);
+
+        // Ensure all the fields are the right type and
+        // were specificied with the right combinations
+        if (host != NULL && !confignode_hastype(host, CT_BAREVAL)){
+            warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                  P11KMIP_CONFIG_KEYWORD_HOST, c->line);
+            rc = -EINVAL;
+            goto done;
+        }
+        if (tls_client_cert != NULL && !confignode_hastype(tls_client_cert, CT_BAREVAL)){
+            warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                  P11KMIP_CONFIG_KEYWORD_CLIENT_CERT, c->line);
+            rc = -EINVAL;
+            goto done;
+        }
+    }
+    
+    if(host != NULL){
+        kmip_conf->server = confignode_to_bareval(host)->value;
+    }
+
+    if(tls_client_cert != NULL){
+        tls_client_cert_file = 
+            fopen(confignode_to_bareval(tls_client_cert)->value,"rt");
+
+        if(tls_client_cert_file == NULL){
+            warnx("Unable to open %s for TLS client certificate",
+                confignode_to_bareval(tls_client_cert)->value);
+            rc = -EINVAL;
+            goto done;
+        }
+
+        kmip_conf->tls_client_key = PEM_read_PrivateKey(
+            tls_client_cert_file, NULL,
+            p11kmip_pem_password_cb,NULL);
+        fclose(tls_client_cert_file);
+    }
+
+    /* Processing for other options goes here                     */
+    /* it should also be possible to pass in the client cert file */
+    /* through the commandline                                    */
+
+    if(kmip_conf->tls_client_key == NULL){
+        warnx("TLS client key was not provided through configuration\
+            or commandline options");
+        rc = -EINVAL;
+        goto done;
+    }
+
+done:
+
+	return CKR_OK;
+}
+
+static CK_RV free_kmip_config(void)
+{
+	EVP_PKEY_free(kmip_conf->tls_client_key);
+
+	return CKR_OK;
+}
+
+static CK_RV init_kmip(void){
+    CK_RV rc;
+    rc = CKR_OK;
+
+    rc = build_kmip_config();
+
+    if(rc != CKR_OK)
+        goto done;
+
+    rc = kmip_connection_new(kmip_conf,kmip_conn, true);
+
+    if(rc != CKR_OK)
+        goto done;
+
+done: 
+
+    return rc;
+}
+
+static void term_kmip(void){
+    if(kmip_conn != NULL)
+        kmip_connection_free(kmip_conn);
+}
+
+/********************************/
+/* Configuration file functions */
+/********************************/
+
+static void parse_config_file_error_hook(int line, int col, const char *msg)
+{
+  warnx("Parse error: %d:%d: %s", line, col, msg);
+}
+
+static CK_RV parse_config_file(void)
+{
+    FILE *fp = NULL;
+    char *file_loc = getenv(P11KMIP_DEFAULT_CONF_FILE_ENV_NAME);
+    char pathname[PATH_MAX];
+    struct passwd *pw;
+
+    if (file_loc != NULL) {
+        fp = fopen(file_loc, "r");
+        if (fp == NULL) {
+            warnx("Cannot read config file '%s' (specified via env variable %s): %s",
+                  file_loc, P11KMIP_DEFAULT_CONF_FILE_ENV_NAME, strerror(errno));
+            warnx("Printing of custom attributes not available.");
+            return CKR_OK;
+        }
+    } else {
+        pw = getpwuid(geteuid());
+        if (pw != NULL) {
+            snprintf(pathname, sizeof(pathname), "%s/.%s", pw->pw_dir,
+                     P11KMIP_CONFIG_FILE_NAME);
+            file_loc = pathname;
+            fp = fopen(file_loc, "r");
+        }
+        if (fp == NULL) {
+            file_loc = P11KMIP_DEFAULT_CONFIG_FILE;
+            fp = fopen(file_loc, "r");
+            if (fp == NULL) {
+                warnx("Cannot read config file '%s': %s",
+                       file_loc, strerror(errno));
+                warnx("Printing of custom attributes not available.");
+                return CKR_OK;
+            }
+        }
+    }
+
+    if (parse_configlib_file(fp, &p11kmip_cfg,
+                             parse_config_file_error_hook, 0)) {
+        warnx("Failed to parse config file '%s'", file_loc);
+        fclose(fp);
+        return CKR_DATA_INVALID;
+    }
+
+    fclose(fp);
+
+    return CKR_OK;
+}
+
+
 /* Key object functions */
 
 static CK_RV add_attribute(CK_ATTRIBUTE_TYPE type, const void *value,
@@ -1169,20 +1480,76 @@ static void free_attributes(CK_ATTRIBUTE *attrs, CK_ULONG num_attrs)
 
 /* Commands */
 
+/**
+ * Registers a public key with a KMIP server, retrieves a secret key from
+ * the KMIP server wrapped with that public key, and then unwraps and imports
+ * the secret key locally
+ * 
+ * global opt_wrap_label        wrapping key label
+ * gloabl opt_target_label      target key label
+ * 
+ * @return CK_RV 
+ */
 static CK_RV p11kmip_import_key(void){
 	CK_RV rc;
-    CK_OBJECT_HANDLE wrapping_key;
-    struct p11kmip_keytype pkey_keytype;
+    CK_OBJECT_HANDLE wrapping_pubkey, wrapping_privkey;
+    struct p11kmip_keytype pubkey_keytype, privkey_keytype;
 
-    pkey_keytype = p11kmip_rsa_keytype;
-    pkey_keytype.class = CKO_PUBLIC_KEY;
+    pubkey_keytype = p11kmip_rsa_keytype;
+    pubkey_keytype.class = CKO_PUBLIC_KEY;
 
-	rc = p11kmip_find_key(&pkey_keytype, opt_wrap_label, NULL, &wrapping_key);
+    privkey_keytype = p11kmip_rsa_keytype;
+    privkey_keytype.class = CKO_PRIVATE_KEY;
+
+    /*
+    Ways to deal with wrapping key and target key
+
+        - Wrapping key
+            - public key
+                - *specify the label of the local key
+                - pass in the key material through the commandline
+                - specify a file containing the public key
+            - private key
+                - *assumed to have the same label as the public key
+                - specify a different label
+                - specify a file containing the private key
+        - Target key
+            - *specify the label on the KMIP server
+            - specify the local label if different
+            - maybe allow generation of new key on
+            KMIP server
+    */
+
+	rc = p11kmip_find_key(&pubkey_keytype, opt_wrap_label, NULL, &wrapping_pubkey);
 
     if(rc != CKR_OK)
         goto done;
     
-    printf("Wrapping Key Handle: 0x%lX", wrapping_key);
+    printf("Wrapping Public Key Handle: 0x%lX\n", wrapping_pubkey);
+
+    rc = p11kmip_find_key(&privkey_keytype, opt_wrap_label, NULL, &wrapping_privkey);
+
+    if(rc != CKR_OK)
+        goto done;
+
+    printf("Wrapping Private Key Handle: 0x%lX\n", wrapping_privkey);
+
+    /* Here I would want to make some kind of call to the
+       KMIP server to verify that a key with the handle specified does
+       exist already and matches the algorithm we expect. This avoids
+       sending the public key when it is not necessary and provides the
+       user with an earlier error. */
+
+    // rc = p11kmip_check_label_server(opt_target_label);
+
+    /* Next we send the public key to the server */
+    // rc = p11kmip_register_key_server(wrapping_pubkey, opt_wrap_label, kmip_connection);
+
+    /* Next we retrieve the wrapped key */
+    // rc = p11kmip_retrieve_wrapped_key_server(wrapped_key_pl, opt_wrap_label, opt_target_label, kmip_connection);
+
+    /* Lastly we unwrap the retrieved key */
+    // rc = p11kmip_unwrap_key(wrapped_key_pl, opt_target_label, wrapping_privkey);
 
 done:
 
@@ -1191,7 +1558,38 @@ done:
 
 /* Routines */
 
+/**
+ * Sends a request to a KMIP server to retrieve a secret key wrapped in a
+ * wrapping key. Expects the wrapping key to already be available on the server.
+ * 
+ * @param wrapped_key_label     label of the target key
+ * @param wrapping_key_label    label of the wrapping key
+ * @param wrapped_key_blob      buffer containing wrapped key
+ * global kmip_connection       structure for KMIP server connection
+ * 
+ * @return CK_RV 
+ */
+static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
+                const char *wrapping_key_label, const char *wrapped_key_blob)
+{
+    CK_RV rc = 0;
 
+    return rc;
+}
+
+/**
+ * Finds a key matching the label or id, or the class or filter attribute
+ * of the key type, or any combination thereof. Expects to find exactly one
+ * key matching these criteria, and returns it in the key parameter.
+ * 
+ * @param keytype       attributes and class of key
+ * @param label         label of key
+ * @param id            id of key
+ * @param key           handle return if key is found
+ * global pkcs11_funcs  used to call PKCS11 functions
+ * 
+ * @return CK_RV 
+ */
 static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
                                const char *label, const char *id,
 							   CK_OBJECT_HANDLE *key){
@@ -1494,114 +1892,10 @@ done:
     return rc;
 }
 
-static struct kmip_conn_config kmip_config = {
-	/** Encoding used for the KMIP messages */
-	.encoding = KMIP_ENCODING_TTLV,
-	/** Transport method used to deliver KMIP messages */
-	.transport = KMIP_TRANSPORT_PLAIN_TLS,
-	/**
-	 * The KMIP server.
-	 * For Plain-TLS transport, only the hostname and optional port number.
-	 * For HTTPS transport, an URL in the form
-	 * 'https://hostname[:port]/uri'
-	 */
-	.server = "0.0.0.0:5696",
-	/** The client key as an OpenSSL PKEY object. */
-	.tls_client_key = NULL,
-	/** File name of the client certificate PEM file */
-	.tls_client_cert = "/tmp/certs/client_certificate_jane_doe.pem",
-	/**
-	 * Optional: File name of the CA bundle PEM file, or a name of a
-	 * directory the multiple CA certificates. If this is NULL, then the
-	 * default system path for CA certificates is used
-	 */
-	.tls_ca = NULL,
-	/**
-	 * Optional: File name of a PEM file holding a CA certificate of the
-	 * issuer
-	 */
-	.tls_issuer_cert = NULL,
-	/**
-	 * Optional: File name of a PEM file containing the servers pinned
-	 * public key. Public key pinning requires that verify_peer or
-	 * verify_host (or both) is true.
-	 */
-	.tls_pinned_pubkey = NULL,
-	/**
-	 * Optional: File name of a PEM file containing the server's
-	 * certificate. This can be used to allow peer verification with
-	 * self-signed server certificates
-	 */
-	.tls_server_cert = NULL,
-	/** If true, the peer certificate is verified */
-	.tls_verify_peer = false,
-	/**
-	 * If true, that the server certificate is for the server it is known
-	 * as (i.e. the hostname in the url)
-	 */
-	.tls_verify_host = false,
-	/**
-	 * Optional: A list of ciphers for TLSv1.2 and below. This is a colon
-	 * separated list of cipher strings. The format of the string is
-	 * described in
-	 * https://www.openssl.org/docs/man1.1.1/man1/ciphers.html
-	 */
-	.tls_cipher_list = NULL,
-	/**
-	 * Optional: A list of ciphers for TLSv1.3. This is a colon separated
-	 * list of TLSv1.3 ciphersuite names in order of preference. Valid
-	 * TLSv1.3 ciphersuite names are:
-	 * - TLS_AES_128_GCM_SHA256
-	 * - TLS_AES_256_GCM_SHA384
-	 * - TLS_CHACHA20_POLY1305_SHA256
-	 * - TLS_AES_128_CCM_SHA256
-	 * - TLS_AES_128_CCM_8_SHA256
-	 */
-	.tls13_cipher_list = NULL
-};
-
 static int passwd_callback(char *pcszBuff,int size,int rwflag, void *pPass);
 const char *pcszPassphrase = "";
 
-/***********************************************/
-/* KMIP configuration and connection functions */
-/***********************************************/
 
-static CK_RV build_kmip_config(void)
-{
-	FILE *pFile = fopen("/tmp/certs/client_key_jane_doe.pem","rt");
-    kmip_config.tls_client_key = PEM_read_PrivateKey(pFile,NULL,passwd_callback,(void*)pcszPassphrase);
-
-	fclose(pFile);
-
-	return CKR_OK;
-}
-
-static CK_RV free_kmip_config(void)
-{
-	EVP_PKEY_free(kmip_config.tls_client_key);
-
-	return CKR_OK;
-}
-
-static CK_RV open_kmip_connection(void)
-{
-	CK_RV rc;
-	struct kmip_connection *kmip_conn;
-
-	rc = kmip_connection_new(&kmip_config,&kmip_conn, true);
-
-	return CKR_OK;
-}
-
-static CK_RV close_kmip_connection(struct kmip_connection *kmip_conn)
-{
-	CK_RV rc;
-
-	kmip_connection_free(kmip_conn);
-
-	return CKR_OK;
-}
 
 /**
  * Build a KMIP request with the up to 2 operations and payloads
@@ -1954,23 +2248,27 @@ int main(int argc, char *argv[])
     if (rc != CKR_OK)
         goto done;
 
-    // rc = parse_config_file();
-    // if (rc != CKR_OK)
-    //     goto done;
+    rc = init_kmip();
+    if (rc != CKR_OK)
+        goto done;
+
+    rc = parse_config_file();
+    if (rc != CKR_OK)
+        goto done;
 
 	/* Run the command */
     rc = command->func();
     if (rc != CKR_OK) {
-        // warnx("Failed to perform the '%s' command: %s", command->cmd,
-        //       p11_get_ckr(rc));
+        warnx("Failed to perform the '%s' command: %s", command->cmd,
+              p11_get_ckr(rc));
         goto done;
     }
 
 done:
 	term_pkcs11();
 
-	// if (p11kmip_cfg != NULL)
-    //     confignode_deepfree(p11kmip_cfg);
+	if (p11kmip_cfg != NULL)
+        confignode_deepfree(p11kmip_cfg);
 
     return rc;
 }

@@ -23,15 +23,10 @@
 #define P11KMIP_CONFIG_FILE_NAME             "p11kmip_defined_attrs.conf"
 #define P11KMIP_DEFAULT_CONFIG_FILE          OCK_CONFDIR "/" P11KMIP_CONFIG_FILE_NAME
 
-#define P11KMIP_CONFIG_KEYWORD_ATTRIBUTE     "attribute"
-#define P11KMIP_CONFIG_KEYWORD_NAME          "name"
-#define P11KMIP_CONFIG_KEYWORD_ID            "id"
-#define P11KMIP_CONFIG_KEYWORD_TYPE          "type"
-
-#define P11KMIP_CONFIG_TYPE_BOOL             "CK_BBOOL"
-#define P11KMIP_CONFIG_TYPE_ULONG            "CK_ULONG"
-#define P11KMIP_CONFIG_TYPE_BYTE             "CK_BYTE"
-#define P11KMIP_CONFIG_TYPE_DATE             "CK_DATE"
+#define P11KMIP_CONFIG_KEYWORD_SERVER        "server"
+#define P11KMIP_CONFIG_KEYWORD_HOST          "host"
+#define P11KMIP_CONFIG_KEYWORD_PORT          "port"
+#define P11KMIP_CONFIG_KEYWORD_CLIENT_CERT   "tls_client_cert"
 
 #define UNUSED(var)             ((void)(var))
 
