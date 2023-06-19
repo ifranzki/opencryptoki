@@ -27,6 +27,7 @@
 #define P11KMIP_CONFIG_KEYWORD_HOST          "host"
 #define P11KMIP_CONFIG_KEYWORD_PORT          "port"
 #define P11KMIP_CONFIG_KEYWORD_CLIENT_CERT   "tls_client_cert"
+#define P11KMIP_CONFIG_KEYWORD_CLIENT_KEY    "tls_client_key"
 
 #define UNUSED(var)             ((void)(var))
 

@@ -217,7 +217,7 @@ static struct kmip_conn_config kmip_default_config = {
 	/** The client key as an OpenSSL PKEY object. */
 	.tls_client_key = NULL,
 	/** File name of the client certificate PEM file */
-	.tls_client_cert = "/tmp/certs/client_certificate_jane_doe.pem",
+	.tls_client_cert = NULL,
 	/**
 	 * Optional: File name of the CA bundle PEM file, or a name of a
 	 * directory the multiple CA certificates. If this is NULL, then the
@@ -1071,6 +1071,19 @@ static void term_pkcs11(void)
 /* KMIP  functions */
 /*******************/
 
+//static int passwd_callback(char *pcszBuff,int size,int rwflag, void *pPass);
+const char *pcszPassphrase = "";
+
+int passwd_callback(char *pcszBuff,int size,int rwflag, void *pPass)
+{
+    size_t unPass = strlen((char*)pPass);
+    if(unPass > (size_t)size)
+        unPass = (size_t)size;
+    memcpy(pcszBuff, pPass, unPass);
+    return (int)unPass;
+}
+
+
 /**
  * @brief Uses the contents of the config file and the
  * commandline arguments to construct the configuration
@@ -1084,77 +1097,102 @@ static CK_RV build_kmip_config(void)
 {
     CK_RV rc;
     int f;
-    struct ConfigBaseNode *c, *host, *tls_client_cert;
+    struct ConfigBaseNode *c, *host, *tls_client_cert, *tls_client_key;
     struct ConfigStructNode *structnode;
     bool found;
-	FILE *tls_client_cert_file;
+	BIO *tls_client_key_bio;
 
     /* Populate the kmip_config global with static defaults */
     kmip_conf = &kmip_default_config;
 
-    /* Iterate the configuration node(s) */
-    confignode_foreach(c, p11kmip_cfg, f) {
-        if (!confignode_hastype(c, CT_STRUCT) ||
-            strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0){
-            continue;
-        } else if(found){
-            warnx("Syntax error in config file: '%s' specified multiple times\n",
-                  P11KMIP_CONFIG_KEYWORD_SERVER);
-            rc = -EINVAL;
-            goto done;
-        }
-           
-        structnode = confignode_to_struct(c);
-        host = confignode_find(structnode->value,
-                               P11KMIP_CONFIG_KEYWORD_HOST);
-        tls_client_cert = confignode_find(structnode->value,
-                               P11KMIP_CONFIG_KEYWORD_CLIENT_CERT);
+    /* The lack of a config file, by itself, is not fatal,  */
+    /* because all the required information can potentially */
+    /* be provided through commandline arguements           */
+    if(p11kmip_cfg != NULL){
+        /* Iterate the configuration node(s) */
+        confignode_foreach(c, p11kmip_cfg, f) {
+            if (!confignode_hastype(c, CT_STRUCT) ||
+                strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0){
+                continue;
+            } else if(found){
+                warnx("Syntax error in config file: '%s' specified multiple times\n",
+                    P11KMIP_CONFIG_KEYWORD_SERVER);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            
+            structnode = confignode_to_struct(c);
+            host = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_HOST);
+            tls_client_cert = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_CLIENT_CERT);
+            tls_client_key = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_CLIENT_KEY);
 
-        // Ensure all the fields are the right type and
-        // were specificied with the right combinations
-        if (host != NULL && !confignode_hastype(host, CT_BAREVAL)){
-            warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
-                  P11KMIP_CONFIG_KEYWORD_HOST, c->line);
-            rc = -EINVAL;
-            goto done;
+            // Ensure all the fields are the right type and
+            // were specificied with the right combinations
+            if (host != NULL && !confignode_hastype(host, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_HOST, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            if (tls_client_cert != NULL && !confignode_hastype(tls_client_cert, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_CLIENT_CERT, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            if (tls_client_key != NULL && !confignode_hastype(tls_client_key, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_CLIENT_KEY, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
         }
-        if (tls_client_cert != NULL && !confignode_hastype(tls_client_cert, CT_BAREVAL)){
-            warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
-                  P11KMIP_CONFIG_KEYWORD_CLIENT_CERT, c->line);
-            rc = -EINVAL;
-            goto done;
-        }
-    }
-    
-    if(host != NULL){
-        kmip_conf->server = confignode_to_bareval(host)->value;
-    }
-
-    if(tls_client_cert != NULL){
-        tls_client_cert_file = 
-            fopen(confignode_to_bareval(tls_client_cert)->value,"rt");
-
-        if(tls_client_cert_file == NULL){
-            warnx("Unable to open %s for TLS client certificate",
-                confignode_to_bareval(tls_client_cert)->value);
-            rc = -EINVAL;
-            goto done;
+        
+        if(host != NULL){
+            kmip_conf->server = confignode_to_stringval(host)->value;
         }
 
-        kmip_conf->tls_client_key = PEM_read_PrivateKey(
-            tls_client_cert_file, NULL,
-            p11kmip_pem_password_cb,NULL);
-        fclose(tls_client_cert_file);
+        if(tls_client_cert != NULL){
+            kmip_conf->tls_client_cert = confignode_to_stringval(tls_client_cert)->value;
+        }
+
+        if(tls_client_key != NULL){
+            tls_client_key_bio = 
+                BIO_new_file(confignode_to_stringval(tls_client_key)->value,"r");
+
+            if(tls_client_key_bio == NULL){
+                warnx("Unable to open '%s' for TLS client certificate",
+                    confignode_to_stringval(tls_client_cert)->value);
+                //ERR_print_errors_cb(openssl_err_cb, NULL);
+                return CKR_FUNCTION_FAILED;
+            }
+
+            //kmip_conf->tls_client_key = PEM_read_PrivateKey(tls_client_cert_file,NULL,passwd_callback,(void*)pcszPassphrase);
+            kmip_conf->tls_client_key = PEM_read_bio_PrivateKey(
+                tls_client_key_bio, NULL,
+                passwd_callback,(void*)pcszPassphrase);
+            
+            if(kmip_conf->tls_client_key == NULL){
+                warnx("Unable to extract TLS client key from '%s'",
+                    confignode_to_stringval(tls_client_key)->value);
+            }
+
+            BIO_free(tls_client_key_bio);
+        }
     }
 
     /* Processing for other options goes here                     */
     /* it should also be possible to pass in the client cert file */
     /* through the commandline                                    */
 
-    if(kmip_conf->tls_client_key == NULL){
-        warnx("TLS client key was not provided through configuration\
-            or commandline options");
-        rc = -EINVAL;
+    if(kmip_conf->tls_client_key == NULL &&
+       kmip_conf->tls_client_cert == NULL){
+        warnx("TLS client key or client certificate was not provided through configuration\
+ or commandline options");
+        rc = CKR_GENERAL_ERROR;
         goto done;
     }
 
@@ -1165,7 +1203,8 @@ done:
 
 static CK_RV free_kmip_config(void)
 {
-	EVP_PKEY_free(kmip_conf->tls_client_key);
+	if(kmip_conf->tls_client_key != NULL)
+        EVP_PKEY_free(kmip_conf->tls_client_key);
 
 	return CKR_OK;
 }
@@ -1179,10 +1218,12 @@ static CK_RV init_kmip(void){
     if(rc != CKR_OK)
         goto done;
 
-    rc = kmip_connection_new(kmip_conf,kmip_conn, true);
+    rc = kmip_connection_new(kmip_conf,&kmip_conn, true);
 
-    if(rc != CKR_OK)
+    if(rc != CKR_OK){
+        warnx("Failed to initialize connection to KMIP server");
         goto done;
+    }
 
 done: 
 
@@ -1192,6 +1233,8 @@ done:
 static void term_kmip(void){
     if(kmip_conn != NULL)
         kmip_connection_free(kmip_conn);
+    
+    //To-do: free non-static parts of the
 }
 
 /********************************/
@@ -1215,7 +1258,6 @@ static CK_RV parse_config_file(void)
         if (fp == NULL) {
             warnx("Cannot read config file '%s' (specified via env variable %s): %s",
                   file_loc, P11KMIP_DEFAULT_CONF_FILE_ENV_NAME, strerror(errno));
-            warnx("Printing of custom attributes not available.");
             return CKR_OK;
         }
     } else {
@@ -1232,7 +1274,6 @@ static CK_RV parse_config_file(void)
             if (fp == NULL) {
                 warnx("Cannot read config file '%s': %s",
                        file_loc, strerror(errno));
-                warnx("Printing of custom attributes not available.");
                 return CKR_OK;
             }
         }
@@ -1892,10 +1933,6 @@ done:
     return rc;
 }
 
-static int passwd_callback(char *pcszBuff,int size,int rwflag, void *pPass);
-const char *pcszPassphrase = "";
-
-
 
 /**
  * Build a KMIP request with the up to 2 operations and payloads
@@ -2244,7 +2281,7 @@ int main(int argc, char *argv[])
     if (rc != CKR_OK)
         goto done;
 
-    rc = init_pkcs11(command);
+    rc = parse_config_file();
     if (rc != CKR_OK)
         goto done;
 
@@ -2252,7 +2289,7 @@ int main(int argc, char *argv[])
     if (rc != CKR_OK)
         goto done;
 
-    rc = parse_config_file();
+    rc = init_pkcs11(command);
     if (rc != CKR_OK)
         goto done;
 
@@ -2265,19 +2302,11 @@ int main(int argc, char *argv[])
     }
 
 done:
+    term_kmip();
 	term_pkcs11();
 
 	if (p11kmip_cfg != NULL)
         confignode_deepfree(p11kmip_cfg);
 
     return rc;
-}
-
-int passwd_callback(char *pcszBuff,int size,int rwflag, void *pPass)
-{
-    size_t unPass = strlen((char*)pPass);
-    if(unPass > (size_t)size)
-        unPass = (size_t)size;
-    memcpy(pcszBuff, pPass, unPass);
-    return (int)unPass;
 }
