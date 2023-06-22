@@ -2152,13 +2152,22 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 	// 	   kmip_wrap_hashing_algo);
 
     // Export the public key from PKCS#11 into an OpenSSL EVP Key
-    rc = keytype->export_asym_pkey(keytype, &pkey, false, 
+    if (keytype->export_asym_pkey != NULL){
+        rc = keytype->export_asym_pkey(keytype, &pkey, false, 
             wrapping_pubkey, wrapping_key_label);
-
-    if (rc != CKR_OK) {
-        warnx("Failed to export '%s' to EVP key", wrapping_key_label);
+        
+        if (rc != CKR_OK) {
+            warnx("Failed to export '%s' to EVP key", wrapping_key_label);
+            goto out;
+        }
+    } else {
+        warnx("Function to export '%s' to EVP unavailable", 
+            wrapping_key_label);
+        rc = CKR_FUNCTION_NOT_SUPPORTED;
         goto out;
     }
+
+    printf("Heartbeat 1");
 
 	switch (kmip_wrap_key_format) {
 	case KMIP_KEY_FORMAT_TYPE_PKCS_1:
@@ -2195,6 +2204,8 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
         goto out;
     }
 
+    printf("Heartbeat 2");
+
 	kval = kmip_new_key_value_va(NULL, key, 0);
 	if (kval == NULL) {
         warnx("Allocate KMIP node failed");
@@ -2217,6 +2228,8 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
         rc = -ENOMEM;
         goto out;
     }
+
+    printf("Heartbeat 3");
 
 	if (wrapping_key_label != NULL) {
 		name_attr = kmip_new_name(wrapping_key_label,
@@ -2265,6 +2278,8 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 		goto out;
 	}
 
+    printf("Heartbeat 4");
+
 	// util_asprintf(&description, "Wrapping key for zkey client on system %s",
 	// 	      utsname.nodename);
 	// descr_attr = _build_description_attr(ph, description);
@@ -2292,6 +2307,8 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 				    &act_resp, KMIP_BATCH_ERR_CONT_STOP);
 	if (rc != 0)
 		goto out;
+
+    printf("Heartbeat 5");
 
 	rc = kmip_get_register_response_payload(reg_resp, &unique_id, NULL,
 						0, NULL);
@@ -2629,7 +2646,7 @@ static int perform_kmip_request2(enum kmip_operation operation1,
 		goto out;
 
 	rc = kmip_connection_perform(kmip_conn, req, &resp,
-				     false);
+				     true);
 	if (rc != 0) {
 		// _set_error(ph, "Failed to perform KMIP request: %s",
 		// 	   strerror(-rc));
