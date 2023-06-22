@@ -1768,7 +1768,7 @@ static CK_RV p11kmip_import_key(void){
                 opt_wrap_label);
         /* Next we send the public key to the server */
         rc = p11kmip_register_key_server(&pubkey_keytype, wrapping_pubkey, 
-                                            opt_wrap_label, &wrap_pubkey_uuid);
+                                        opt_wrap_label, &wrap_pubkey_uuid);
         
         if (rc != CKR_OK) {
             warnx("Failed to register wrapping key '%s' on server\n",
@@ -1992,10 +1992,10 @@ done:
     if (params != NULL)
         OSSL_PARAM_free(params);
 #endif
-    if (rc != CKR_OK && *pkey != NULL) {
-        EVP_PKEY_free(*pkey);
-        *pkey = NULL;
-    }
+    // if (rc != CKR_OK && *pkey != NULL) {
+    //     EVP_PKEY_free(*pkey);
+    //     *pkey = NULL;
+    // }
 
     return rc;
 }
@@ -2128,7 +2128,7 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
                                         const char *wrapping_key_label,
                                         struct kmip_node **key_uuid)
 {
-    EVP_PKEY *pkey;
+    EVP_PKEY *pkey = NULL;
     struct kmip_node *kobj = NULL, *name_attr = NULL, *unique_id = NULL;
 	struct kmip_node *reg_req = NULL, *reg_resp = NULL, *descr_attr = NULL;
 	struct kmip_node *key = NULL, *kval = NULL, *kblock = NULL;
@@ -2150,6 +2150,8 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 	// 	   kmip_wrap_padding_method);
 	// pr_verbose(&ph->pd, "Wrap hashing algorithm: %d",
 	// 	   kmip_wrap_hashing_algo);
+
+    printf("Attempting to export public key to EVP key");
 
     // Export the public key from PKCS#11 into an OpenSSL EVP Key
     if (keytype->export_asym_pkey != NULL){
