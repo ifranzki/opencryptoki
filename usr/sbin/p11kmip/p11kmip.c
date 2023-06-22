@@ -24,6 +24,7 @@
 #include <pwd.h>
 #include <ctype.h>
 #include <fnmatch.h>
+#include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -65,6 +66,12 @@ static CK_SLOT_INFO pkcs11_slotinfo;
 struct kmip_connection *kmip_conn = NULL;
 struct kmip_conn_config *kmip_conf = NULL;
 
+enum kmip_key_format_type kmip_wrap_key_format;
+enum kmip_crypto_algo kmip_wrap_key_alg;
+uint kmip_wrap_key_size;
+enum kmip_padding_method kmip_wrap_padding_method;
+enum kmip_hashing_algo kmip_wrap_hash_alg;
+
 /* Configuration */
 static struct ConfigBaseNode *p11kmip_cfg = NULL;
 
@@ -91,6 +98,13 @@ static CK_RV p11kmip_import_key(void);
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
                                     CK_OBJECT_HANDLE key, const char *label);
+static CK_RV p11kmip_locate_label_server(const char *label, const struct
+                                    p11kmip_keytype *keytype, 
+                                    struct kmip_node **obj_uid);
+static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
+                                        CK_OBJECT_HANDLE wrapping_pubkey,
+                                        const char *wrapping_key_label,
+                                        struct kmip_node **key_uuid);
 static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
                 const char *wrapping_key_label, const char *wrapped_key_blob);
 static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
@@ -99,6 +113,18 @@ static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
 
 static void free_attr_array_attr(CK_ATTRIBUTE *attr); // Was getting errors if I didn't add this
 
+
+//KMIP function prototypes
+static int perform_kmip_request2(enum kmip_operation operation1,
+				  struct kmip_node *req_pl1,
+				  struct kmip_node **resp_pl1,
+				  enum kmip_operation operation2,
+				  struct kmip_node *req_pl2,
+				  struct kmip_node **resp_pl2,
+				enum kmip_batch_error_cont_option batch_err_opt);
+static int perform_kmip_request(enum kmip_operation operation,
+				 struct kmip_node *req_pl,
+				 struct kmip_node **resp_pl);
 /* Key object structure declarations */
 
 static const struct p11kmip_keytype p11kmip_aes_keytype = {
@@ -269,6 +295,44 @@ static struct kmip_conn_config kmip_default_config = {
 };
 
 /* KMIP request structure declarations */
+
+/* Utility functions */
+
+static const CK_KEY_TYPE get_p11_algorithm_kmip(enum kmip_crypto_algo kmip_alg)
+{
+    if (kmip_alg > P11KMIP_KMIP_P11_ALG_TABLE_LENGTH){
+        return P11KMIP_P11_UNKNOWN_ALG;
+    }
+
+    return P11KMIP_KMIP_P11_ALG_TABLE[kmip_alg];
+}
+
+static const enum kmip_crypto_algo get_kmip_algorithm_p11(CK_KEY_TYPE p11_alg)
+{
+    if (p11_alg > P11KMIP_P11_KMIP_ALG_TABLE_LENGTH){
+        return P11KMIP_KMIP_UNKNOWN_ALG;
+    }
+
+    return P11KMIP_P11_KMIP_ALG_TABLE[p11_alg];
+}
+
+static const CK_OBJECT_CLASS get_p11_object_class_kmip(enum kmip_object_type kmip_obj)
+{
+    if (kmip_obj > P11KMIP_KMIP_P11_OBJ_TABLE_LENGTH){
+        return P11KMIP_P11_UNKNOWN_OBJ;
+    }
+
+    return P11KMIP_KMIP_P11_OBJ_TABLE[kmip_obj];
+}
+
+static const enum kmip_object_type get_kmip_object_class_p11(CK_OBJECT_CLASS p11_obj)
+{
+    if (p11_obj > P11KMIP_P11_KMIP_OBJ_TABLE_LENGTH){
+        return P11KMIP_KMIP_UNKNOWN_OBJ;
+    }
+
+    return P11KMIP_P11_KMIP_OBJ_TABLE[p11_obj];
+}
 
 /* Commandline interface functions */
 static const struct p11kmip_cmd *find_command(const char *cmd)
@@ -1097,10 +1161,14 @@ static CK_RV build_kmip_config(void)
 {
     CK_RV rc;
     int f;
-    struct ConfigBaseNode *c, *host, *tls_client_cert, *tls_client_key;
+    struct ConfigBaseNode *c, *host, *tls_client_cert, *tls_client_key,
+        *wrap_key_format, *wrap_key_algorithm, *wrap_key_size, 
+        *wrap_pad_method, *wrap_hash_algo;
     struct ConfigStructNode *structnode;
     bool found;
 	BIO *tls_client_key_bio;
+
+    rc = CKR_OK;
 
     /* Populate the kmip_config global with static defaults */
     kmip_conf = &kmip_default_config;
@@ -1108,7 +1176,7 @@ static CK_RV build_kmip_config(void)
     /* The lack of a config file, by itself, is not fatal,  */
     /* because all the required information can potentially */
     /* be provided through commandline arguements           */
-    if(p11kmip_cfg != NULL){
+    if (p11kmip_cfg != NULL) {
         /* Iterate the configuration node(s) */
         confignode_foreach(c, p11kmip_cfg, f) {
             if (!confignode_hastype(c, CT_STRUCT) ||
@@ -1128,6 +1196,16 @@ static CK_RV build_kmip_config(void)
                                 P11KMIP_CONFIG_KEYWORD_CLIENT_CERT);
             tls_client_key = confignode_find(structnode->value,
                                 P11KMIP_CONFIG_KEYWORD_CLIENT_KEY);
+            wrap_key_format = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT);
+            wrap_key_algorithm = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG);
+            wrap_key_size = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE);
+            wrap_pad_method = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD);
+            wrap_hash_algo = confignode_find(structnode->value,
+                                P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG);
 
             // Ensure all the fields are the right type and
             // were specificied with the right combinations
@@ -1149,38 +1227,137 @@ static CK_RV build_kmip_config(void)
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
+            if (wrap_key_format != NULL && !confignode_hastype(wrap_key_format, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            if (wrap_key_algorithm != NULL && !confignode_hastype(wrap_key_algorithm, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            if (wrap_key_size != NULL && !confignode_hastype(wrap_key_size, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            if (wrap_pad_method != NULL && !confignode_hastype(wrap_pad_method, CT_INTVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+            if (wrap_hash_algo != NULL && !confignode_hastype(wrap_hash_algo, CT_STRINGVAL)){
+                warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                    P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG, c->line);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
         }
         
-        if(host != NULL){
+        if(host != NULL) {
             kmip_conf->server = confignode_to_stringval(host)->value;
         }
 
-        if(tls_client_cert != NULL){
-            kmip_conf->tls_client_cert = confignode_to_stringval(tls_client_cert)->value;
+        if(tls_client_cert != NULL) {
+            kmip_conf->tls_client_cert = 
+                confignode_to_stringval(tls_client_cert)->value;
         }
 
-        if(tls_client_key != NULL){
+        if(tls_client_key != NULL) {
             tls_client_key_bio = 
                 BIO_new_file(confignode_to_stringval(tls_client_key)->value,"r");
 
-            if(tls_client_key_bio == NULL){
+            if(tls_client_key_bio == NULL) {
                 warnx("Unable to open '%s' for TLS client certificate",
                     confignode_to_stringval(tls_client_cert)->value);
                 //ERR_print_errors_cb(openssl_err_cb, NULL);
                 return CKR_FUNCTION_FAILED;
             }
 
-            //kmip_conf->tls_client_key = PEM_read_PrivateKey(tls_client_cert_file,NULL,passwd_callback,(void*)pcszPassphrase);
             kmip_conf->tls_client_key = PEM_read_bio_PrivateKey(
                 tls_client_key_bio, NULL,
                 passwd_callback,(void*)pcszPassphrase);
             
-            if(kmip_conf->tls_client_key == NULL){
+            if(kmip_conf->tls_client_key == NULL) {
                 warnx("Unable to extract TLS client key from '%s'",
                     confignode_to_stringval(tls_client_key)->value);
             }
 
             BIO_free(tls_client_key_bio);
+        }
+    
+        if(wrap_key_format != NULL) {
+            if(strcmp(confignode_to_stringval(wrap_key_format)->value,
+               P11KMIP_CONFIG_VALUE_FMT_PKCS1) == 0) {
+                kmip_wrap_key_format = KMIP_KEY_FORMAT_TYPE_PKCS_1;
+            } else if(strcmp(confignode_to_stringval(wrap_key_format)->value,
+               P11KMIP_CONFIG_VALUE_FMT_PKCS8) == 0) {
+                kmip_wrap_key_format = KMIP_KEY_FORMAT_TYPE_PKCS_8;
+            } else if(strcmp(confignode_to_stringval(wrap_key_format)->value,
+               P11KMIP_CONFIG_VALUE_FMT_TRANSPARENT) == 0) {
+                kmip_wrap_key_format = 
+                    KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY;
+            } else {
+                warnx("Syntax error in config file: Invalid value '%s' specified\
+for key word '%s's\n", confignode_to_stringval(wrap_key_format)->value,
+                    P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+        }
+
+        if (wrap_key_algorithm != NULL) {
+            if (strcmp(confignode_to_stringval(wrap_key_algorithm)->value,
+               P11KMIP_CONFIG_VALUE_KEY_ALG_RSA) == 0) {
+                kmip_wrap_key_alg = KMIP_CRYPTO_ALGO_RSA;
+            } else {
+                warnx("Syntax error in config file: Invalid value '%s' specified\
+for key word '%s's\n", confignode_to_stringval(wrap_key_algorithm)->value,
+                    P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+        }
+
+        if (wrap_key_size != NULL) {
+            kmip_wrap_key_size = confignode_to_intval(wrap_key_size)->value;
+        }
+
+        if (wrap_pad_method != NULL) {
+            if (strcmp(confignode_to_stringval(wrap_pad_method)->value,
+               P11KMIP_CONFIG_VALUE_METHD_PKCS15) == 0) {
+                kmip_wrap_key_alg = KMIP_PADDING_METHOD_PKCS_1_5;
+            } else if (strcmp(confignode_to_stringval(wrap_pad_method)->value,
+               P11KMIP_CONFIG_VALUE_METHD_OAEP) == 0) {
+                kmip_wrap_key_alg = KMIP_PADDING_METHOD_OAEP;
+            } else {
+                warnx("Syntax error in config file: Invalid value '%s' specified\
+for key word '%s's\n", confignode_to_stringval(wrap_pad_method)->value,
+                    P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
+        }
+
+        if (wrap_hash_algo != NULL) {
+            if (strcmp(confignode_to_stringval(wrap_hash_algo)->value,
+               P11KMIP_CONFIG_VALUE_HSH_ALG_SHA_1) == 0) {
+                kmip_wrap_key_alg = KMIP_HASHING_ALGO_SHA_1;
+            } else if (strcmp(confignode_to_stringval(wrap_hash_algo)->value,
+               P11KMIP_CONFIG_VALUE_HSH_ALG_SHA_256) == 0) {
+                kmip_wrap_key_alg = KMIP_HASHING_ALGO_SHA_256;
+            } else {
+                warnx("Syntax error in config file: Invalid value '%s' specified\
+for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
+                    P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG);
+                rc = CKR_GENERAL_ERROR;
+                goto done;
+            }
         }
     }
 
@@ -1198,15 +1375,13 @@ static CK_RV build_kmip_config(void)
 
 done:
 
-	return CKR_OK;
+	return rc;
 }
 
-static CK_RV free_kmip_config(void)
+static void free_kmip_config(void)
 {
 	if(kmip_conf->tls_client_key != NULL)
         EVP_PKEY_free(kmip_conf->tls_client_key);
-
-	return CKR_OK;
 }
 
 static CK_RV init_kmip(void){
@@ -1234,7 +1409,8 @@ static void term_kmip(void){
     if(kmip_conn != NULL)
         kmip_connection_free(kmip_conn);
     
-    //To-do: free non-static parts of the
+    if(kmip_conf != NULL)
+        free_kmip_config();
 }
 
 /********************************/
@@ -1535,6 +1711,7 @@ static CK_RV p11kmip_import_key(void){
 	CK_RV rc;
     CK_OBJECT_HANDLE wrapping_pubkey, wrapping_privkey;
     struct p11kmip_keytype pubkey_keytype, privkey_keytype;
+    struct kmip_node *wrap_pubkey_uuid = NULL;
 
     pubkey_keytype = p11kmip_rsa_keytype;
     pubkey_keytype.class = CKO_PUBLIC_KEY;
@@ -1581,10 +1758,18 @@ static CK_RV p11kmip_import_key(void){
        sending the public key when it is not necessary and provides the
        user with an earlier error. */
 
-    // rc = p11kmip_check_label_server(opt_target_label);
+    printf("Attempting to locate public key '%s' on server", opt_wrap_label);
+    rc = p11kmip_locate_label_server(opt_wrap_label, &pubkey_keytype, &wrap_pubkey_uuid);
 
-    /* Next we send the public key to the server */
-    // rc = p11kmip_register_key_server(wrapping_pubkey, opt_wrap_label, kmip_connection);
+    // If we were unable to locate the key on the server,
+    // register it there
+    if (wrap_pubkey_uuid == NULL) {
+        printf("Did not find wrapping key '%s' on server, registering it",
+                opt_wrap_label);
+        /* Next we send the public key to the server */
+        rc = p11kmip_register_key_server(&pubkey_keytype, wrapping_pubkey, 
+                                            opt_wrap_label, &wrap_pubkey_uuid);
+    }
 
     /* Next we retrieve the wrapped key */
     // rc = p11kmip_retrieve_wrapped_key_server(wrapped_key_pl, opt_wrap_label, opt_target_label, kmip_connection);
@@ -1593,138 +1778,12 @@ static CK_RV p11kmip_import_key(void){
     // rc = p11kmip_unwrap_key(wrapped_key_pl, opt_target_label, wrapping_privkey);
 
 done:
+    kmip_node_free(wrap_pubkey_uuid);
 
 	return rc;
 }
 
 /* Routines */
-
-/**
- * Sends a request to a KMIP server to retrieve a secret key wrapped in a
- * wrapping key. Expects the wrapping key to already be available on the server.
- * 
- * @param wrapped_key_label     label of the target key
- * @param wrapping_key_label    label of the wrapping key
- * @param wrapped_key_blob      buffer containing wrapped key
- * global kmip_connection       structure for KMIP server connection
- * 
- * @return CK_RV 
- */
-static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
-                const char *wrapping_key_label, const char *wrapped_key_blob)
-{
-    CK_RV rc = 0;
-
-    return rc;
-}
-
-/**
- * Finds a key matching the label or id, or the class or filter attribute
- * of the key type, or any combination thereof. Expects to find exactly one
- * key matching these criteria, and returns it in the key parameter.
- * 
- * @param keytype       attributes and class of key
- * @param label         label of key
- * @param id            id of key
- * @param key           handle return if key is found
- * global pkcs11_funcs  used to call PKCS11 functions
- * 
- * @return CK_RV 
- */
-static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
-                               const char *label, const char *id,
-							   CK_OBJECT_HANDLE *key){
-	CK_RV rc;
-	CK_ATTRIBUTE *attrs = NULL;
-	CK_ULONG num_attrs = 0;
-	const CK_BBOOL ck_true = CK_TRUE;
-	CK_OBJECT_HANDLE keys[FIND_OBJECTS_COUNT];
-    CK_ULONG i, num_keys;
-
-	rc = add_attribute(CKA_TOKEN, &ck_true, sizeof(ck_true), &attrs, &num_attrs);
-    if (rc != CKR_OK)
-        goto done;
-	
-	if (keytype != NULL) {
-		// Set the filter attribute, if applicable
-		if(keytype->filter_attr != (CK_ATTRIBUTE_TYPE)-1){
-			rc = add_attribute(keytype->filter_attr, &keytype->filter_value,
-							sizeof(keytype->filter_value), &attrs, &num_attrs);
-			if (rc != CKR_OK)
-				goto done;
-		}
-
-		// Set an attribute for the class to give us more
-		// granularity
-		if(keytype->class != NULL){
-			rc = add_attribute(CKA_CLASS, &keytype->class,
-							sizeof(keytype->class), &attrs, &num_attrs);
-			if (rc != CKR_OK)
-				goto done;
-		}
-    }
-
-    if (label != NULL) {
-		rc = add_attribute(CKA_LABEL, label, strlen(label),
-							&attrs, &num_attrs);
-		if (rc != CKR_OK)
-			goto done;
-    }
-
-    if (id != NULL) {
-        rc = parse_id(id, &attrs, &num_attrs);
-        if (rc != CKR_OK)
-            return rc;
-    }
-
-	rc = pkcs11_funcs->C_FindObjectsInit(pkcs11_session, attrs, num_attrs);
-    if (rc != CKR_OK) {
-        warnx("Failed to initialize the find operation: C_FindObjectsInit: 0x%lX: %s",
-              rc, p11_get_ckr(rc));
-        goto done;
-    }
-
-	memset(keys, 0, sizeof(keys));
-	num_keys = 0;
-
-	rc = pkcs11_funcs->C_FindObjects(pkcs11_session, keys,
-										FIND_OBJECTS_COUNT, &num_keys);
-	if (rc != CKR_OK) {
-		warnx("Failed to find objects: C_FindObjects: 0x%lX: %s",
-				rc, p11_get_ckr(rc));
-		//goto done;
-	}
-
-	rc = pkcs11_funcs->C_FindObjectsFinal(pkcs11_session);
-    if (rc != CKR_OK) {
-        warnx("Failed to finalize the find operation: C_FindObjectsFinal: 0x%lX: %s",
-              rc, p11_get_ckr(rc));
-        
-		goto done;
-    }
-
-	if(num_keys == 0){
-		// TODO: set an RC indicating that no keys
-		//	     matching that description were found
-		//       let the caller decide how to error out
-        rc = CKR_GENERAL_ERROR;
-        warnx("Failed to find key matching label");
-
-		goto done;
-	} else if(num_keys > 1){
-		// TODO: complain about not being specific enough
-
-		goto done;
-	}
-
-	// Write back the key handle
-	*key = keys[0];
-
-done:
-	free_attributes(attrs, num_attrs);
-
-	return rc;
-}
 
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
@@ -1933,6 +1992,536 @@ done:
     return rc;
 }
 
+static CK_RV p11kmip_locate_label_server(const char *label, const struct
+                                    p11kmip_keytype *keytype, 
+                                    struct kmip_node **obj_uid)
+{
+    struct kmip_node *req_pl = NULL, *resp_pl = NULL, *item_uid = NULL;
+	struct kmip_node **attrs = NULL;
+	enum kmip_object_type obj_type;
+    enum kmip_crypto_algo key_alg;
+	size_t num_attrs, num_objs;
+    bool class_set = FALSE, alg_set = FALSE;
+	const char *id;
+	size_t i, k;
+	CK_RV rc = CKR_OK;
+
+    // Reconcile constants for PKCS#11 to KMIP
+    if (keytype->class != NULL) {
+        obj_type = get_kmip_object_class_p11(keytype->class);
+        class_set = TRUE;
+    }
+
+    if (keytype->type != NULL) {
+        obj_type = get_kmip_algorithm_p11(keytype->type);
+        alg_set = TRUE;
+    }
+
+    /* Label, Object Class, Key Type */
+    num_attrs = 1;
+    if (class_set)
+        num_attrs++;
+    if (alg_set)
+        num_attrs++;
+
+    attrs = malloc(num_attrs * sizeof(struct kmip_node *));
+    k = 0;
+
+    // Set the label
+    attrs[k] = kmip_new_name(label,
+				KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
+    if(attrs[k] == NULL){
+        rc = -ENOMEM;
+        warnx("Allocate KMIP node failed");
+        goto out;
+    }
+    k++;
+
+    // Set the object type
+    if(class_set){
+        attrs[k] = kmip_new_object_type(obj_type);
+        if(attrs[k] == NULL){
+            rc = -ENOMEM;
+            warnx("Allocate KMIP node failed");
+            goto out;
+        }
+        k++;
+    }
+
+    //Set the key algorithm
+    if (alg_set) {
+        attrs[k] = kmip_new_cryptographic_algorithm(key_alg);
+        if(attrs[k] == NULL){
+            rc = -ENOMEM;
+            warnx("Allocate KMIP node failed");
+            goto out;
+        }
+        k++;
+    }
+
+    req_pl = kmip_new_locate_request_payload(NULL, 0, 0, 0, 0,
+						 num_attrs, attrs);
+    if(attrs[k] == NULL){
+        rc = -ENOMEM;
+        warnx("Allocate KMIP node failed");
+        goto out;
+    }
+    
+    rc = perform_kmip_request(KMIP_OPERATION_LOCATE, req_pl, &resp_pl);
+    if (rc != 0)
+        goto out;
+    
+    num_objs = 0;
+    for (i = 0; ; i++) {
+		rc = kmip_get_locate_response_payload(resp_pl, NULL, NULL, i,
+						      &item_uid);
+		if (rc != 0)
+			break;
+        
+        num_objs++;
+    }
+
+    if (num_objs == 0) {
+        rc = CKR_OK;
+    } else if (num_objs == 1) {
+        rc = CKR_OK;
+        *obj_uid = item_uid;
+    } else {
+        rc = CKR_GENERAL_ERROR;
+        warnx("Unable to uniquely identify wrapping key on KMIP server");
+    }
+
+out:
+    if (attrs != NULL) {
+		for (i = 0; i < num_attrs; i++)
+			kmip_node_free(attrs[i]);
+		free(attrs);
+	}
+
+	kmip_node_free(req_pl);
+	kmip_node_free(resp_pl);
+	kmip_node_free(item_uid);
+
+    return rc;
+
+}
+
+/**
+ * @brief 
+ * 
+ * @param wrapping_pubkey 
+ * @param wrapkey_label 
+ * global kmip_connection
+ * 
+ * @return CK_RV 
+ */
+static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
+                                        CK_OBJECT_HANDLE wrapping_pubkey,
+                                        const char *wrapping_key_label,
+                                        struct kmip_node **key_uuid)
+{
+    EVP_PKEY *pkey;
+    struct kmip_node *kobj = NULL, *name_attr = NULL, *unique_id = NULL;
+	struct kmip_node *reg_req = NULL, *reg_resp = NULL, *descr_attr = NULL;
+	struct kmip_node *key = NULL, *kval = NULL, *kblock = NULL;
+	struct kmip_node *umask_attr = NULL, *cparams_attr = NULL;
+	struct kmip_node *act_req = NULL, *act_resp = NULL;
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+	const BIGNUM *modulus = NULL, *pub_exp = NULL;
+#else
+	BIGNUM *modulus = NULL, *pub_exp = NULL;
+#endif
+	const char *wrap_key_id = NULL;
+	char *description = NULL;
+	struct utsname utsname;
+	int rc;
+
+	// pr_verbose(&ph->pd, "Wrapping key format: %d",
+	// 	   kmip_wrap_key_format);
+	// pr_verbose(&ph->pd, "Wrap padding method: %d",
+	// 	   kmip_wrap_padding_method);
+	// pr_verbose(&ph->pd, "Wrap hashing algorithm: %d",
+	// 	   kmip_wrap_hashing_algo);
+
+    // Export the public key from PKCS#11 into an OpenSSL EVP Key
+    p11kmip_export_rsa_pkey(keytype, &pkey, false, 
+        wrapping_pubkey, wrapping_key_label);
+
+	switch (kmip_wrap_key_format) {
+	case KMIP_KEY_FORMAT_TYPE_PKCS_1:
+		key = kmip_new_pkcs1_public_key(pkey);
+		break;
+	case KMIP_KEY_FORMAT_TYPE_PKCS_8:
+		key = kmip_new_pkcs8_public_key(pkey);
+		break;
+	case KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY:
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+		modulus = RSA_get0_n(EVP_PKEY_get0_RSA(pkey));
+		pub_exp = RSA_get0_e(EVP_PKEY_get0_RSA(pkey));
+#else
+		EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &modulus);
+		EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_E, &pub_exp);
+#endif
+		if (modulus == NULL || pub_exp == NULL) {
+			warnx("Failed to get RSA public key parts");
+			rc = -EIO;
+			goto out;
+		}
+
+		key = kmip_new_transparent_rsa_public_key(modulus, pub_exp);
+		break;
+	default:
+		warnx("Unsupported wrapping key format: %d",
+			   kmip_wrap_key_format);
+		rc = -EINVAL;
+		goto out;
+	}
+	if (key == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	kval = kmip_new_key_value_va(NULL, key, 0);
+	if (kval == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	kblock = kmip_new_key_block(kmip_wrap_key_format, 0, kval,
+				    kmip_wrap_key_alg,
+				    kmip_wrap_key_size, NULL);
+	if (kblock == NULL) {
+        warnx( "Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	kobj = kmip_new_public_key(kblock);
+	if (kobj == NULL) {
+        warnx( "Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	if (wrapping_key_label != NULL) {
+		name_attr = kmip_new_name(wrapping_key_label,
+				KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
+        if (name_attr == NULL) {
+            warnx("Allocate KMIP node failed");
+            rc = -ENOMEM;
+            goto out;
+        }
+	}
+
+	umask_attr = kmip_new_cryptographic_usage_mask(
+						KMIP_CRY_USAGE_MASK_ENCRYPT |
+						KMIP_CRY_USAGE_MASK_WRAP_KEY);
+	if (umask_attr == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	cparams_attr = kmip_new_cryptographic_parameters(NULL, 0,
+				kmip_wrap_padding_method,
+				kmip_wrap_padding_method ==
+					KMIP_PADDING_METHOD_OAEP ?
+					kmip_wrap_hash_alg : 0,
+				KMIP_KEY_ROLE_TYPE_KEK, 0,
+				kmip_wrap_key_alg, NULL, NULL, NULL,
+				NULL, NULL, NULL, NULL, NULL,
+				kmip_wrap_padding_method ==
+					KMIP_PADDING_METHOD_OAEP ?
+					KMIP_MASK_GENERATOR_MGF1 : 0,
+				kmip_wrap_padding_method ==
+					KMIP_PADDING_METHOD_OAEP ?
+					kmip_wrap_hash_alg : 0,
+				NULL);
+	if (cparams_attr == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	if (uname(&utsname) != 0) {
+		rc = -errno;
+		warnx("Failed to obtain the system's "
+			   "hostname: %s", strerror(-rc));
+		goto out;
+	}
+
+	// util_asprintf(&description, "Wrapping key for zkey client on system %s",
+	// 	      utsname.nodename);
+	// descr_attr = _build_description_attr(ph, description);
+	// free(description);
+	// CHECK_ERROR(descr_attr == NULL, rc, -ENOMEM,
+	// 	    "Allocate KMIP node failed", ph, out);
+
+	reg_req = kmip_new_register_request_payload_va(NULL,
+					KMIP_OBJECT_TYPE_PUBLIC_KEY, kobj, NULL,
+					4, name_attr, umask_attr, cparams_attr,
+					descr_attr);
+	if (reg_req == NULL) {
+        warnx( "Allocate KMIP node failed");
+        rc = -ENOMEM;
+    }
+
+	act_req = kmip_new_activate_request_payload(NULL); /* ID placeholder */
+	if (act_req == NULL) {
+        warnx( "Allocate KMIP node failed");
+        rc = -ENOMEM;
+    }		
+
+	rc = perform_kmip_request2(KMIP_OPERATION_REGISTER, reg_req,
+				    &reg_resp, KMIP_OPERATION_ACTIVATE, act_req,
+				    &act_resp, KMIP_BATCH_ERR_CONT_STOP);
+	if (rc != 0)
+		goto out;
+
+	rc = kmip_get_register_response_payload(reg_resp, &unique_id, NULL,
+						0, NULL);
+	if (rc != 0) {
+        warnx( "Failed to get key unique-id");
+        goto out;
+    }
+	rc = kmip_get_unique_identifier(unique_id, &wrap_key_id, NULL, NULL);
+	if (rc != 0) {
+        warnx( "Failed to get key unique-id");  
+        goto out;
+    }
+	//pr_verbose(&ph->pd, "Wrapping key ID: '%s'", wrap_key_id);
+
+	// rc = plugin_set_or_remove_property(&ph->pd, KMIP_CONFIG_WRAPPING_KEY_ID,
+	// 				   wrap_key_id);
+	// if (rc != 0)
+	// 	goto out;
+
+	// rc = plugin_set_or_remove_property(&ph->pd,
+	// 				   KMIP_CONFIG_WRAPPING_KEY_LABEL,
+	// 				   wrapping_key_label);
+	// if (rc != 0)
+	// 	goto out;
+    *key_uuid = wrap_key_id;
+
+out:
+	kmip_node_free(key);
+	kmip_node_free(kval);
+	kmip_node_free(kblock);
+	kmip_node_free(kobj);
+	kmip_node_free(name_attr);
+	kmip_node_free(umask_attr);
+	kmip_node_free(cparams_attr);
+	kmip_node_free(descr_attr);
+	kmip_node_free(reg_req);
+	kmip_node_free(reg_resp);
+	kmip_node_free(act_req);
+	kmip_node_free(act_resp);
+	kmip_node_free(unique_id);
+
+#if OPENSSL_VERSION_PREREQ(3, 0)
+	if (modulus != NULL)
+		BN_free(modulus);
+	if (pub_exp != NULL)
+		BN_free(pub_exp);
+#endif
+
+	return rc;
+}
+
+/**
+ * Sends a request to a KMIP server to retrieve a secret key wrapped in a
+ * wrapping key. Expects the wrapping key to already be available on the server.
+ * 
+ * @param wrapped_key_label     label of the target key
+ * @param wrapping_key_label    label of the wrapping key
+ * @param wrapped_key_blob      buffer containing wrapped key
+ * global kmip_connection       structure for KMIP server connection
+ * 
+ * @return CK_RV 
+ */
+static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
+                const char *wrapping_key_label, const char *wrapped_key_blob)
+{
+    CK_RV rc = 0;
+
+    return rc;
+}
+
+/**
+ * Finds a key matching the label or id, or the class or filter attribute
+ * of the key type, or any combination thereof. Expects to find exactly one
+ * key matching these criteria, and returns it in the key parameter.
+ * 
+ * @param keytype       attributes and class of key
+ * @param label         label of key
+ * @param id            id of key
+ * @param key           handle return if key is found
+ * global pkcs11_funcs  used to call PKCS11 functions
+ * 
+ * @return CK_RV 
+ */
+static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
+                               const char *label, const char *id,
+							   CK_OBJECT_HANDLE *key){
+	CK_RV rc;
+	CK_ATTRIBUTE *attrs = NULL;
+	CK_ULONG num_attrs = 0;
+	const CK_BBOOL ck_true = CK_TRUE;
+	CK_OBJECT_HANDLE keys[FIND_OBJECTS_COUNT];
+    CK_ULONG i, num_keys;
+
+	rc = add_attribute(CKA_TOKEN, &ck_true, sizeof(ck_true), &attrs, &num_attrs);
+    if (rc != CKR_OK)
+        goto done;
+	
+	if (keytype != NULL) {
+		// Set the filter attribute, if applicable
+		if(keytype->filter_attr != (CK_ATTRIBUTE_TYPE)-1){
+			rc = add_attribute(keytype->filter_attr, &keytype->filter_value,
+							sizeof(keytype->filter_value), &attrs, &num_attrs);
+			if (rc != CKR_OK)
+				goto done;
+		}
+
+		// Set an attribute for the class to give us more
+		// granularity
+		if(keytype->class != NULL){
+			rc = add_attribute(CKA_CLASS, &keytype->class,
+							sizeof(keytype->class), &attrs, &num_attrs);
+			if (rc != CKR_OK)
+				goto done;
+		}
+    }
+
+    if (label != NULL) {
+		rc = add_attribute(CKA_LABEL, label, strlen(label),
+							&attrs, &num_attrs);
+		if (rc != CKR_OK)
+			goto done;
+    }
+
+    if (id != NULL) {
+        rc = parse_id(id, &attrs, &num_attrs);
+        if (rc != CKR_OK)
+            return rc;
+    }
+
+	rc = pkcs11_funcs->C_FindObjectsInit(pkcs11_session, attrs, num_attrs);
+    if (rc != CKR_OK) {
+        warnx("Failed to initialize the find operation: C_FindObjectsInit: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
+        goto done;
+    }
+
+	memset(keys, 0, sizeof(keys));
+	num_keys = 0;
+
+	rc = pkcs11_funcs->C_FindObjects(pkcs11_session, keys,
+										FIND_OBJECTS_COUNT, &num_keys);
+	if (rc != CKR_OK) {
+		warnx("Failed to find objects: C_FindObjects: 0x%lX: %s",
+				rc, p11_get_ckr(rc));
+		//goto done;
+	}
+
+	rc = pkcs11_funcs->C_FindObjectsFinal(pkcs11_session);
+    if (rc != CKR_OK) {
+        warnx("Failed to finalize the find operation: C_FindObjectsFinal: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
+        
+		goto done;
+    }
+
+	if(num_keys == 0){
+		// TODO: set an RC indicating that no keys
+		//	     matching that description were found
+		//       let the caller decide how to error out
+        rc = CKR_GENERAL_ERROR;
+        warnx("Failed to find key matching label");
+
+		goto done;
+	} else if(num_keys > 1){
+		// TODO: complain about not being specific enough
+
+		goto done;
+	}
+
+	// Write back the key handle
+	*key = keys[0];
+
+done:
+	free_attributes(attrs, num_attrs);
+
+	return rc;
+}
+
+
+/**
+ * Check a KMIP response and extract information from it.
+ *
+ * @param resp              the response KMIP node
+ * @param batch_item        the batch item index (staring at 0)
+ * @param operation         the operation (to verify the batch item)
+ * @param payload           On return : the payload of this batch item
+ *
+ * @returns 0 on success, a negative errno in case of an error.
+ */
+static int check_kmip_response(struct kmip_node *resp, int32_t batch_item,
+				enum kmip_operation operation,
+				struct kmip_node **payload)
+{
+	struct kmip_node *resp_hdr = NULL, *resp_bi = NULL;
+	enum kmip_result_status status = 0;
+	enum kmip_result_reason reason = 0;
+	const char *message = NULL;
+	int32_t batch_count;
+	int rc;
+
+	rc = kmip_get_response(resp, &resp_hdr, 0, NULL);
+	// CHECK_ERROR(rc != 0, rc, rc, "Get KMIP response header failed",
+	// 	    ph, out);
+
+	rc = kmip_get_response_header(resp_hdr, NULL, NULL, NULL, NULL,
+				      &batch_count);
+	// CHECK_ERROR(rc != 0, rc, rc, "Get KMIP response header infos failed",
+	// 		    ph, out);
+	// CHECK_ERROR(batch_item >= batch_count, rc, -EBADMSG,
+	// 	    "Response contains less batch items than expected",
+	// 	    ph, out);
+
+	rc = kmip_get_response(resp, NULL, batch_item, &resp_bi);
+	// CHECK_ERROR(rc != 0, rc, rc, "Get KMIP response batch item failed",
+	// 	    ph, out);
+
+	rc = kmip_get_response_batch_item(resp_bi, NULL, NULL, NULL, &status,
+					  &reason, &message, NULL, NULL,
+					  payload);
+	// CHECK_ERROR(rc != 0, rc, rc, "Get KMIP response status infos failed",
+	// 		    ph, out);
+
+	// pr_verbose(&ph->pd, "KMIP response, operation: %d, status: %d, "
+	// 	   "reason: %d message: '%s'", operation, status, reason,
+	// 	   message ? message : "(none)");
+
+	if (status != KMIP_RESULT_STATUS_SUCCESS) {
+		// _set_error(ph, "KMIP Request failed: Operation: '%s', "
+		// 	   "Status: '%s', Reason: '%s', Message: '%s'",
+		// 	   _enum_value_to_str(required_operations, operation),
+		// 	   _enum_value_to_str(kmip_result_statuses, status),
+		// 	   _enum_value_to_str(kmip_result_reasons, reason),
+		// 	   message ? message : "(none)");
+		rc = -EBADMSG;
+		goto out;
+	}
+out:
+	kmip_node_free(resp_hdr);
+	kmip_node_free(resp_bi);
+
+	return rc;
+}
+
 
 /**
  * Build a KMIP request with the up to 2 operations and payloads
@@ -1947,28 +2536,40 @@ done:
  *
  * @returns 0 on success, a negative errno in case of an error.
  */
-static int _build_kmip_request(enum kmip_operation operation,
-			       struct kmip_node *req_pl,
-			       struct kmip_node **req)
+static int build_kmip_request2(enum kmip_operation operation1,
+			       struct kmip_node *req_pl1,
+			       enum kmip_operation operation2,
+			       struct kmip_node *req_pl2,
+			       struct kmip_node **req,
+			       enum kmip_batch_error_cont_option batch_err_opt)
 {
-	struct kmip_node *req_bi = NULL, *req_hdr = NULL;
+	struct kmip_node *req_bi1 = NULL, *req_bi2 = NULL, *req_hdr = NULL;
 	int rc = 0;
 
-	req_bi = kmip_new_request_batch_item(operation, NULL, 0, req_pl);
+	req_bi1 = kmip_new_request_batch_item(operation1, NULL, 0, req_pl1);
 	// CHECK_ERROR(req_bi1 == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
 	// 	    ph, out);
 
+	if (operation2 != 0) {
+		req_bi2 = kmip_new_request_batch_item(operation2, NULL, 0,
+						      req_pl2);
+		// CHECK_ERROR(req_bi2 == NULL, rc, -ENOMEM,
+		// 	    "Allocate KMIP node failed", ph, out);
+	}
+
 	req_hdr = kmip_new_request_header(NULL, 0, NULL, NULL, false, NULL,
-					  KMIP_BATCH_ERR_CONT_STOP, true, 1);
+					  batch_err_opt, true,
+					  operation2 != 0 ? 2 : 1);
 	// CHECK_ERROR(req_hdr == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
 	// 	    ph, out);
 
-	*req = kmip_new_request_va(req_hdr, 1, req_bi);
+	*req = kmip_new_request_va(req_hdr, 2, req_bi1, req_bi2);
 	// CHECK_ERROR(*req == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
 	// 	    ph, out);
 
 out:
-	kmip_node_free(req_bi);
+	kmip_node_free(req_bi1);
+	kmip_node_free(req_bi2);
 	kmip_node_free(req_hdr);
 
 	return rc;
@@ -1990,38 +2591,75 @@ out:
  *
  * @returns 0 on success, a negative errno in case of an error.
  */
-static int _perform_kmip_request(
-	struct kmip_connection *connection,
-	enum kmip_operation operation,
-	struct kmip_node *req_pl,
-	struct kmip_node **resp_pl)
+static int perform_kmip_request2(enum kmip_operation operation1,
+				  struct kmip_node *req_pl1,
+				  struct kmip_node **resp_pl1,
+				  enum kmip_operation operation2,
+				  struct kmip_node *req_pl2,
+				  struct kmip_node **resp_pl2,
+				enum kmip_batch_error_cont_option batch_err_opt)
 {
 	struct kmip_node *req = NULL, *resp = NULL;
 	int rc;
-	bool verbose;
 
-	rc = _build_kmip_request(operation, req_pl,
-				  &req);
+	// if (operation2 != 0)
+	// 	pr_verbose(&ph->pd, "Perform KMIP request, operations: %d, %d",
+	// 		   operation1, operation2);
+	// else
+	// 	pr_verbose(&ph->pd, "Perform KMIP request, operation: %d",
+	// 		   operation1);
+
+
+	rc = build_kmip_request2(operation1, req_pl1, operation2, req_pl2,
+				  &req, batch_err_opt);
 	if (rc != 0)
 		goto out;
 
-	verbose = false;
-	rc = kmip_connection_perform(connection, req, &resp,
-				     verbose);
-	// if (rc != 0) {
-	// 	_set_error(ph, "Failed to perform KMIP request: %s",
-	// 		   strerror(-rc));
-	// }
+	rc = kmip_connection_perform(kmip_conn, req, &resp,
+				     true);
+	if (rc != 0) {
+		// _set_error(ph, "Failed to perform KMIP request: %s",
+		// 	   strerror(-rc));
+	}
 
-	//rc  = _check_kmip_response(resp, 0, operation, resp_pl);
+	rc  = check_kmip_response(resp, 0, operation1, resp_pl1);
+	if (rc != 0 && batch_err_opt == KMIP_BATCH_ERR_CONT_CONTINUE &&
+	    operation2 != 0) {
+		rc = 0;
+		//plugin_clear_error(&ph->pd);
+	}
 	if (rc != 0)
 		goto out;
+
+	if (operation2 != 0) {
+		rc  = check_kmip_response(resp, 1, operation2, resp_pl2);
+		if (rc != 0)
+			goto out;
+	}
 
 out:
 	kmip_node_free(req);
 	kmip_node_free(resp);
 
 	return rc;
+}
+
+/**
+ * Perform a KMIP request with the specified operation and payload. Returns the
+ * response payload.
+ *
+ * @param operation         The operation to perform
+ * @param req_pl            the request payload
+ * @param resp_pl           On return: the response payload.
+ *
+ * @returns 0 on success, a negative errno in case of an error.
+ */
+static int perform_kmip_request(enum kmip_operation operation,
+				 struct kmip_node *req_pl,
+				 struct kmip_node **resp_pl)
+{
+	return perform_kmip_request2(operation, req_pl, resp_pl, 0, NULL,
+				      NULL, KMIP_BATCH_ERR_CONT_STOP);
 }
 
 
@@ -2114,7 +2752,7 @@ static int _get_key_rsa_wrapped(
 	// CHECK_ERROR(req_pl == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
 	// 	    ph, out);
 
-	rc = _perform_kmip_request(connection, KMIP_OPERATION_GET, req_pl, &resp_pl);
+	rc = perform_kmip_request(KMIP_OPERATION_GET, req_pl, &resp_pl);
 	if (rc != 0)
 		goto out;
 
@@ -2214,13 +2852,6 @@ out:
 
 	return rc;
 }
-
-
-
-/***********************************************/
-/* Send the RSA public key to KMIP             */
-/***********************************************/
-
 
 
 
