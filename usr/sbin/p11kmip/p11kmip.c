@@ -1758,18 +1758,26 @@ static CK_RV p11kmip_import_key(void){
        sending the public key when it is not necessary and provides the
        user with an earlier error. */
 
-    printf("Attempting to locate public key '%s' on server", opt_wrap_label);
+    printf("Attempting to locate public key '%s' on server\n", opt_wrap_label);
     rc = p11kmip_locate_label_server(opt_wrap_label, &pubkey_keytype, &wrap_pubkey_uuid);
 
     // If we were unable to locate the key on the server,
     // register it there
     if (wrap_pubkey_uuid == NULL) {
-        printf("Did not find wrapping key '%s' on server, registering it",
+        printf("Did not find wrapping key '%s' on server, registering it\n",
                 opt_wrap_label);
         /* Next we send the public key to the server */
         rc = p11kmip_register_key_server(&pubkey_keytype, wrapping_pubkey, 
                                             opt_wrap_label, &wrap_pubkey_uuid);
+        
+        if (rc != CKR_OK) {
+            warnx("Failed to register wrapping key '%s' on server\n",
+                opt_wrap_label);
+            goto done;
+        }
     }
+
+    printf("Wrapping key KMIP UUID is '%s'", wrap_pubkey_uuid);
 
     /* Next we retrieve the wrapped key */
     // rc = p11kmip_retrieve_wrapped_key_server(wrapped_key_pl, opt_wrap_label, opt_target_label, kmip_connection);
@@ -2144,8 +2152,13 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 	// 	   kmip_wrap_hashing_algo);
 
     // Export the public key from PKCS#11 into an OpenSSL EVP Key
-    p11kmip_export_rsa_pkey(keytype, &pkey, false, 
-        wrapping_pubkey, wrapping_key_label);
+    rc = keytype->export_asym_pkey(keytype, &pkey, false, 
+            wrapping_pubkey, wrapping_key_label);
+
+    if (rc != CKR_OK) {
+        warnx("Failed to export '%s' to EVP key", wrapping_key_label);
+        goto out;
+    }
 
 	switch (kmip_wrap_key_format) {
 	case KMIP_KEY_FORMAT_TYPE_PKCS_1:
@@ -2616,7 +2629,7 @@ static int perform_kmip_request2(enum kmip_operation operation1,
 		goto out;
 
 	rc = kmip_connection_perform(kmip_conn, req, &resp,
-				     true);
+				     false);
 	if (rc != 0) {
 		// _set_error(ph, "Failed to perform KMIP request: %s",
 		// 	   strerror(-rc));
