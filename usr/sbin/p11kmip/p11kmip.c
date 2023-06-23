@@ -65,6 +65,7 @@ static CK_SLOT_INFO pkcs11_slotinfo;
 /* KMIP */
 struct kmip_connection *kmip_conn = NULL;
 struct kmip_conn_config *kmip_conf = NULL;
+struct kmip_version kmip_vers;
 
 enum kmip_key_format_type kmip_wrap_key_format;
 enum kmip_crypto_algo kmip_wrap_key_alg;
@@ -92,7 +93,7 @@ static bool opt_force_pem_pwd_prompt = false;
 
 /* Config */
 
-/* Function prototypes */
+/* P11 function prototypes */
 static bool opt_slot_is_set(const struct p11kmip_arg *arg);
 static CK_RV p11kmip_import_key(void);
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
@@ -114,7 +115,7 @@ static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
 static void free_attr_array_attr(CK_ATTRIBUTE *attr); // Was getting errors if I didn't add this
 
 
-//KMIP function prototypes
+/* KMIP function prototypes */
 static int perform_kmip_request2(enum kmip_operation operation1,
 				  struct kmip_node *req_pl1,
 				  struct kmip_node **resp_pl1,
@@ -125,6 +126,12 @@ static int perform_kmip_request2(enum kmip_operation operation1,
 static int perform_kmip_request(enum kmip_operation operation,
 				 struct kmip_node *req_pl,
 				 struct kmip_node **resp_pl);
+static int discover_kmip_versions(struct kmip_version *version);
+static bool supports_description_attr(void);
+static bool supports_comment_attr(void);
+static struct kmip_node *build_custom_attr(const char *name,
+					    const char *value);
+static struct kmip_node *build_description_attr(const char *description);
 /* Key object structure declarations */
 
 static const struct p11kmip_keytype p11kmip_aes_keytype = {
@@ -1408,19 +1415,23 @@ static void free_kmip_config(void)
 
 static CK_RV init_kmip(void){
     CK_RV rc;
+    bool kmip_verbose;
     rc = CKR_OK;
+    kmip_verbose = true;
 
     rc = build_kmip_config();
 
     if(rc != CKR_OK)
         goto done;
 
-    rc = kmip_connection_new(kmip_conf,&kmip_conn, true);
+    rc = kmip_connection_new(kmip_conf, &kmip_conn, kmip_verbose);
 
     if(rc != CKR_OK){
         warnx("Failed to initialize connection to KMIP server");
         goto done;
     }
+
+    rc = discover_kmip_versions(&kmip_vers);
 
 done: 
 
@@ -1434,6 +1445,144 @@ static void term_kmip(void){
     if(kmip_conf != NULL)
         free_kmip_config();
 }
+
+/* KMIP utilities */
+
+/**
+ * Discovers the KMIP protocol versions that the KMIP server supports
+ *
+ * @param version           On return : the highest KMIP version that the server
+ *                          and the KMIP client supports
+ *
+ * @returns 0 on success, a negative errno in case of an error.
+ */
+static int discover_kmip_versions(struct kmip_version *version)
+{
+	struct kmip_node *req_pl = NULL, *resp_pl = NULL;
+	int rc = 0;
+
+	req_pl = kmip_new_discover_versions_payload(-1, NULL);
+	if (req_pl == NULL) {
+		rc = -ENOMEM;
+		warnx("Allocate KMIP node failed");
+		goto out;
+	}
+
+	rc = perform_kmip_request(KMIP_OPERATION_DISCOVER_VERSIONS,
+				   req_pl, &resp_pl);
+	if (rc != 0)
+		goto out;
+
+	rc = kmip_get_discover_versions_response_payload(resp_pl, NULL, 0,
+							 version);
+	if (rc != 0) {
+		rc = rc;
+		warnx("Failed to get discover version response");
+		goto out;
+	}
+
+out:
+	kmip_node_free(req_pl);
+	kmip_node_free(resp_pl);
+
+	return rc;
+}
+
+
+/**
+ * Returns true if the KMIP server supports the 'Sensitive' attribute.
+ * This is dependent on the profile settings, and the used KMIP protocol
+ * version (>= v1.4).
+ *
+ * @param ph                the plugin handle
+ *
+ * @return true or false
+ */
+static bool supports_sensitive_attr(void)
+{
+	if (kmip_vers.major <= 1)
+		return false;
+
+	if (kmip_vers.major == 1 && kmip_vers.minor < 4)
+		return false;
+
+	return true;
+}
+
+/**
+ * Returns true if the KMIP server supports the 'Description' attribute.
+ * This is dependent on the profile settings, and the used KMIP protocol
+ * version (>= v1.4).
+ *
+ * @return true or false
+ */
+static bool supports_description_attr(void)
+{
+	if (kmip_vers.major <= 1)
+		return false;
+
+	if (kmip_vers.major == 1 && kmip_vers.minor < 4)
+		return false;
+
+	return true;
+}
+
+/**
+ * Returns true if the KMIP server supports the 'Comment' attribute.
+ * This is dependent on the profile settings, and the used KMIP protocol
+ * version (>= v1.4).
+ *
+ * @return true or false
+ */
+static bool supports_comment_attr(void)
+{
+	if (kmip_vers.major <= 1)
+		return false;
+
+	if (kmip_vers.major == 1 && kmip_vers.minor < 4)
+		return false;
+
+	return true;
+}
+
+/**
+ * Build Custom/Vendor attribute according to the Custom attribute style of the
+ * profile.
+ *
+ * @param ph                the plugin handle
+ * @param name              the attribute name
+ * @param value             the attribute value
+ *
+ * @returns the attribute node or NULL in case of an error.
+ */
+static struct kmip_node *build_custom_attr(const char *name,
+					    const char *value)
+{
+	struct kmip_node *attr = NULL, *text;
+	char *v1_name = NULL;
+
+	text = kmip_node_new_text_string(KMIP_TAG_ATTRIBUTE_VALUE, NULL, value);
+
+	// switch (ph->profile->cust_attr_scheme) {
+	// case KMIP_PROFILE_CUST_ATTR_V1_STYLE:
+	// 	util_asprintf(&v1_name, "zkey-%s", name);
+	// 	attr = kmip_new_vendor_attribute("x", v1_name, text);
+	// 	free(v1_name);
+	// 	break;
+	// case KMIP_PROFILE_CUST_ATTR_V2_STYLE:
+		attr = kmip_new_vendor_attribute("p11kmip", name, text);
+	// 	break;
+	// default:
+	// 	_set_error(ph, "Invalid custom attribute style: %d",
+	// 		   ph->profile->cust_attr_scheme);
+	// 	goto out;
+	// }
+
+//out:
+	kmip_node_free(text);
+	return attr;
+}
+
 
 /********************************/
 /* Configuration file functions */
@@ -1817,14 +1966,13 @@ done:
 
 static struct kmip_node *build_description_attr(const char *description)
 {
-	// if (_supports_description_attr(ph))
-	// 	return kmip_new_description(description);
+	if (supports_description_attr())
+		return kmip_new_description(description);
 
-	// if (_supports_comment_attr(ph))
-	// 	return kmip_new_comment(description);
+	if (supports_comment_attr())
+		return kmip_new_comment(description);
 
-	// return _build_custom_attr(ph, "description", description);
-    return kmip_new_description(description);
+	return build_custom_attr("description", description);
 }
 
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
@@ -2312,7 +2460,7 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 
     printf("Heartbeat 4");
 
-	util_asprintf(&description, "Wrapping key for PKCS#11 client on system %s",
+	asprintf(&description, "Wrapping key for PKCS#11 client on system %s",
 		      utsname.nodename);
 	descr_attr = build_description_attr(description);
 	free(description);
