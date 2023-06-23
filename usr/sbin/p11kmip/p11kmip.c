@@ -1815,6 +1815,18 @@ done:
 
 /* Routines */
 
+static struct kmip_node *build_description_attr(const char *description)
+{
+	// if (_supports_description_attr(ph))
+	// 	return kmip_new_description(description);
+
+	// if (_supports_comment_attr(ph))
+	// 	return kmip_new_comment(description);
+
+	// return _build_custom_attr(ph, "description", description);
+    return kmip_new_description(description);
+}
+
 static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
                                     CK_OBJECT_HANDLE key, const char *label)
@@ -2173,8 +2185,6 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 	// pr_verbose(&ph->pd, "Wrap hashing algorithm: %d",
 	// 	   kmip_wrap_hashing_algo);
 
-    printf("Attempting to export public key to EVP key");
-
     // Export the public key from PKCS#11 into an OpenSSL EVP Key
     if (keytype->export_asym_pkey != NULL){
         rc = keytype->export_asym_pkey(keytype, &pkey, false, 
@@ -2302,12 +2312,15 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 
     printf("Heartbeat 4");
 
-	// util_asprintf(&description, "Wrapping key for zkey client on system %s",
-	// 	      utsname.nodename);
-	// descr_attr = _build_description_attr(ph, description);
-	// free(description);
-	// CHECK_ERROR(descr_attr == NULL, rc, -ENOMEM,
-	// 	    "Allocate KMIP node failed", ph, out);
+	util_asprintf(&description, "Wrapping key for PKCS#11 client on system %s",
+		      utsname.nodename);
+	descr_attr = build_description_attr(description);
+	free(description);
+    if (descr_attr == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
 
 	reg_req = kmip_new_register_request_payload_va(NULL,
 					KMIP_OBJECT_TYPE_PUBLIC_KEY, kobj, NULL,
