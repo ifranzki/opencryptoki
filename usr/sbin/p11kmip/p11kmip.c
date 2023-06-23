@@ -1239,13 +1239,13 @@ static CK_RV build_kmip_config(void)
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
-            if (wrap_key_size != NULL && !confignode_hastype(wrap_key_size, CT_STRINGVAL)){
+            if (wrap_key_size != NULL && !confignode_hastype(wrap_key_size, CT_INTVAL)){
                 warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                     P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
-            if (wrap_pad_method != NULL && !confignode_hastype(wrap_pad_method, CT_INTVAL)){
+            if (wrap_pad_method != NULL && !confignode_hastype(wrap_pad_method, CT_STRINGVAL)){
                 warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                     P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD, c->line);
                 rc = CKR_GENERAL_ERROR;
@@ -1309,6 +1309,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_key_format)->value,
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
+        } else {
+            warnx("Wrapping key format not found in config file");
+            rc = CKR_GENERAL_ERROR;
+            goto done;
         }
 
         if (wrap_key_algorithm != NULL) {
@@ -1322,10 +1326,18 @@ for key word '%s's\n", confignode_to_stringval(wrap_key_algorithm)->value,
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
+        } else {
+            warnx("Wrapping key algorithm not found in config file");
+            rc = CKR_GENERAL_ERROR;
+            goto done;
         }
 
         if (wrap_key_size != NULL) {
             kmip_wrap_key_size = confignode_to_intval(wrap_key_size)->value;
+        } else {
+            warnx("Wrapping key length not found in config file");
+            rc = CKR_GENERAL_ERROR;
+            goto done;
         }
 
         if (wrap_pad_method != NULL) {
@@ -1342,6 +1354,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_pad_method)->value,
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
+        } else {
+            warnx("Wrap padding method not found in config file");
+            rc = CKR_GENERAL_ERROR;
+            goto done;
         }
 
         if (wrap_hash_algo != NULL) {
@@ -1358,6 +1374,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
+        } else {
+            warnx("Wrap hashing algorithm not found in config file");
+            rc = CKR_GENERAL_ERROR;
+            goto done;
         }
     }
 
@@ -1372,6 +1392,8 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         rc = CKR_GENERAL_ERROR;
         goto done;
     }
+
+
 
 done:
 
@@ -2168,9 +2190,7 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
         rc = CKR_FUNCTION_NOT_SUPPORTED;
         goto out;
     }
-
-    printf("Heartbeat 1");
-
+    
 	switch (kmip_wrap_key_format) {
 	case KMIP_KEY_FORMAT_TYPE_PKCS_1:
 		key = kmip_new_pkcs1_public_key(pkey);
