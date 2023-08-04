@@ -196,10 +196,11 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
     { .short_opt = 'v', .long_opt = "version", .required = false,
       .arg = { .type = ARG_TYPE_PLAIN, .required = false,
                .value.plain = &opt_version, },
+      .description = "Print version information, then exit."},
     { .short_opt = 'd', .long_opt = "debug", .required = false,
       .arg = { .type = ARG_TYPE_PLAIN, .required = false,
                .value.plain = &opt_verbose, },
-      .description = "Print version information, then exit."},
+      .description = "Increase debug information" },
     { .short_opt = 0, .long_opt = NULL, },
 };
 
@@ -1632,8 +1633,8 @@ static int check_kmip_response(struct kmip_node *resp, int32_t batch_item,
 		warnx("KMIP Request failed: Operation: '%s', "
 			  "Status: '%s', Reason: '%s', Message: '%s'",
 			   _enum_value_to_str(required_operations, operation),
-			   _enum_value_to_str(kmip_result_statuses, status),
-			   _enum_value_to_str(kmip_result_reasons, reason),
+			   _enum_value_to_str(kmip_result_statuses, status[0]),
+			   _enum_value_to_str(kmip_result_reasons, reason[0]),
 			   message ? message : "(none)");
 		rc = -EBADMSG;
 		goto out;
