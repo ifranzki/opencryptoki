@@ -83,6 +83,7 @@ static struct ConfigBaseNode *p11kmip_cfg = NULL;
 /* Options */
 static bool opt_help = false;
 static bool opt_version = false;
+static bool opt_verbose = false;
 static CK_SLOT_ID opt_slot = (CK_SLOT_ID)-1;
 static char *opt_pin = NULL;
 static bool opt_force_pin_prompt = false;
@@ -195,6 +196,9 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
     { .short_opt = 'v', .long_opt = "version", .required = false,
       .arg = { .type = ARG_TYPE_PLAIN, .required = false,
                .value.plain = &opt_version, },
+    { .short_opt = 'd', .long_opt = "debug", .required = false,
+      .arg = { .type = ARG_TYPE_PLAIN, .required = false,
+               .value.plain = &opt_verbose, },
       .description = "Print version information, then exit."},
     { .short_opt = 0, .long_opt = NULL, },
 };
@@ -1355,16 +1359,14 @@ static void free_kmip_config(void)
  */
 static CK_RV init_kmip(void){
     CK_RV rc;
-    bool kmip_verbose;
     rc = CKR_OK;
-    kmip_verbose = true;
 
     rc = build_kmip_config();
 
     if(rc != CKR_OK)
         goto done;
 
-    rc = kmip_connection_new(kmip_conf, &kmip_conn, kmip_verbose);
+    rc = kmip_connection_new(kmip_conf, &kmip_conn, opt_verbose);
 
     if (rc != CKR_OK) {
         warnx("Failed to initialize connection to KMIP server");
@@ -1420,7 +1422,7 @@ static int discover_kmip_versions(struct kmip_version *version)
 				   req_pl, &resp_pl, &discover_status,
                    &discover_reason);
 	if (rc != 0 && 
-        discover_reason != KMIP_RESULT_REASON_OPERATION_NOT_SUCCESSFUL) {
+        discover_reason != KMIP_RESULT_REASON_ILLEGAL_OPERATION) {
         warnx("Failed to request KMIP version from server");
         goto out;
     }
@@ -1428,7 +1430,8 @@ static int discover_kmip_versions(struct kmip_version *version)
     // This reason code can be returned if the DiscoverVersions
     // function is not supported on the server, which, ironically,
     // allows us to deduce it is version 1.0
-    if(discover_reason == KMIP_RESULT_REASON_OPERATION_NOT_SUCCESSFUL) {
+    if(discover_reason == KMIP_RESULT_REASON_ILLEGAL_OPERATION) {
+        rc = CKR_OK;
         version->major = 1;
         version->minor = 0;
     } else {
@@ -1501,6 +1504,27 @@ static bool supports_comment_attr(void)
 		return false;
 
 	return true;
+}
+
+/**
+ * Returns the name of the enumeration value.
+ *
+ * @param values            the list of enumeration values
+ * @param value             the value
+ *
+ * @returns a constant string
+ */
+static const char *_enum_value_to_str(const struct kmip_enum_name *values,
+				      uint32_t value)
+{
+	unsigned int i;
+
+	for (i = 0; values[i].name != NULL; i++) {
+		if (values[i].value == value)
+			return values[i].name;
+	}
+
+	return "UNKNOWN";
 }
 
 /*****************************************************************************/
@@ -1594,8 +1618,8 @@ static int check_kmip_response(struct kmip_node *resp, int32_t batch_item,
 	// CHECK_ERROR(rc != 0, rc, rc, "Get KMIP response batch item failed",
 	// 	    ph, out);
 
-	rc = kmip_get_response_batch_item(resp_bi, NULL, NULL, NULL, &status,
-					  &reason, &message, NULL, NULL,
+	rc = kmip_get_response_batch_item(resp_bi, NULL, NULL, NULL, status,
+					  reason, &message, NULL, NULL,
 					  payload);
 	// CHECK_ERROR(rc != 0, rc, rc, "Get KMIP response status infos failed",
 	// 		    ph, out);
@@ -1605,13 +1629,12 @@ static int check_kmip_response(struct kmip_node *resp, int32_t batch_item,
 	// 	   message ? message : "(none)");
 
 	if (status != KMIP_RESULT_STATUS_SUCCESS) {
-
-		// _set_error(ph, "KMIP Request failed: Operation: '%s', "
-		// 	   "Status: '%s', Reason: '%s', Message: '%s'",
-		// 	   _enum_value_to_str(required_operations, operation),
-		// 	   _enum_value_to_str(kmip_result_statuses, status),
-		// 	   _enum_value_to_str(kmip_result_reasons, reason),
-		// 	   message ? message : "(none)");
+		warnx("KMIP Request failed: Operation: '%s', "
+			  "Status: '%s', Reason: '%s', Message: '%s'",
+			   _enum_value_to_str(required_operations, operation),
+			   _enum_value_to_str(kmip_result_statuses, status),
+			   _enum_value_to_str(kmip_result_reasons, reason),
+			   message ? message : "(none)");
 		rc = -EBADMSG;
 		goto out;
 	}
@@ -1718,13 +1741,14 @@ static int perform_kmip_request2(enum kmip_operation operation1,
 		goto out;
 
 	rc = kmip_connection_perform(kmip_conn, req, &resp,
-				     true);
+				     opt_verbose);
 	if (rc != 0) {
 		// _set_error(ph, "Failed to perform KMIP request: %s",
 		// 	   strerror(-rc));
 	}
 
-	rc  = check_kmip_response(resp, 0, operation1, resp_pl1, status1, reason1);
+	rc  = check_kmip_response(resp, 0, operation1, resp_pl1,
+                      status1, reason1);
 	if (rc != 0 && batch_err_opt == KMIP_BATCH_ERR_CONT_CONTINUE &&
 	    operation2 != 0) {
 		rc = 0;
@@ -1734,7 +1758,8 @@ static int perform_kmip_request2(enum kmip_operation operation1,
 		goto out;
 
 	if (operation2 != 0) {
-		rc  = check_kmip_response(resp, 1, operation2, resp_pl2, status2, reason2);
+		rc  = check_kmip_response(resp, 1, operation2, resp_pl2, 
+                      status2, reason2);
 		if (rc != 0)
 			goto out;
 	}
@@ -2660,8 +2685,6 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
         goto out;
     }
 
-    printf("Heartbeat 2");
-
 	kval = kmip_new_key_value_va(NULL, key, 0);
 	if (kval == NULL) {
         warnx("Allocate KMIP node failed");
@@ -2684,8 +2707,6 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
         rc = -ENOMEM;
         goto out;
     }
-
-    printf("Heartbeat 3");
 
 	if (wrapping_key_label != NULL) {
 		name_attr = kmip_new_name(wrapping_key_label,
@@ -2734,8 +2755,6 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 		goto out;
 	}
 
-    printf("Heartbeat 4");
-
 	asprintf(&description, "Wrapping key for PKCS#11 client on system %s",
 		      utsname.nodename);
 	descr_attr = build_description_attr(description);
@@ -2768,8 +2787,6 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
                     KMIP_BATCH_ERR_CONT_STOP);
 	if (rc != 0)
 		goto out;
-
-    printf("Heartbeat 5");
 
 	rc = kmip_get_register_response_payload(reg_resp, &unique_id, NULL,
 						0, NULL);
