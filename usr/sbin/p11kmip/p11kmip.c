@@ -1629,7 +1629,7 @@ static int check_kmip_response(struct kmip_node *resp, int32_t batch_item,
 	// 	   "reason: %d message: '%s'", operation, status, reason,
 	// 	   message ? message : "(none)");
 
-	if (status != KMIP_RESULT_STATUS_SUCCESS) {
+	if (status[0] != KMIP_RESULT_STATUS_SUCCESS) {
 		warnx("KMIP Request failed: Operation: '%s', "
 			  "Status: '%s', Reason: '%s', Message: '%s'",
 			   _enum_value_to_str(required_operations, operation),
