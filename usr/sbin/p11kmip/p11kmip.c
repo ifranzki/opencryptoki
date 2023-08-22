@@ -2516,10 +2516,10 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
 
     /* Label, Object Class, Key Type */
     num_attrs = 1;
-    if (class_set)
-        num_attrs++;
-    if (alg_set)
-        num_attrs++;
+    // if (class_set)
+    //     num_attrs++;
+    // if (alg_set)
+    //     num_attrs++;
 
     attrs = malloc(num_attrs * sizeof(struct kmip_node *));
     k = 0;
@@ -2534,27 +2534,27 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
     }
     k++;
 
-    // Set the object type
-    if (class_set) {
-        attrs[k] = kmip_new_object_type(obj_type);
-        if (attrs[k] == NULL) {
-            rc = -ENOMEM;
-            warnx("Allocate KMIP node failed");
-            goto out;
-        }
-        k++;
-    }
+    // // Set the object type
+    // if (class_set) {
+    //     attrs[k] = kmip_new_object_type(obj_type);
+    //     if (attrs[k] == NULL) {
+    //         rc = -ENOMEM;
+    //         warnx("Allocate KMIP node failed");
+    //         goto out;
+    //     }
+    //     k++;
+    // }
 
-    //Set the key algorithm
-    if (alg_set) {
-        attrs[k] = kmip_new_cryptographic_algorithm(key_alg);
-        if (attrs[k] == NULL) {
-            rc = -ENOMEM;
-            warnx("Allocate KMIP node failed");
-            goto out;
-        }
-        k++;
-    }
+    // //Set the key algorithm
+    // if (alg_set) {
+    //     attrs[k] = kmip_new_cryptographic_algorithm(key_alg);
+    //     if (attrs[k] == NULL) {
+    //         rc = -ENOMEM;
+    //         warnx("Allocate KMIP node failed");
+    //         goto out;
+    //     }
+    //     k++;
+    // }
 
     req_pl = kmip_new_locate_request_payload(NULL, 0, 0, 0, 0,
 						 num_attrs, attrs);
@@ -2575,7 +2575,7 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
 						      &item_uid);
 		if (rc != 0)
 			break;
-        printf(" Item number %d UUID: %x",num_objs+1,item_uid);
+        printf(" Item number %d UUID: %x\n",num_objs+1,item_uid);
         num_objs++;
         last_uid = item_uid;
     }
