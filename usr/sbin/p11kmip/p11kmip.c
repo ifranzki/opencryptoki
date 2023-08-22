@@ -1375,6 +1375,7 @@ static CK_RV init_kmip(void){
     }
 
     rc = discover_kmip_versions(&kmip_vers);
+    printf("KMIP server version: %d.%d\n", kmip_vers.major, kmip_vers.minor);
 
 done: 
     return rc;
@@ -1444,8 +1445,6 @@ static int discover_kmip_versions(struct kmip_version *version)
         }
     }
 
-    printf("KMIP server version: %d.%d", version->major, version->minor);
-
 out:
 	kmip_node_free(req_pl);
 	kmip_node_free(resp_pl);
@@ -1487,6 +1486,9 @@ static bool supports_description_attr(void)
 
 	if (kmip_vers.major == 1 && kmip_vers.minor < 4)
 		return false;
+
+    if (kmip_vers.major == 2 && kmip_vers.minor == 1)
+        return false;
 
 	return true;
 }
