@@ -2490,7 +2490,8 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
                                     p11kmip_keytype *keytype, 
                                     struct kmip_node **obj_uid)
 {
-    struct kmip_node *req_pl = NULL, *resp_pl = NULL, *item_uid = NULL;
+    struct kmip_node *req_pl = NULL, *resp_pl = NULL, *item_uid = NULL,
+        *last_uid = NULL;
 	struct kmip_node **attrs = NULL;
     enum kmip_result_status locate_status;
     enum kmip_result_reason locate_reason;
@@ -2574,15 +2575,16 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
 						      &item_uid);
 		if (rc != 0)
 			break;
-        
+        printf(" Item number %d UUID: %x",num_objs+1,item_uid);
         num_objs++;
+        last_uid = item_uid;
     }
 
     if (num_objs == 0) {
         rc = CKR_OK;
     } else if (num_objs == 1) {
         rc = CKR_OK;
-        *obj_uid = item_uid;
+        *obj_uid = last_uid;
     } else {
         rc = CKR_GENERAL_ERROR;
         warnx("Unable to uniquely identify wrapping key on KMIP server");
