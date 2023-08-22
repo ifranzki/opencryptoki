@@ -1507,6 +1507,9 @@ static bool supports_comment_attr(void)
 
 	if (kmip_vers.major == 1 && kmip_vers.minor < 4)
 		return false;
+    
+    if (kmip_vers.major == 2 && kmip_vers.minor == 1)
+        return false;
 
 	return true;
 }
