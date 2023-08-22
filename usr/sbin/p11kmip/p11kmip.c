@@ -1444,6 +1444,8 @@ static int discover_kmip_versions(struct kmip_version *version)
         }
     }
 
+    printf("KMIP server version: %d.%d", version->major, version->minor);
+
 out:
 	kmip_node_free(req_pl);
 	kmip_node_free(resp_pl);
