@@ -102,24 +102,34 @@ static bool opt_force_pem_pwd_prompt = false;
 
 /* Config */
 
+/* P11 KMIP function prototypes */
+static CK_RV p11kmip_locate_remote_key(const char *label, const struct
+                                    p11kmip_keytype *keytype, 
+                                    struct kmip_node **obj_uid);
+static CK_RV p11kmip_register_remote_key(const struct p11kmip_keytype *keytype,
+                                    CK_OBJECT_HANDLE wrapping_pubkey,
+                                    const char *wrapping_key_label,
+                                    struct kmip_node **key_uid);
+static CK_RV p11kmip_retrieve_remote_wrapped_key(const char *wrapped_key_label,
+                                    const char *wrapping_key_label, 
+                                    const char **wrapped_key_blob);
+static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype *keytype,
+                const char *secret_key_label, struct kmip_node **secret_key_uid);
+static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
+                                    const char *label, const char *id,
+							        CK_OBJECT_HANDLE *key);
+
 /* P11 function prototypes */
 static bool opt_slot_is_set(const struct p11kmip_arg *arg);
 static CK_RV p11kmip_import_key(void);
-static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
+static CK_RV p11kmip_export_local_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
                                     CK_OBJECT_HANDLE key, const char *label);
-static CK_RV p11kmip_locate_label_server(const char *label, const struct
-                                    p11kmip_keytype *keytype, 
-                                    struct kmip_node **obj_uid);
-static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
-                                        CK_OBJECT_HANDLE wrapping_pubkey,
-                                        const char *wrapping_key_label,
-                                        struct kmip_node **key_uuid);
-static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
-                const char *wrapping_key_label, const char *wrapped_key_blob);
-static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
-                               const char *label, const char *id,
-							   CK_OBJECT_HANDLE *key);
+
+static CK_RV aes_get_key_size(const struct p11kmip_keytype *keytype,
+                              void *private, CK_ULONG *keysize);
+static CK_RV rsa_get_key_size(const struct p11kmip_keytype *keytype,
+                              void *private, CK_ULONG *keysize);
 
 static void free_attr_array_attr(CK_ATTRIBUTE *attr); // Was getting errors if I didn't add this
 
@@ -155,9 +165,10 @@ static struct kmip_node *build_description_attr(const char *description);
 /* Key object structure declarations */
 static const struct p11kmip_keytype p11kmip_aes_keytype = {
     .name = "AES",  .type = CKK_AES, .ckk_name = "CKK_AES",
+    .class = CKO_SECRET_KEY,
     .keygen_mech = { .mechanism = CKM_AES_KEY_GEN, },
     .is_asymmetric = false,
-    // .keygen_get_key_size = aes_get_key_size,
+    .keygen_get_key_size = aes_get_key_size,
     // .keygen_add_secret_attrs = aes_add_secret_attrs,
     .sign_verify = true, .encrypt_decrypt = true,
     .wrap_unwrap = true, .derive = true,
@@ -174,7 +185,7 @@ static const struct p11kmip_keytype p11kmip_rsa_keytype = {
     .name = "RSA",  .type = CKK_RSA, .ckk_name = "CKK_RSA",
     .keygen_mech = { .mechanism = CKM_RSA_PKCS_KEY_PAIR_GEN, },
     .is_asymmetric = true,
-    // .keygen_get_key_size = rsa_get_key_size,
+    .keygen_get_key_size = rsa_get_key_size,
     // .keygen_add_public_attrs = rsa_add_public_attrs,
     .sign_verify = true, .encrypt_decrypt = true,
     .wrap_unwrap = true, .derive = false,
@@ -184,7 +195,7 @@ static const struct p11kmip_keytype p11kmip_rsa_keytype = {
     // .public_attrs = p11kmip_public_rsa_attrs,
     // .private_attrs = p11kmip_private_rsa_attrs,
     // .import_asym_pkey = p11kmip_import_rsa_pkey,
-    .export_asym_pkey = p11kmip_export_rsa_pkey,
+    .export_asym_pkey = p11kmip_export_local_rsa_pkey,
 };
 
 /* Commandline interface structure declarations */
@@ -367,6 +378,49 @@ static const enum kmip_object_type get_kmip_object_class_p11(CK_OBJECT_CLASS p11
 
     return P11KMIP_P11_KMIP_OBJ_TABLE[p11_obj];
 }
+
+static const enum kmip_crypto_usage_mask get_kmip_usage_mask_p11(
+                struct p11kmip_keytype *keytype){
+    // Gnarly bitwise chain to turn on the appropriate flags for key usage
+    const enum kmip_crypto_usage_mask usage_mask = 
+        (keytype->encrypt_decrypt & 
+        (KMIP_CRY_USAGE_MASK_ENCRYPT | KMIP_CRY_USAGE_MASK_DECRYPT))
+        | (keytype->sign_verify & 
+        (KMIP_CRY_USAGE_MASK_SIGN | KMIP_CRY_USAGE_MASK_VERIFY))
+        | (keytype->wrap_unwrap & 
+        (KMIP_CRY_USAGE_MASK_WRAP_KEY | KMIP_CRY_USAGE_MASK_UNWRAP_KEY))
+        | (keytype->derive & (KMIP_CRY_USAGE_MASK_DERIVE_KEY));
+    return usage_mask;
+}
+
+static const size_t get_p11_num_attrs(struct p11kmip_keytype *keytype){
+    struct p11kmip_attr *attrs = NULL;
+    int num_attrs = 0;
+
+    switch(keytype->class){
+        case CKO_PUBLIC_KEY:
+            attrs = keytype->public_attrs;
+            break;
+        case CKO_PRIVATE_KEY:
+            attrs = keytype->private_attrs;
+            break;
+        case CKO_SECRET_KEY:
+            attrs = keytype->secret_attrs;
+            break;
+    }
+
+    if(attrs == NULL){
+        return 0;
+    }
+
+    while(attrs[num_attrs].name != NULL){
+        num_attrs++;
+    }
+
+    return num_attrs;
+}
+
+
 
 /* Commandline interface functions */
 static const struct p11kmip_cmd *find_command(const char *cmd)
@@ -1409,8 +1463,8 @@ static void term_kmip(void){
 static int discover_kmip_versions(struct kmip_version *version)
 {
 	struct kmip_node *req_pl = NULL, *resp_pl = NULL;
-    enum kmip_result_status discover_status;
-    enum kmip_result_reason discover_reason;
+    enum kmip_result_status discover_status = 0;
+    enum kmip_result_reason discover_reason = 0;
 	int rc = 0;
 
 	req_pl = kmip_new_discover_versions_payload(-1, NULL);
@@ -1604,8 +1658,6 @@ static int check_kmip_response(struct kmip_node *resp, int32_t batch_item,
                 enum kmip_result_reason *reason)
 {
 	struct kmip_node *resp_hdr = NULL, *resp_bi = NULL;
-	//enum kmip_result_status status = 0;
-	//enum kmip_result_reason reason = 0;
 	const char *message = NULL;
 	int32_t batch_count;
 	int rc;
@@ -2181,6 +2233,22 @@ static void free_attributes(CK_ATTRIBUTE *attrs, CK_ULONG num_attrs)
     free(attrs);
 }
 
+/*****************************************************************************/
+/* PKCS#11 Key Type Functions                                                */
+/*****************************************************************************/
+
+static CK_RV aes_get_key_size(const struct p11kmip_keytype *keytype,
+                void *private, CK_ULONG *keysize){
+    *keysize = 256;
+    return CKR_OK;
+}
+
+static CK_RV rsa_get_key_size(const struct p11kmip_keytype *keytype,
+                void *private, CK_ULONG *keysize){
+    *keysize = 1024;
+    return CKR_OK;
+}
+
 /* Commands */
 
 /**
@@ -2196,14 +2264,17 @@ static void free_attributes(CK_ATTRIBUTE *attrs, CK_ULONG num_attrs)
 static CK_RV p11kmip_import_key(void){
 	CK_RV rc;
     CK_OBJECT_HANDLE wrapping_pubkey, wrapping_privkey;
-    struct p11kmip_keytype pubkey_keytype, privkey_keytype;
-    struct kmip_node *wrap_pubkey_uuid = NULL;
+    struct p11kmip_keytype pubkey_keytype, privkey_keytype, 
+        secret_keytype;
+    struct kmip_node *wrap_pubkey_uid = NULL, *secret_key_uid = NULL;
 
     pubkey_keytype = p11kmip_rsa_keytype;
     pubkey_keytype.class = CKO_PUBLIC_KEY;
 
     privkey_keytype = p11kmip_rsa_keytype;
     privkey_keytype.class = CKO_PRIVATE_KEY;
+
+    secret_keytype = p11kmip_aes_keytype;
 
     /*
     Ways to deal with wrapping key and target key
@@ -2224,37 +2295,36 @@ static CK_RV p11kmip_import_key(void){
             KMIP server
     */
 
-	rc = p11kmip_find_key(&pubkey_keytype, opt_wrap_label, NULL, &wrapping_pubkey);
+	rc = p11kmip_find_local_key(&pubkey_keytype, opt_wrap_label, NULL, &wrapping_pubkey);
 
     if(rc != CKR_OK)
         goto done;
     
     printf("Wrapping Public Key Handle: 0x%lX\n", wrapping_pubkey);
 
-    rc = p11kmip_find_key(&privkey_keytype, opt_wrap_label, NULL, &wrapping_privkey);
+    rc = p11kmip_find_local_key(&privkey_keytype, opt_wrap_label, NULL, &wrapping_privkey);
 
     if(rc != CKR_OK)
         goto done;
 
     printf("Wrapping Private Key Handle: 0x%lX\n", wrapping_privkey);
 
-    /* Here I would want to make some kind of call to the
-       KMIP server to verify that a key with the handle specified does
-       exist already and matches the algorithm we expect. This avoids
-       sending the public key when it is not necessary and provides the
-       user with an earlier error. */
-
     printf("Attempting to locate public key '%s' on server\n", opt_wrap_label);
-    rc = p11kmip_locate_label_server(opt_wrap_label, &pubkey_keytype, &wrap_pubkey_uuid);
+    rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype, &wrap_pubkey_uid);
+
+    if(rc != CKR_OK){
+        printf("Error while locating wrapping key on KMIP server\n");
+        goto done;
+    }
 
     // If we were unable to locate the key on the server,
     // register it there
-    if (wrap_pubkey_uuid == NULL) {
+    if (wrap_pubkey_uid == NULL) {
         printf("Did not find wrapping key '%s' on server, registering it\n",
                 opt_wrap_label);
         /* Next we send the public key to the server */
-        rc = p11kmip_register_key_server(&pubkey_keytype, wrapping_pubkey, 
-                                        opt_wrap_label, &wrap_pubkey_uuid);
+        rc = p11kmip_register_remote_key(&pubkey_keytype, wrapping_pubkey, 
+                                        opt_wrap_label, &wrap_pubkey_uid);
         
         if (rc != CKR_OK) {
             warnx("Failed to register wrapping key '%s' on server\n",
@@ -2263,23 +2333,49 @@ static CK_RV p11kmip_import_key(void){
         }
     }
 
-    printf("Wrapping key KMIP UUID is '%s'", wrap_pubkey_uuid);
+    printf("Wrapping key KMIP UID is '%x'", wrap_pubkey_uid);
+
+    printf("Attempting to locate secret key '%s' on server\n", opt_target_label);
+    rc = p11kmip_locate_remote_key(opt_target_label, &secret_keytype, &secret_key_uid);
+
+    if(rc != CKR_OK){
+        printf("Error while locating target key on KMIP server\n");
+        goto done;
+    }
+
+    // If we were unable to locate the create, for now, create
+    // it over there
+    if(secret_key_uid == NULL){
+        printf("Did not find target key '%s' on server, generating it\n",
+            opt_target_label);
+        rc = p11kmip_generate_remote_secret_key(&secret_keytype, opt_target_label,
+                &secret_key_uid);
+        
+        if(rc != CKR_OK){
+            printf("Error creating target key on KMIP server");
+            goto done;
+        }
+    }
+
+    printf("Target key KMIP UID is '%x'", secret_key_uid);
 
     /* Next we retrieve the wrapped key */
-    // rc = p11kmip_retrieve_wrapped_key_server(wrapped_key_pl, opt_wrap_label, opt_target_label, kmip_connection);
+    // rc = p11kmip_retrieve_remote_wrapped_key(wrapped_key_pl, opt_wrap_label, opt_target_label, kmip_connection);
 
     /* Lastly we unwrap the retrieved key */
     // rc = p11kmip_unwrap_key(wrapped_key_pl, opt_target_label, wrapping_privkey);
 
 done:
-    kmip_node_free(wrap_pubkey_uuid);
+    kmip_node_free(wrap_pubkey_uid);
 
 	return rc;
 }
 
-/* Routines */
+/***************************************************************************/
+/* Functions for Manipulating a Local PKCS#11 Adapter                      */
+/***************************************************************************/
 
-static CK_RV p11kmip_export_rsa_pkey(const struct p11kmip_keytype *keytype,
+static CK_RV p11kmip_export_local_rsa_pkey(const struct p11kmip_keytype *keytype,
                                     EVP_PKEY **pkey, bool private,
                                     CK_OBJECT_HANDLE key, const char *label)
 {
@@ -2486,17 +2582,17 @@ done:
     return rc;
 }
 
-static CK_RV p11kmip_locate_label_server(const char *label, const struct
+static CK_RV p11kmip_locate_remote_key(const char *label, const struct
                                     p11kmip_keytype *keytype, 
                                     struct kmip_node **obj_uid)
 {
     struct kmip_node *req_pl = NULL, *resp_pl = NULL, *item_uid = NULL,
         *last_uid = NULL;
 	struct kmip_node **attrs = NULL;
-    enum kmip_result_status locate_status;
-    enum kmip_result_reason locate_reason;
-	enum kmip_object_type obj_type;
-    enum kmip_crypto_algo key_alg;
+    enum kmip_result_status locate_status = 0;
+    enum kmip_result_reason locate_reason = 0;
+	enum kmip_object_type obj_type = P11KMIP_KMIP_UNKNOWN_OBJ;
+    enum kmip_crypto_algo key_alg = P11KMIP_KMIP_UNKNOWN_ALG;
 	size_t num_attrs, num_objs;
     bool class_set = FALSE, alg_set = FALSE;
 	const char *id;
@@ -2506,20 +2602,32 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
     // Reconcile constants for PKCS#11 to KMIP
     if (keytype->class != NULL) {
         obj_type = get_kmip_object_class_p11(keytype->class);
+
+        if(obj_type == P11KMIP_KMIP_UNKNOWN_OBJ){
+            warnx("Unknown object class");
+            rc = CKR_GENERAL_ERROR;
+            goto out;
+        }
         class_set = TRUE;
     }
 
     if (keytype->type != NULL) {
-        obj_type = get_kmip_algorithm_p11(keytype->type);
+        key_alg = get_kmip_algorithm_p11(keytype->type);
+
+        if(key_alg == P11KMIP_KMIP_UNKNOWN_ALG){
+            warnx("Unknown key algorithm");
+            rc = CKR_GENERAL_ERROR;
+            goto out;
+        }
         alg_set = TRUE;
     }
 
     /* Label, Object Class, Key Type */
     num_attrs = 1;
-    // if (class_set)
-    //     num_attrs++;
-    // if (alg_set)
-    //     num_attrs++;
+    if (class_set)
+        num_attrs++;
+    if (alg_set)
+        num_attrs++;
 
     attrs = malloc(num_attrs * sizeof(struct kmip_node *));
     k = 0;
@@ -2534,31 +2642,31 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
     }
     k++;
 
-    // // Set the object type
-    // if (class_set) {
-    //     attrs[k] = kmip_new_object_type(obj_type);
-    //     if (attrs[k] == NULL) {
-    //         rc = -ENOMEM;
-    //         warnx("Allocate KMIP node failed");
-    //         goto out;
-    //     }
-    //     k++;
-    // }
+    // Set the object type
+    if (class_set) {
+        attrs[k] = kmip_new_object_type(obj_type);
+        if (attrs[k] == NULL) {
+            rc = -ENOMEM;
+            warnx("Allocate KMIP node failed");
+            goto out;
+        }
+        k++;
+    }
 
-    // //Set the key algorithm
-    // if (alg_set) {
-    //     attrs[k] = kmip_new_cryptographic_algorithm(key_alg);
-    //     if (attrs[k] == NULL) {
-    //         rc = -ENOMEM;
-    //         warnx("Allocate KMIP node failed");
-    //         goto out;
-    //     }
-    //     k++;
-    // }
+    //Set the key algorithm
+    if (alg_set) {
+        attrs[k] = kmip_new_cryptographic_algorithm(key_alg);
+        if (attrs[k] == NULL) {
+            rc = -ENOMEM;
+            warnx("Allocate KMIP node failed");
+            goto out;
+        }
+        k++;
+    }
 
     req_pl = kmip_new_locate_request_payload(NULL, 0, 0, 0, 0,
 						 num_attrs, attrs);
-    if (attrs[k] == NULL) {
+    if (req_pl == NULL) {
         rc = -ENOMEM;
         warnx("Allocate KMIP node failed");
         goto out;
@@ -2575,7 +2683,7 @@ static CK_RV p11kmip_locate_label_server(const char *label, const struct
 						      &item_uid);
 		if (rc != 0)
 			break;
-        printf(" Item number %d UUID: %x\n",num_objs+1,item_uid);
+        
         num_objs++;
         last_uid = item_uid;
     }
@@ -2605,6 +2713,11 @@ out:
 
 }
 
+
+/***************************************************************************/
+/* Functions for Manipulating a Remote KMIP Server                         */
+/***************************************************************************/
+
 /**
  * @brief 
  * 
@@ -2614,10 +2727,10 @@ out:
  * 
  * @return CK_RV 
  */
-static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
+static CK_RV p11kmip_register_remote_key(const struct p11kmip_keytype *keytype,
                                         CK_OBJECT_HANDLE wrapping_pubkey,
                                         const char *wrapping_key_label,
-                                        struct kmip_node **key_uuid)
+                                        struct kmip_node **key_uid)
 {
     EVP_PKEY *pkey = NULL;
     struct kmip_node *kobj = NULL, *name_attr = NULL, *unique_id = NULL;
@@ -2630,11 +2743,11 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 #else
 	BIGNUM *modulus = NULL, *pub_exp = NULL;
 #endif
-	const char *wrap_key_id = NULL;
+	//const char *wrap_key_id = NULL;
 	char *description = NULL;
 	struct utsname utsname;
     enum kmip_result_status reg_status = 0, act_status = 0;
-    enum kmip_result_reason reg_reason, act_reason;
+    enum kmip_result_reason reg_reason = 0, act_reason = 0;
 	int rc;
 
 	// pr_verbose(&ph->pd, "Wrapping key format: %d",
@@ -2804,11 +2917,11 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
         warnx( "Failed to get key unique-id");
         goto out;
     }
-	rc = kmip_get_unique_identifier(unique_id, &wrap_key_id, NULL, NULL);
-	if (rc != 0) {
-        warnx( "Failed to get key unique-id");  
-        goto out;
-    }
+	// rc = kmip_get_unique_identifier(unique_id, &wrap_key_id, NULL, NULL);
+	// if (rc != 0) {
+    //     warnx( "Failed to get key unique-id");  
+    //     goto out;
+    // }
 	//pr_verbose(&ph->pd, "Wrapping key ID: '%s'", wrap_key_id);
 
 	// rc = plugin_set_or_remove_property(&ph->pd, KMIP_CONFIG_WRAPPING_KEY_ID,
@@ -2821,7 +2934,7 @@ static CK_RV p11kmip_register_key_server(const struct p11kmip_keytype *keytype,
 	// 				   wrapping_key_label);
 	// if (rc != 0)
 	// 	goto out;
-    *key_uuid = wrap_key_id;
+    *key_uid = unique_id;
 
 out:
 	kmip_node_free(key);
@@ -2836,7 +2949,7 @@ out:
 	kmip_node_free(reg_resp);
 	kmip_node_free(act_req);
 	kmip_node_free(act_resp);
-	kmip_node_free(unique_id);
+	//kmip_node_free(unique_id);
 
 #if OPENSSL_VERSION_PREREQ(3, 0)
 	if (modulus != NULL)
@@ -2854,17 +2967,167 @@ out:
  * 
  * @param wrapped_key_label     label of the target key
  * @param wrapping_key_label    label of the wrapping key
- * @param wrapped_key_blob      buffer containing wrapped key
+ * @param wrapped_key_blob      on output, a buffer containing the wrapped
+ *                              key material of the target key
  * global kmip_connection       structure for KMIP server connection
  * 
  * @return CK_RV 
  */
-static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
-                const char *wrapping_key_label, const char *wrapped_key_blob)
+static CK_RV p11kmip_retrieve_remote_wrapped_key(const char *wrapped_key_label,
+                const char *wrapping_key_label, const char **wrapped_key_blob)
 {
     CK_RV rc = 0;
 
     return rc;
+}
+
+/**
+ * Sends a request to a KMIP server to retrieve a public key of the given
+ * key type and label
+ * 
+ * @param keytype           used to specify the algorithm of the public key
+ * @param public_key_label  the label of the public key on the remote server
+ * @param pkey              an EVP format public key object which the retrieved
+ *                          key is written into
+ * 
+ * @return CK_RV 
+ */
+static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype *keytype,
+                const char *public_key_label, EVP_PKEY **pkey){
+    CK_RV rc = 0;
+
+    return rc;
+}
+
+static CK_RV p11kmip_generate_remote_key_pair(const struct p11kmip_keytype *keytype,
+                const char *public_key_label, const char *private_key_label){
+    CK_RV rc = 0;
+
+    return rc;
+}
+
+static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype *keytype,
+                const char *secret_key_label, struct kmip_node **secret_key_uid){
+    struct kmip_node *act_req = NULL, *act_resp = NULL, *unique_id = NULL;
+	struct kmip_node **attrs = NULL, *crea_req = NULL, *crea_resp = NULL;
+    enum kmip_result_status crea_status = 0, act_status = 0;
+    enum kmip_result_reason crea_reason = 0, act_reason = 0;
+	unsigned int num_attrs, i, idx = 0;
+    CK_ULONG keysize = 0;
+    enum kmip_crypto_algo secret_alg = P11KMIP_KMIP_UNKNOWN_ALG;
+	const char *uid;
+	int rc = 0;
+
+	num_attrs = 4 + (supports_sensitive_attr() ? 1 : 0);
+	attrs = malloc(num_attrs * sizeof(struct kmip_node *));
+
+    secret_alg = get_kmip_algorithm_p11(keytype->type);
+
+    if(secret_alg == P11KMIP_KMIP_UNKNOWN_ALG){
+        warnx("Invalid key type being generated");
+        rc = CKR_GENERAL_ERROR;
+        goto out;
+    }
+	attrs[idx] = kmip_new_cryptographic_algorithm(secret_alg);
+
+    if (attrs[idx] == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+	idx++;
+
+    rc = keytype->keygen_get_key_size(keytype, NULL, &keysize);
+
+    if(rc != CKR_OK || keysize == 0){
+        warnx("Failed to get keysize");
+        goto out;
+    }
+
+    // Cryptographic length wants it in bits
+	attrs[idx] = kmip_new_cryptographic_length(keysize * 8);
+	if (attrs[idx] == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+	idx++;
+    
+	attrs[idx] = kmip_new_cryptographic_usage_mask(
+        get_kmip_usage_mask_p11(keytype));
+	if (attrs[idx] == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+	idx++;
+
+    // TODO: change this to just apply all the attributes
+    // from the keytype structure into the request
+	if (supports_sensitive_attr()) {
+		attrs[idx] = kmip_new_sensitive(true);
+		if (attrs[idx] == NULL) {
+            warnx("Allocate KMIP node failed");
+            rc = -ENOMEM;
+            goto out;
+        }
+		idx++;
+	}
+
+    attrs[idx] = kmip_new_name(secret_key_label,
+            KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
+    if (attrs[idx] == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+    idx++;
+
+	crea_req = kmip_new_create_request_payload(NULL,
+					KMIP_OBJECT_TYPE_SYMMETRIC_KEY, NULL,
+					num_attrs, attrs);
+	if (crea_req == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	act_req = kmip_new_activate_request_payload(NULL); /* ID placeholder */
+	if (act_req == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+	rc = perform_kmip_request2(KMIP_OPERATION_CREATE, crea_req,
+				    &crea_resp, &crea_status, &crea_reason,
+                    KMIP_OPERATION_ACTIVATE, act_req, 
+                    &act_resp, &act_status, &act_reason,
+				    KMIP_BATCH_ERR_CONT_STOP);
+	if (rc != 0)
+		goto out;
+
+	rc = kmip_get_create_response_payload(crea_resp, NULL, &unique_id,
+					      NULL, 0, NULL);
+    if (rc != CKR_OK) {
+        warnx("Failed to get key unique-id");
+        goto out;
+    }
+
+	*secret_key_uid = uid;
+
+out:
+	if (attrs != NULL) {
+		for (i = 0; i < num_attrs; i++)
+			kmip_node_free(attrs[i]);
+		free(attrs);
+	}
+	kmip_node_free(crea_req);
+	kmip_node_free(crea_resp);
+	kmip_node_free(act_req);
+	kmip_node_free(act_resp);
+
+	return rc;
 }
 
 /**
@@ -2880,7 +3143,7 @@ static CK_RV p11kmip_retrieve_wrapped_key_server(const char *wrapped_key_label,
  * 
  * @return CK_RV 
  */
-static CK_RV p11kmip_find_key(const struct p11kmip_keytype *keytype,
+static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                const char *label, const char *id,
 							   CK_OBJECT_HANDLE *key){
 	CK_RV rc;
@@ -3010,8 +3273,8 @@ static int _get_key_rsa_wrapped(
 	char *wrap_key_id = NULL;
 	uint32_t klen;
 	int32_t bits;
-    enum kmip_result_status status;
-    enum kmip_result_reason reason;
+    enum kmip_result_status status = 0;
+    enum kmip_result_reason reason = 0;
 	int rc = 0;
 
 	// pr_verbose(&ph->pd, "Wrap padding method: %d",

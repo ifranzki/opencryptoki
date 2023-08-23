@@ -114,6 +114,19 @@ struct p11kmip_cmd {
     CK_FLAGS session_flags;
 };
 
+struct p11kmip_attr {
+    const char *name;
+    CK_ATTRIBUTE_TYPE type;
+    char letter;
+    bool secret;
+    bool public;
+    bool private;
+    bool settable;
+    void (*print_short)(const CK_ATTRIBUTE *val, bool applicable);
+    void (*print_long)(const char *attr, const CK_ATTRIBUTE *val,
+                       int indent, bool sensitive);
+};
+
 /* Key object struct definitions */
 struct p11kmip_keytype {
     const char *name;
