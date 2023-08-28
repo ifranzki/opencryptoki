@@ -2365,10 +2365,16 @@ static CK_RV p11kmip_import_key(void){
     printf("Target key KMIP UID is '%x'\n", secret_key_uid);
 
     /* Next we retrieve the wrapped key */
-    rc = p11kmip_retrieve_remote_wrapped_key(wrap_pubkey_uid, &pubkey_keytype, 
-        secret_key_uid, &secret_keytype, &wrapped_key_blob, &wrapped_key_length);
+    printf("Attempting to retrieve wrapped target key from server\n");
+    rc = p11kmip_retrieve_remote_wrapped_key(&pubkey_keytype, wrap_pubkey_uid,
+        &secret_keytype, secret_key_uid, &wrapped_key_length, &wrapped_key_blob);
 
-    printf("Wrapped Key Blob: %sn", wrapped_key_blob);
+    if(wrapped_key_blob == NULL){
+        warnx("Failed to retrieve wrapped key\n");
+        rc = CKR_GENERAL_ERROR;
+        goto done;
+    }
+    printf("Wrapped Key Blob: %s\n", wrapped_key_blob);
     printf("Wrapped Key Blob Length: %d\n", wrapped_key_length);
 
     /* Lastly we unwrap and import the retrieved key */
@@ -3303,7 +3309,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype *ke
 	unsigned int num_attrs, i, idx = 0;
     CK_ULONG keysize = 0;
     enum kmip_crypto_algo secret_alg = P11KMIP_KMIP_UNKNOWN_ALG;
-	const char *uid;
+	//const char *uid;
 	int rc = 0;
 
 	num_attrs = 4 + (supports_sensitive_attr() ? 1 : 0);
@@ -3402,7 +3408,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype *ke
         goto out;
     }
 
-	*secret_key_uid = uid;
+	*secret_key_uid = unique_id;
 
 out:
 	if (attrs != NULL) {
