@@ -3139,14 +3139,20 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
 
 	// pr_verbose(&ph->pd, "Wrapping key id: '%s'", wrap_key_id);
 
-	cparams = kmip_new_cryptographic_parameters(NULL, 0,
-				KMIP_PADDING_METHOD_OAEP,
-				0,
+    cparams = kmip_new_cryptographic_parameters(NULL, 0,
+				kmip_wrap_padding_method,
+				kmip_wrap_padding_method ==
+					KMIP_PADDING_METHOD_OAEP ?
+					kmip_wrap_hash_alg : 0,
 				KMIP_KEY_ROLE_TYPE_KEK, 0,
-				KMIP_CRYPTO_ALGO_AES, NULL, NULL, NULL,
+				kmip_wrap_key_alg, NULL, NULL, NULL,
 				NULL, NULL, NULL, NULL, NULL,
-				0,
-				0,
+				kmip_wrap_padding_method ==
+					KMIP_PADDING_METHOD_OAEP ?
+					KMIP_MASK_GENERATOR_MGF1 : 0,
+				kmip_wrap_padding_method ==
+					KMIP_PADDING_METHOD_OAEP ?
+					kmip_wrap_hash_alg : 0,
 				NULL);
 	if (cparams == NULL) {
         warnx( "Allocate KMIP node failed");
@@ -3175,7 +3181,7 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
 					      KMIP_KEY_FORMAT_TYPE_RAW, 0, 0,
 					      wrap_spec);
 	if (req_pl == NULL) {
-        warnx( "Allocate KMIP node failed");
+        warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
     }
 
@@ -3185,10 +3191,16 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
 		goto out;
 
 	rc = kmip_get_get_response_payload(resp_pl, &otype, NULL, &kobj);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get wrapped key", ph, out);
-	// CHECK_ERROR(otype != KMIP_OBJECT_TYPE_SYMMETRIC_KEY, rc, -EINVAL,
-	// 	    "Key is not a symmetric key", ph, out);
-
+    if (rc != 0){
+        warnx("Failed to get wrapped key");
+        goto out;
+    }
+    if (otype != KMIP_OBJECT_TYPE_SYMMETRIC_KEY){
+        warnx("Key is not a symmetric key");
+        rc = CKR_GENERAL_ERROR;
+        goto out;
+    }
+    
 	rc = kmip_get_symmetric_key(kobj, &kblock);
 	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get symmetric key", ph, out);
 
