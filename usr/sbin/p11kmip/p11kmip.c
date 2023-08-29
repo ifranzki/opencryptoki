@@ -1341,10 +1341,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_key_algorithm)->value,
         if (wrap_pad_method != NULL) {
             if (strcmp(confignode_to_stringval(wrap_pad_method)->value,
                P11KMIP_CONFIG_VALUE_METHD_PKCS15) == 0) {
-                kmip_wrap_key_alg = KMIP_PADDING_METHOD_PKCS_1_5;
+                kmip_wrap_padding_method = KMIP_PADDING_METHOD_PKCS_1_5;
             } else if (strcmp(confignode_to_stringval(wrap_pad_method)->value,
                P11KMIP_CONFIG_VALUE_METHD_OAEP) == 0) {
-                kmip_wrap_key_alg = KMIP_PADDING_METHOD_OAEP;
+                kmip_wrap_padding_method = KMIP_PADDING_METHOD_OAEP;
             } else {
                 warnx("Syntax error in config file: Invalid value '%s' specified\
 for key word '%s's\n", confignode_to_stringval(wrap_pad_method)->value,
@@ -1361,10 +1361,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_pad_method)->value,
         if (wrap_hash_algo != NULL) {
             if (strcmp(confignode_to_stringval(wrap_hash_algo)->value,
                P11KMIP_CONFIG_VALUE_HSH_ALG_SHA_1) == 0) {
-                kmip_wrap_key_alg = KMIP_HASHING_ALGO_SHA_1;
+                kmip_wrap_hash_alg = KMIP_HASHING_ALGO_SHA_1;
             } else if (strcmp(confignode_to_stringval(wrap_hash_algo)->value,
                P11KMIP_CONFIG_VALUE_HSH_ALG_SHA_256) == 0) {
-                kmip_wrap_key_alg = KMIP_HASHING_ALGO_SHA_256;
+                kmip_wrap_hash_alg = KMIP_HASHING_ALGO_SHA_256;
             } else {
                 warnx("Syntax error in config file: Invalid value '%s' specified\
 for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
@@ -3200,7 +3200,7 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
         rc = CKR_GENERAL_ERROR;
         goto out;
     }
-    
+
 	rc = kmip_get_symmetric_key(kobj, &kblock);
 	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get symmetric key", ph, out);
 
