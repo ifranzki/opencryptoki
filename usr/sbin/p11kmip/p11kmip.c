@@ -102,7 +102,7 @@ static bool opt_force_pem_pwd_prompt = false;
 
 /* Config */
 
-/* P11 KMIP function prototypes */
+/* KMIP Remote Function Prototypes */
 static CK_RV p11kmip_locate_remote_key(const char *label, const struct
                                     p11kmip_keytype *keytype, 
                                     struct kmip_node **obj_uid);
@@ -118,6 +118,14 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype *w
                                     const char **wrapped_key_blob);
 static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype *keytype,
                 const char *secret_key_label, struct kmip_node **secret_key_uid);
+
+/* PKCS#11 Local Function Prototypes*/
+static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handle,
+                                    const struct p11kmip_keytype *wrapped_keytype,
+                                    unsigned long wrapped_key_length, 
+                                    const char *wrapped_key_blob,
+                                    const char *wrapped_key_label,
+                                    CK_OBJECT_HANDLE_PTR unwrapped_key_handle);
 static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                     const char *label, const char *id,
 							        CK_OBJECT_HANDLE *key);
@@ -2252,6 +2260,22 @@ static CK_RV rsa_get_key_size(const struct p11kmip_keytype *keytype,
     return CKR_OK;
 }
 
+/*****************************************************************************/
+/* PKCS#11 Crypto Adapter Utility Functions                                  */
+/*****************************************************************************/
+
+static int is_cca_token(CK_SLOT_ID slot_id)
+{
+    CK_RV rc;
+    CK_TOKEN_INFO tokinfo;
+
+    rc = pkcs11_funcs->C_GetTokenInfo(slot_id, &tokinfo);
+    if (rc != CKR_OK)
+        return FALSE;
+
+    return strstr((const char *) tokinfo.model, "CCA") != NULL;
+}
+
 /* Commands */
 
 /**
@@ -2272,6 +2296,7 @@ static CK_RV p11kmip_import_key(void){
     struct kmip_node *wrap_pubkey_uid = NULL, *secret_key_uid = NULL;
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length;
+    CK_OBJECT_HANDLE unwrapped_key_handle;
 
     pubkey_keytype = p11kmip_rsa_keytype;
     pubkey_keytype.class = CKO_PUBLIC_KEY;
@@ -2378,7 +2403,17 @@ static CK_RV p11kmip_import_key(void){
     printf("Wrapped Key Blob Length: %d\n", wrapped_key_length);
 
     /* Lastly we unwrap and import the retrieved key */
-    //rc = p11kmip_unwrap_local_secret_key(wrapped_key_pl, opt_target_label, wrapping_privkey);
+    rc = p11kmip_unwrap_local_secret_key(wrapping_privkey,
+            &secret_keytype, wrapped_key_length, 
+            wrapped_key_blob, opt_target_label,
+            &unwrapped_key_handle);
+    
+    if(rc != CKR_OK){
+        warnx("Failed to unwrap and import key");
+        goto done;
+    }
+
+    printf("Imported key handle: %d\n", unwrapped_key_handle);
 
 done:
     kmip_node_free(wrap_pubkey_uid);
@@ -2387,8 +2422,10 @@ done:
 	return rc;
 }
 
+
+
 /***************************************************************************/
-/* Functions for Manipulating a Local PKCS#11 Adapter                      */
+/* Functions for Manipulating Local PKCS#11 Adapter                        */
 /***************************************************************************/
 
 static CK_RV p11kmip_export_local_rsa_pkey(const struct p11kmip_keytype *keytype,
@@ -2597,6 +2634,83 @@ done:
 
     return rc;
 }
+
+
+
+
+static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handle,
+                                    const struct p11kmip_keytype *wrapped_keytype,
+                                    unsigned long wrapped_key_length, 
+                                    const char *wrapped_key_blob,
+                                    const char *wrapped_key_label,
+                                    CK_OBJECT_HANDLE_PTR unwrapped_key_handle) {
+    
+    CK_MECHANISM mech = { 0 };
+    CK_RSA_PKCS_OAEP_PARAMS oaep_param = { 0 };
+    CK_BBOOL ck_true = true;
+    CK_RV rc;
+
+    int iscca = is_cca_token(opt_slot);
+    CK_OBJECT_CLASS key_class = wrapped_keytype->class;
+    CK_KEY_TYPE key_type = wrapped_keytype->type;
+    CK_ULONG key_size = 0;
+    rc = wrapped_keytype->keygen_get_key_size(
+            wrapped_keytype, NULL, &key_size);
+
+    CK_ATTRIBUTE unwrapped_template[] = {
+        {CKA_CLASS, &key_class, sizeof(key_class)},
+        {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
+        { CKA_ENCRYPT, &ck_true, sizeof(ck_true) },
+		{ CKA_DECRYPT, &ck_true, sizeof(ck_true) },
+		{ CKA_SIGN, &ck_true, sizeof(ck_true) },
+		{ CKA_VERIFY, &ck_true, sizeof(ck_true) },
+		{ CKA_IBM_PROTKEY_EXTRACTABLE, &ck_true, sizeof(ck_true) },
+        {CKA_LABEL, &wrapped_key_label, strlen(wrapped_key_label)},
+        {CKA_VALUE_LEN, &key_size, sizeof(key_size)} /* For CCA only */
+    };
+    CK_ULONG unwrapped_templatecount = 8 + iscca;
+
+    switch (kmip_wrap_padding_method) {
+    case KMIP_PADDING_METHOD_PKCS_1_5:
+        mech.mechanism = CKM_RSA_PKCS;
+        break;
+
+    case KMIP_PADDING_METHOD_OAEP:
+        mech.mechanism = CKM_RSA_PKCS_OAEP;
+        mech.pParameter = &oaep_param;
+        mech.ulParameterLen = sizeof(oaep_param);
+
+        switch (kmip_wrap_hash_alg) {
+        case KMIP_HASHING_ALGO_SHA_1:
+            oaep_param.hashAlg = CKM_SHA_1;
+            oaep_param.mgf = CKG_MGF1_SHA1;
+            break;
+
+        case KMIP_HASHING_ALGO_SHA_256:
+            oaep_param.hashAlg = CKM_SHA256;
+            oaep_param.mgf = CKG_MGF1_SHA256;
+            break;
+
+        default:
+            warnx("Unsupported hashing algorithm: %d");
+            return -EINVAL;
+        }
+        break;
+    default:
+        warnx("Unsupported padding method: %d");
+        return -EINVAL;
+	}
+
+    pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, wrapping_key_handle, 
+                        wrapped_key_blob, wrapped_key_length,
+                        unwrapped_template, unwrapped_templatecount, 
+                        unwrapped_key_handle);
+
+	
+	return CKR_OK;
+}
+
+
 
 /**
  * Finds a key matching the label or id, or the class or filter attribute
@@ -3436,197 +3550,6 @@ out:
 	return rc;
 }
 
-/**
- * Retrieves an AES key from the KMIP server. The key is wrapped with the
- * RSA wrapping key.
- *
- * @param key_id            the key id of the key to get
- * @param wrapped_key       On return: an allocated buffer with the wrapped key.
- *                          Must be freed by the caller.
- * @param wrapped_key_len   On return: the size of the wrapped key.
- * @param key_bits          On return the cryptographic size of the key in bits
- *
- * @returns 0 on success, a negative errno in case of an error.
- */
-static int _get_key_rsa_wrapped(
-	struct kmip_connection *connection,
-	const char *key_id,
-	unsigned char **wrapped_key,
-	size_t *wrapped_key_len, size_t *key_bits)
-{
-	struct kmip_node *cparams = NULL, *wrap_id = NULL, *wkey_info = NULL;
-	struct kmip_node *wrap_spec = NULL, *req_pl = NULL, *resp_pl = NULL;
-	struct kmip_node *uid = NULL, *kobj = NULL, *kblock = NULL;
-	struct kmip_node *kval = NULL, *wrap = NULL, *key = NULL;
-	struct kmip_node *wkinfo = NULL, *wcparms = NULL;
-	enum kmip_hashing_algo halgo, mgfhalgo;
-	enum kmip_wrapping_method wmethod;
-	enum kmip_key_format_type ftype;
-	enum kmip_padding_method pmeth;
-	enum kmip_encoding_option enc;
-	enum kmip_mask_generator mgf;
-	enum kmip_object_type otype;
-	enum kmip_crypto_algo algo;
-	const unsigned char *kdata;
-	char *wrap_key_id = NULL;
-	uint32_t klen;
-	int32_t bits;
-    enum kmip_result_status status = 0;
-    enum kmip_result_reason reason = 0;
-	int rc = 0;
-
-	// pr_verbose(&ph->pd, "Wrap padding method: %d",
-	// 	   ph->profile->wrap_padding_method);
-	// pr_verbose(&ph->pd, "Wrap hashing algorithm: %d",
-	// 	   ph->profile->wrap_hashing_algo);
-
-	wrap_key_id = "wrapping key id";
-	// wrap_key_id = properties_get(ph->pd.properties,
-	// 			     KMIP_CONFIG_WRAPPING_KEY_ID);
-	// if (wrap_key_id == NULL) {
-	// 	_set_error(ph, "Wrapping key ID is not available");
-	// 	return -EINVAL;
-	// }
-
-	// pr_verbose(&ph->pd, "Wrapping key id: '%s'", wrap_key_id);
-
-	cparams = kmip_new_cryptographic_parameters(NULL, 0,
-				KMIP_PADDING_METHOD_OAEP,
-				0,
-				KMIP_KEY_ROLE_TYPE_KEK, 0,
-				KMIP_CRYPTO_ALGO_AES, NULL, NULL, NULL,
-				NULL, NULL, NULL, NULL, NULL,
-				0,
-				0,
-				NULL);
-	// CHECK_ERROR(cparams == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
-	// 	    ph, out);
-
-	wrap_id = kmip_new_unique_identifier(wrap_key_id, 0, 0);
-	// CHECK_ERROR(wrap_id == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
-	// 	    ph, out);
-
-	wkey_info = kmip_new_key_info(false, wrap_id, cparams);
-	// CHECK_ERROR(wkey_info == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
-	// 	    ph, out);
-
-	wrap_spec = kmip_new_key_wrapping_specification_va(NULL,
-				KMIP_WRAPPING_METHOD_ENCRYPT, wkey_info, NULL,
-				KMIP_ENCODING_OPTION_NO, 0);
-	// CHECK_ERROR(wrap_spec == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
-	// 	    ph, out);
-
-	uid = kmip_new_unique_identifier(key_id, 0, 0);
-	// CHECK_ERROR(uid == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
-	// 	    ph, out);
-
-	req_pl = kmip_new_get_request_payload(NULL, uid,
-					      KMIP_KEY_FORMAT_TYPE_RAW, 0, 0,
-					      wrap_spec);
-	// CHECK_ERROR(req_pl == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
-	// 	    ph, out);
-
-	rc = perform_kmip_request(KMIP_OPERATION_GET, req_pl, &resp_pl,
-                        &status, &reason);
-	if (rc != 0)
-		goto out;
-
-	rc = kmip_get_get_response_payload(resp_pl, &otype, NULL, &kobj);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get wrapped key", ph, out);
-	// CHECK_ERROR(otype != KMIP_OBJECT_TYPE_SYMMETRIC_KEY, rc, -EINVAL,
-	// 	    "Key is not a symmetric key", ph, out);
-
-	rc = kmip_get_symmetric_key(kobj, &kblock);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get symmetric key", ph, out);
-
-	rc = kmip_get_key_block(kblock, &ftype, NULL, &kval, &algo, &bits,
-				&wrap);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get key block", ph, out);
-	// CHECK_ERROR(ftype != KMIP_KEY_FORMAT_TYPE_RAW, rc, -EINVAL,
-	// 	    "Key format is not RAW", ph, out);
-	// CHECK_ERROR(algo != KMIP_CRYPTO_ALGO_AES, rc, -EINVAL,
-	// 		    "Key algorithm is not AES", ph, out);
-	// CHECK_ERROR(bits < 128 || bits > 256, rc, -EINVAL,
-	// 	    "Key bit size is invalid", ph, out);
-
-	rc = kmip_get_key_wrapping_data(wrap, &wmethod, &wkinfo, NULL, NULL,
-					NULL, NULL, NULL, &enc);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get wrapping data", ph, out);
-	// CHECK_ERROR(wmethod != KMIP_WRAPPING_METHOD_ENCRYPT, rc, -EINVAL,
-	// 	    "Wrapping method is not 'Encrypt'", ph, out);
-	// if (ph->kmip_version.major > 1 ||
-	//     (ph->kmip_version.major == 1 && ph->kmip_version.minor >= 2)) {
-	// 	CHECK_ERROR(enc != KMIP_ENCODING_OPTION_NO, rc, -EINVAL,
-	// 		    "Encoding is not 'No encoding'", ph, out);
-	// }
-
-	rc = kmip_get_key_info(wkinfo, NULL, &wcparms);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get wrap key infos", ph, out);
-
-	rc = kmip_get_cryptographic_parameter(wcparms, NULL, &pmeth, &halgo,
-					      NULL, NULL, &algo, NULL, NULL,
-					      NULL, NULL, NULL, NULL, NULL,
-					      NULL, &mgf, &mgfhalgo, NULL);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get crypto params", ph, out);
-	// if (ph->kmip_version.major > 1 ||
-	//     (ph->kmip_version.major == 1 && ph->kmip_version.minor >= 2)) {
-	// 	CHECK_ERROR(algo != ph->profile->wrap_key_algo, rc, -EINVAL,
-	// 		    "wrap algorithm is not as expected", ph, out);
-	// }
-	// CHECK_ERROR(pmeth != ph->profile->wrap_padding_method, rc, -EINVAL,
-	// 	    "padding method is not as expected", ph, out);
-	// if (ph->profile->wrap_padding_method == KMIP_PADDING_METHOD_OAEP) {
-	// 	CHECK_ERROR(halgo != ph->profile->wrap_hashing_algo, rc,
-	// 		    -EINVAL, "hashing algorithm is not as expected",
-	// 		    ph, out);
-	// 	if (ph->kmip_version.major > 1 ||
-	// 	    (ph->kmip_version.major == 1 &&
-	// 	     ph->kmip_version.minor >= 4)) {
-	// 		CHECK_ERROR(mgf != KMIP_MASK_GENERATOR_MGF1, rc,
-	// 			    -EINVAL, "OAEP MGF is not as expected",
-	// 			    ph, out);
-	// 		CHECK_ERROR(mgfhalgo != ph->profile->wrap_hashing_algo,
-	// 			    rc, -EINVAL, "MGF hashing algorithm is not "
-	// 			    "as expected", ph, out);
-	// 	}
-	// }
-
-	rc = kmip_get_key_value(kval, &key, NULL, 0, NULL);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get key value", ph, out);
-
-	kdata = kmip_node_get_byte_string(key, &klen);
-	// CHECK_ERROR(kdata == NULL, rc, -ENOMEM, "Failed to get key data",
-	// 	    ph, out);
-
-	// pr_verbose(&ph->pd, "Wrapped key size: %u", klen);
-	*wrapped_key = malloc(klen);
-	*wrapped_key_len = klen;
-	memcpy(*wrapped_key, kdata, klen);
-
-	// pr_verbose(&ph->pd, "AES key size: %u bits", bits);
-	*key_bits = bits;
-
-out:
-	kmip_node_free(cparams);
-	kmip_node_free(wrap_id);
-	kmip_node_free(wkey_info);
-	kmip_node_free(wrap_spec);
-	kmip_node_free(uid);
-	kmip_node_free(req_pl);
-	kmip_node_free(resp_pl);
-	kmip_node_free(kobj);
-	kmip_node_free(kblock);
-	kmip_node_free(kval);
-	kmip_node_free(wrap);
-	kmip_node_free(wkinfo);
-	kmip_node_free(wcparms);
-	kmip_node_free(key);
-
-	if (wrap_key_id != NULL)
-		free(wrap_key_id);
-
-	return rc;
-}
 
 
 
