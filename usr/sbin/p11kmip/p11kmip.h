@@ -16,14 +16,20 @@
 #include <kmipclient/kmipclient.h>
 
 #define P11KMIP_DEFAULT_PKCS11_LIB           "libopencryptoki.so";
-#define P11KMIP_PKCSLIB_ENV_NAME             "PKCSLIB"
-#define PKCS11_USER_PIN_ENV_NAME             "PKCS11_USER_PIN"
-#define PKCS11_PEM_PASSWORD_ENV_NAME         "PKCS11_PEM_PASSWORD"
-#define P11KMIP_DEFAULT_CONF_FILE_ENV_NAME   "P11KMIP_DEFAULT_CONF_FILE"
-#define P11KMIP_CONFIG_FILE_NAME             "p11kmip_defined_attrs.conf"
+#define P11KMIP_CONFIG_FILE_NAME             "p11kmip.conf"
 #define P11KMIP_DEFAULT_CONFIG_FILE          OCK_CONFDIR "/" P11KMIP_CONFIG_FILE_NAME
 
+#define P11KMIP_PKCSLIB_ENV_NAME             "PKCSLIB"
+#define P11KMIP_DEFAULT_CONF_FILE_ENV_NAME   "P11KMIP_DEFAULT_CONF_FILE"
+#define PKCS11_USER_PIN_ENV_NAME             "PKCS11_USER_PIN"
+#define PKCS11_PEM_PASSWORD_ENV_NAME         "PKCS11_PEM_PASSWORD"
+#define PKCS11_SLOT_ID_ENV_NAME              "PKCS11_SLOT_ID"
+#define KMIP_HOSTNAME_ENV_NAME               "KMIP_HOSTNAME"
+#define KMIP_CLIENT_CERT_ENV_NAME            "KMIP_CLIENT_CERT"
+#define KMIP_CLIENT_KEY_ENV_NAME             "KMIP_CLIENT_KEY"
+
 #define P11KMIP_CONFIG_KEYWORD_SERVER        "server"
+#define P11KMIP_CONFIG_KEYWORD_PKCS11        "pkcs11"
 #define P11KMIP_CONFIG_KEYWORD_HOST          "host"
 #define P11KMIP_CONFIG_KEYWORD_PORT          "port"
 #define P11KMIP_CONFIG_KEYWORD_CLIENT_CERT   "tls_client_cert"
@@ -33,6 +39,7 @@
 #define P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE "wrap_key_size"
 #define P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD "wrap_padding_method"
 #define P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG "wrap_hashing_algorithm"
+#define P11KMIP_CONFIG_KEYWORD_PKCS_SLOT     "slot"
 
 #define P11KMIP_CONFIG_VALUE_KEY_ALG_RSA     "RSA"
 #define P11KMIP_CONFIG_VALUE_FMT_PKCS1       "PKCS1"

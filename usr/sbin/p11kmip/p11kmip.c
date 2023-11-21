@@ -80,6 +80,13 @@ enum kmip_hashing_algo kmip_wrap_hash_alg;
 /* Configuration */
 static struct ConfigBaseNode *p11kmip_cfg = NULL;
 
+/* Environment variables */
+static CK_SLOT_ID env_pkcs_slot = (CK_SLOT_ID)-1;
+static char *env_pkcs_pin = NULL;
+static char *env_kmip_hostname = NULL;
+static char *env_kmip_client_cert = NULL;
+static char *env_kmip_client_key = NULL;
+
 /* Options */
 static bool opt_help = false;
 static bool opt_version = false;
@@ -88,9 +95,21 @@ static CK_SLOT_ID opt_slot = (CK_SLOT_ID)-1;
 static char *opt_pin = NULL;
 static bool opt_force_pin_prompt = false;
 
+static char *opt_kmip_hostname = NULL;
+static char *opt_kmip_client_cert = NULL;
+static char *opt_kmip_client_key = NULL;
+
 static char *opt_wrap_label = NULL;
+static char *opt_wrap_attrs = NULL;
+static char *opt_wrap_id = NULL;
 static char *opt_target_label = NULL;
-static bool opt_generate = false;
+static char *opt_target_attrs = NULL;
+static char *opt_target_id = NULL;
+static char *opt_unwrap_label = NULL;
+
+static bool opt_genkey = false;
+static bool opt_send_wrapkey = false;
+static bool opt_retr_wrapkey = false;
 
 static char *opt_file = NULL;
 static char *opt_pem_password = NULL;
@@ -252,20 +271,95 @@ static const struct p11kmip_arg p11kmip_import_key_args[] = {
 };
 static const struct p11kmip_opt p11kmip_import_key_opts[] = {
 	PKCS11_OPTS,
-	{ .short_opt = 'w', .long_opt = "wrapper-label", .required = true,
+	{ .short_opt = 'w', .long_opt = "wrapkey-label", .required = true,
       .arg =  { .type = ARG_TYPE_STRING, .required = true,
-                .value.string = &opt_wrap_label, .name = "WRAPPER-LABEL", },
+                .value.string = &opt_wrap_label, .name = "WRAPKEY-LABEL", },
       .description = "The label of the public key to be used for wrapping.", },
-	{ .short_opt = 't', .long_opt = "target-label", .required = true,
+	{ .short_opt = 't', .long_opt = "targkey-label", .required = true,
       .arg =  { .type = ARG_TYPE_STRING, .required = true,
-                .value.string = &opt_target_label, .name = "TARGET-LABEL", },
+                .value.string = &opt_target_label, .name = "TARGKEY-LABEL", },
       .description = "The label of the secret key to be imported from the "
 	  				 "KMIP server.", },
-	{ .short_opt = 'g', .long_opt = "generate", .required = false,
+    { .short_opt = 0, .long_opt = "targkey-attrs", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_target_attrs, .name = "TARGKEY-ATTRS", },
+      .description = "The boolean attributes to set for the secret key"
+            "after it has been imported (optional):"
+            "  P M B Y S X K."
+            "Specify a set of these letters without any"
+            "blanks in between. See below for the meaning"
+            "of the attribute letters. Restrictions on"
+            "attribute values may apply.", },
+    { .short_opt = 0, .long_opt = "targkey-id", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_target_id, .name = "TARGKEY-ID", },
+      .description = "The value to be set for the CKA_ID attribute of"
+            "the imported secret key (optional)", },
+    { .short_opt = 'u', .long_opt = "unwrapkey-label", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_unwrap_label, .name = "UNWRAPKEY-LABEL", },
+      .description = "The label of the private key in the PKCS#11 "
+            "slot to be used for unwrapping the target key, if different from"
+            " the label of the public key used for wrapping (optional).", },
+    { .short_opt = 0, .long_opt = "send-wrapkey", .required = false,
       .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
-                .value.plain = &opt_generate, },
-      .description = "Generate a new secret key on the KMIP server to be"
-	  				 "imported.", },	
+                .value.plain = &opt_send_wrapkey, },
+      .description = " If specified, registers a public key from the "
+            "PKCS#11 slot with the KMIP server and uses it for wrapping. In "
+            "this case, the label specified by the 'wrapkey-label' option is is used to"
+            "select the local public key to be sent, and the public key is registered "
+            "with a name attribute value of the label on the KMIP server.", },	
+	{ .short_opt = 0, .long_opt = "gen-targkey", .required = false,
+      .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
+                .value.plain = &opt_genkey, },
+      .description = "If specified, the secret key to be imported is "
+                    "first created on the KMIP server. Currently only"
+                    " supports AES-256.", },	
+};
+
+static const struct p11kmip_opt p11kmip_export_key_opts[] = {
+	PKCS11_OPTS,
+	{ .short_opt = 'w', .long_opt = "wrapkey-label", .required = true,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_wrap_label, .name = "WRAPKEY-LABEL", },
+      .description = "The label of the public key to be used for wrapping.", },
+	{ .short_opt = 't', .long_opt = "targkey-label", .required = true,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_target_label, .name = "TARGKEY-LABEL", },
+      .description = "The label of the secret key to be imported from the "
+	  				 "KMIP server.", },
+    { .short_opt = 0, .long_opt = "wrapkey-attrs", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_wrap_attrs, .name = "WRAPKEY-ATTRS", },
+      .description = "The boolean attributes to set for the public key"
+            "after it has been imported (optional). "
+            "Only compatible with the '--retr-wrapkey' option:"
+            "  P M B Y S X K H."
+            "Specify a set of these letters without any"
+            "blanks in between. See below for the meaning"
+            "of the attribute letters. Restrictions on"
+            "attribute values may apply.", },
+    { .short_opt = 0, .long_opt = "wrapkey-id", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_wrap_id, .name = "WRAPKEY-ID", },
+      .description = "The value to be set for the CKA_ID attribute of"
+            "the imported wrapping key. Only compatible with the "
+            "'--retr-wrapkey' option.", },
+    { .short_opt = 'u', .long_opt = "unwrapkey-label", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_unwrap_label, .name = "UNWRAPKEY-LABEL", },
+      .description = "The label of the private key in the PKCS#11 "
+            "slot to be used for unwrapping the target key, if different from"
+            " the label of the public key used for wrapping (optional).", },
+    { .short_opt = 0, .long_opt = "retr-wrapkey", .required = false,
+      .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
+                .value.plain = &opt_retr_wrapkey, },
+      .description = "If specified, the public key to be used for "
+            "wrapping is first retrieved from the KMIP server and stored in "
+            "the PKCS#11 slot. In this case, the label specified by the "
+            "'wrapkey-label' option is used to select the public key to "
+            "be retrieved, and the public key is stored under"
+            " the same label in the PKCS#11 slot.", },	
 };
 
 static const struct p11kmip_cmd p11kmip_commands[] = {
@@ -1078,6 +1172,31 @@ static int p11kmip_pem_password_cb(char *buf, int size, int rwflag,
 }
 
 /*****************************************************************************/
+/* Environment Variable Functions                                            */
+/*****************************************************************************/
+
+static CK_RV parse_env_vars(void)
+{
+    char *loc_env_pkcs_slot;
+    
+    loc_env_pkcs_slot = getenv(PKCS11_SLOT_ID_ENV_NAME);
+    if (loc_env_pkcs_slot != NULL) {
+        env_pkcs_slot = atoi(loc_env_pkcs_slot);
+        
+        //Fail if invalid
+        return CKR_GENERAL_ERROR;
+    }
+
+    env_pkcs_pin  = getenv(PKCS11_USER_PIN_ENV_NAME);
+    env_kmip_hostname = getenv(KMIP_HOSTNAME_ENV_NAME);
+    env_kmip_client_cert = getenv(KMIP_CLIENT_CERT_ENV_NAME);
+    env_kmip_client_key = getenv(KMIP_CLIENT_KEY_ENV_NAME);
+
+    return CKR_OK;
+}
+
+
+/*****************************************************************************/
 /* Configuration File Functions                                              */
 /*****************************************************************************/
 
@@ -1172,6 +1291,7 @@ static CK_RV build_kmip_config(void)
         *wrap_pad_method, *wrap_hash_algo;
     struct ConfigStructNode *structnode;
     bool found;
+    char *tls_client_key_path = NULL;
 	BIO *tls_client_key_bio;
 
     rc = CKR_OK;
@@ -1275,26 +1395,7 @@ static CK_RV build_kmip_config(void)
         }
 
         if(tls_client_key != NULL) {
-            tls_client_key_bio = 
-                BIO_new_file(confignode_to_stringval(tls_client_key)->value,"r");
-
-            if(tls_client_key_bio == NULL) {
-                warnx("Unable to open '%s' for TLS client certificate",
-                    confignode_to_stringval(tls_client_cert)->value);
-                //ERR_print_errors_cb(openssl_err_cb, NULL);
-                return CKR_FUNCTION_FAILED;
-            }
-
-            kmip_conf->tls_client_key = PEM_read_bio_PrivateKey(
-                tls_client_key_bio, NULL,
-                passwd_callback,(void*)pcszPassphrase);
-            
-            if(kmip_conf->tls_client_key == NULL) {
-                warnx("Unable to extract TLS client key from '%s'",
-                    confignode_to_stringval(tls_client_key)->value);
-            }
-
-            BIO_free(tls_client_key_bio);
+            tls_client_key_path = confignode_to_stringval(tls_client_key)->value;
         }
     
         if(wrap_key_format != NULL) {
@@ -1387,12 +1488,53 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         }
     }
 
-    /* Processing for other options goes here                     */
-    /* it should also be possible to pass in the client cert file */
-    /* through the commandline                                    */
+    /* Environment variables have priority over */
+    /* configuration file settings */
+    if (env_kmip_hostname != NULL)
+        kmip_conf->server = env_kmip_hostname;
 
-    if(kmip_conf->tls_client_key == NULL &&
-       kmip_conf->tls_client_cert == NULL){
+    if (env_kmip_client_cert != NULL)
+        kmip_conf->tls_client_cert = env_kmip_client_cert;
+    
+    if (env_kmip_client_key != NULL)
+        tls_client_key_path = env_kmip_client_key;
+
+    /* Command line options have priority over        */
+    /* environment variables and configuration options*/
+    if (opt_kmip_hostname != NULL)
+        kmip_conf->server = opt_kmip_hostname;
+
+    if (opt_kmip_client_cert != NULL)
+        kmip_conf->tls_client_cert = opt_kmip_client_cert;
+    
+    if (opt_kmip_client_key != NULL)
+        tls_client_key_path = opt_kmip_client_key;
+    
+    // Now that we have the final path for the tls_client_key,
+    // read in the contents
+    tls_client_key_bio = 
+        BIO_new_file(tls_client_key_path,"r");
+
+    if(tls_client_key_bio == NULL) {
+        warnx("Unable to open '%s' for TLS client certificate",
+            confignode_to_stringval(tls_client_cert)->value);
+        //ERR_print_errors_cb(openssl_err_cb, NULL);
+        return CKR_FUNCTION_FAILED;
+    }
+
+    kmip_conf->tls_client_key = PEM_read_bio_PrivateKey(
+        tls_client_key_bio, NULL,
+        passwd_callback,(void*)pcszPassphrase);
+
+    if(kmip_conf->tls_client_key == NULL) {
+        warnx("Unable to extract TLS client key from '%s'",
+            confignode_to_stringval(tls_client_key)->value);
+    }
+
+    BIO_free(tls_client_key_bio);
+
+    if (kmip_conf->tls_client_key == NULL &&
+       kmip_conf->tls_client_cert == NULL) {
         warnx("TLS client key or client certificate was not provided through configuration\
  or commandline options");
         rc = CKR_GENERAL_ERROR;
@@ -1960,18 +2102,60 @@ static void close_pkcs11_session(void)
 static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
 {
     CK_RV rc;
+    int f;
+    struct ConfigBaseNode *c, *cfg_slot;
+    struct ConfigStructNode *structnode;
+    bool found;
     char *buf_user_pin = NULL;
     const char *pin = opt_pin;
+    CK_SLOT_ID slot = opt_slot;
 
     if (command == NULL || command->session_flags == 0)
         return CKR_OK;
 
     if (pin == NULL)
-        pin = getenv(PKCS11_USER_PIN_ENV_NAME);
+        pin = env_pkcs_pin;
     if (opt_force_pin_prompt || pin == NULL)
         pin = pin_prompt(&buf_user_pin, "Please enter user PIN: ");
     if (pin == NULL)
         return CKR_FUNCTION_FAILED;
+
+    // If not set by option, fallback to env variable
+    if (slot == (CK_SLOT_ID)-1)
+        slot = env_pkcs_slot;
+    // If not set by env variable, fallback to conf file
+    if (slot == (CK_SLOT_ID)-1){
+        if (p11kmip_cfg != NULL) {
+            /* Iterate the configuration node(s) */
+            confignode_foreach(c, p11kmip_cfg, f) {
+                if (!confignode_hastype(c, CT_STRUCT) ||
+                    strcmp(c->key, P11KMIP_CONFIG_KEYWORD_PKCS11) != 0){
+                    continue;
+                } else if (found) {
+                    warnx("Syntax error in config file: '%s' specified multiple times\n",
+                        P11KMIP_CONFIG_KEYWORD_PKCS11);
+                    rc = CKR_GENERAL_ERROR;
+                    goto done;
+                }
+                
+                structnode = confignode_to_struct(c);
+                cfg_slot = confignode_find(structnode->value,
+                                    P11KMIP_CONFIG_KEYWORD_PKCS_SLOT);
+
+                if (cfg_slot != NULL && !confignode_hastype(cfg_slot, CT_INTVAL)) {
+                    warnx("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
+                        P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
+                    rc = CKR_GENERAL_ERROR;
+                    goto done;
+                }
+
+                if (cfg_slot != NULL){
+                    slot = confignode_to_intval(cfg_slot)->value;
+                }
+            }
+        }
+    }
+
 
     rc = load_pkcs11_lib();
     if (rc != CKR_OK)
@@ -2413,7 +2597,7 @@ static CK_RV p11kmip_import_key(void){
         goto done;
     }
 
-    printf("Imported key handle: %d\n", unwrapped_key_handle);
+    printf("Imported key handle: %x\n", unwrapped_key_handle);
 
 done:
     kmip_node_free(wrap_pubkey_uid);
@@ -3607,6 +3791,10 @@ int main(int argc, char *argv[])
         goto done;
 
     rc = check_required_cmd_opts(command->opts);
+    if (rc != CKR_OK)
+        goto done;
+
+    rc = parse_env_vars();
     if (rc != CKR_OK)
         goto done;
 
