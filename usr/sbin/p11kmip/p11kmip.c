@@ -302,7 +302,7 @@ static const struct p11kmip_opt p11kmip_import_key_opts[] = {
             "slot to be used for unwrapping the target key, if different from"
             " the label of the public key used for wrapping (optional).", },
     { .short_opt = 0, .long_opt = "send-wrapkey", .required = false,
-      .long_opt_val = CK_TRUE,
+      .long_opt_val = OPT_SEND_WRAPKEY,
       .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
                 .value.plain = &opt_send_wrapkey, },
       .description = " If specified, registers a public key from the "
@@ -311,7 +311,7 @@ static const struct p11kmip_opt p11kmip_import_key_opts[] = {
             "select the local public key to be sent, and the public key is registered "
             "with a name attribute value of the label on the KMIP server.", },	
 	{ .short_opt = 0, .long_opt = "gen-targkey", .required = false,
-      .long_opt_val = CK_TRUE,
+      .long_opt_val = OPT_GEN_TARGKEY,
       .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
                 .value.plain = &opt_genkey, },
       .description = "If specified, the secret key to be imported is "
@@ -354,7 +354,7 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
             "slot to be used for unwrapping the target key, if different from"
             " the label of the public key used for wrapping (optional).", },
     { .short_opt = 0, .long_opt = "retr-wrapkey", .required = false,
-      .long_opt_val = CK_TRUE,
+      .long_opt_val = OPT_RETR_WRAPKEY,
       .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
                 .value.plain = &opt_retr_wrapkey, },
       .description = "If specified, the public key to be used for "
