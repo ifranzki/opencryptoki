@@ -55,6 +55,9 @@
 #define OPT_FORCE_PIN_PROMPT    256
 #define OPT_DETAILED_URI        257
 #define OPT_FORCE_PEM_PWD_PROMPT 258
+#define OPT_SEND_WRAPKEY        259
+#define OPT_RETR_WRAPKEY        260
+#define OPT_GEN_TARGKEY         261
 
 #define MAX_PRINT_LINE_LENGTH   80
 #define PRINT_INDENT_POS        35
