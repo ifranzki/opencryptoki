@@ -2531,42 +2531,53 @@ static CK_RV p11kmip_import_key(void){
         goto done;
     }
 
-    // If we were unable to locate the key on the server,
-    // register it there
+    // If we were unable to locate the key on the server, 
     if (wrap_pubkey_uid == NULL) {
-        printf("Did not find wrapping key '%s' on server, registering it\n",
+        // If we were told to send the wrapkey, send it
+        if (opt_send_wrapkey) {
+            printf("Did not find wrapping key '%s' on server, registering it\n",
                 opt_wrap_label);
-        /* Next we send the public key to the server */
-        rc = p11kmip_register_remote_key(&pubkey_keytype, wrapping_pubkey, 
-                                        opt_wrap_label, &wrap_pubkey_uid);
-        
-        if (rc != CKR_OK) {
-            warnx("Failed to register wrapping key '%s' on server\n",
-                opt_wrap_label);
+            /* Next we send the public key to the server */
+            rc = p11kmip_register_remote_key(&pubkey_keytype, wrapping_pubkey, 
+                                            opt_wrap_label, &wrap_pubkey_uid);
+            
+            if (rc != CKR_OK) {
+                warnx("Failed to register wrapping key '%s' on server\n",
+                    opt_wrap_label);
+                goto done;
+            }
+        } else { // Else we fail here
+            rc = CKR_GENERAL_ERROR;
             goto done;
         }
     }
 
     printf("Wrapping key KMIP UID is '%x'\n", wrap_pubkey_uid);
 
-    printf("Attempting to locate secret key '%s' on server\n", opt_target_label);
-    rc = p11kmip_locate_remote_key(opt_target_label, &secret_keytype, &secret_key_uid);
-
-    if(rc != CKR_OK){
-        printf("Error while locating target key on KMIP server\n");
-        goto done;
-    }
-
-    // If we were unable to locate the create, for now, create
-    // it over there
-    if(secret_key_uid == NULL){
-        printf("Did not find target key '%s' on server, generating it\n",
-            opt_target_label);
+    if (opt_genkey) {
+        // If we were told to generate a new key, do so
         rc = p11kmip_generate_remote_secret_key(&secret_keytype, opt_target_label,
                 &secret_key_uid);
         
         if(rc != CKR_OK){
             printf("Error creating target key on KMIP server");
+            goto done;
+        }
+    } else {
+        // Else attempt to find the one we were given
+        printf("Attempting to locate secret key '%s' on server\n", opt_target_label);
+        rc = p11kmip_locate_remote_key(opt_target_label, &secret_keytype, &secret_key_uid);
+
+        if(rc != CKR_OK){
+            printf("Error while locating target key on KMIP server\n");
+            goto done;
+        }
+
+        // If we didn't find it, throw an error
+        if(secret_key_uid == NULL){
+            printf("Did not find target key '%s' on server\n",
+                opt_target_label);
+            rc = CKR_GENERAL_ERROR;
             goto done;
         }
     }
