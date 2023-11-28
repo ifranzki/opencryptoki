@@ -2674,10 +2674,17 @@ static CK_RV p11kmip_import_key(void){
     
     printf("Wrapping Public Key Handle: 0x%lX\n", wrapping_pubkey);
 
-    rc = p11kmip_find_local_key(&privkey_keytype, opt_wrap_label, NULL, &wrapping_privkey);
+    if (opt_unwrap_label != NULL) {
+        rc = p11kmip_find_local_key(&privkey_keytype, opt_unwrap_label, NULL, &wrapping_privkey);
 
-    if(rc != CKR_OK)
-        goto done;
+        if(rc != CKR_OK)
+            goto done;
+    } else {
+        rc = p11kmip_find_local_key(&privkey_keytype, opt_wrap_label, NULL, &wrapping_privkey);
+
+        if(rc != CKR_OK)
+            goto done;
+    }
 
     printf("Wrapping Private Key Handle: 0x%lX\n", wrapping_privkey);
 
@@ -2749,7 +2756,7 @@ static CK_RV p11kmip_import_key(void){
         rc = CKR_GENERAL_ERROR;
         goto done;
     }
-    printf("Wrapped Key Blob: %s\n", wrapped_key_blob);
+    //printf("Wrapped Key Blob: %s\n", wrapped_key_blob);
     printf("Wrapped Key Blob Length: %d\n", wrapped_key_length);
 
     /* Lastly we unwrap and import the retrieved key */
@@ -3010,8 +3017,10 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
     CK_ULONG key_size = 0;
     rc = wrapped_keytype->keygen_get_key_size(
             wrapped_keytype, NULL, &key_size);
-    if (rc)
+    if (rc) {
+        warnx("Failed to key size of wrapped key");
         goto done;    
+    }
 
     // Build the template for the default attribute
     CK_ATTRIBUTE unwrapped_default_template[] = {
@@ -3078,10 +3087,11 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
         return -EINVAL;
 	}
 
-    rc = pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, wrapping_key_handle, 
-                        wrapped_key_blob, wrapped_key_length,
-                        unwrapped_template, unwrapped_templatecount, 
-                        unwrapped_key_handle);
+    rc = pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, 
+            wrapping_key_handle, 
+            wrapped_key_blob, wrapped_key_length,
+            unwrapped_template, unwrapped_templatecount, 
+            unwrapped_key_handle);
 
 done:
 	if (unwrapped_template != NULL) {
