@@ -3010,6 +3010,8 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
     CK_ULONG key_size = 0;
     rc = wrapped_keytype->keygen_get_key_size(
             wrapped_keytype, NULL, &key_size);
+    if (rc)
+        goto done;    
 
     // Build the template for the default attribute
     CK_ATTRIBUTE unwrapped_default_template[] = {
@@ -3030,9 +3032,16 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
         + wrapped_key_num_attrs;
     CK_ATTRIBUTE_PTR unwrapped_template = malloc(
         unwrapped_templatecount * sizeof(CK_ATTRIBUTE));
+    if (unwrapped_template == NULL) {
+        warnx("Allocate attribute template failed");
+        rc = -ENOMEM;
+        goto done;
+    }
+
+    // Copy in default attributes and any additional attributes
+    // passed in by caller
     memcpy(unwrapped_template, unwrapped_default_template, 
         unwrapped_default_templatecount * sizeof(CK_ATTRIBUTE));
-    
     for (i = 0; i < wrapped_key_num_attrs; i++) {
         unwrapped_template[unwrapped_default_templatecount + i] = 
             wrapped_key_attrs[i];
@@ -3069,13 +3078,17 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
         return -EINVAL;
 	}
 
-    pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, wrapping_key_handle, 
+    rc = pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, wrapping_key_handle, 
                         wrapped_key_blob, wrapped_key_length,
                         unwrapped_template, unwrapped_templatecount, 
                         unwrapped_key_handle);
 
+done:
+	if (unwrapped_template != NULL) {
+        free(unwrapped_template);
+    }
 	
-	return CKR_OK;
+	return rc;
 }
 
 
