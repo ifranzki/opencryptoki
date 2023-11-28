@@ -144,6 +144,8 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
                                     unsigned long wrapped_key_length, 
                                     const char *wrapped_key_blob,
                                     const char *wrapped_key_label,
+                                    CK_ATTRIBUTE_PTR wrapped_key_attrs,
+                                    CK_ULONG wrapped_key_num_attrs,
                                     CK_OBJECT_HANDLE_PTR unwrapped_key_handle);
 static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                     const char *label, const char *id,
@@ -161,8 +163,10 @@ static CK_RV aes_get_key_size(const struct p11kmip_keytype *keytype,
 static CK_RV rsa_get_key_size(const struct p11kmip_keytype *keytype,
                               void *private, CK_ULONG *keysize);
 
-static void free_attr_array_attr(CK_ATTRIBUTE *attr); // Was getting errors if I didn't add this
-
+static void free_attr_array_attr(CK_ATTRIBUTE *attr);
+static void print_bool_attr_short(const CK_ATTRIBUTE *val, bool applicable);
+static void print_bool_attr_long(const char *attr, const CK_ATTRIBUTE *val,
+                                 int indent, bool sensitive);
 
 /* KMIP function prototypes */
 static int perform_kmip_request2(enum kmip_operation operation1,
@@ -374,6 +378,44 @@ static const struct p11kmip_cmd p11kmip_commands[] = {
       .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION, },
     { .cmd = NULL, .func = NULL },
 };
+
+/* PKCS#11 attribute declarations */
+
+#define DECLARE_BOOL_ATTR(attr, ch, sec, pub, priv, set)                       \
+    { .name = # attr, .type = attr, .letter = ch,                              \
+      .secret = sec, .public = pub, .private = priv,                           \
+      .settable = set, .print_short = print_bool_attr_short,                   \
+      .print_long = print_bool_attr_long, }
+
+static const struct p11kmip_attr p11kmip_bool_attrs[] = {
+    DECLARE_BOOL_ATTR(CKA_PRIVATE,           'P', true,  true,  true,  true),
+    DECLARE_BOOL_ATTR(CKA_LOCAL,             'L', true,  true,  true,  false),
+    DECLARE_BOOL_ATTR(CKA_MODIFIABLE,        'M', true,  true,  true,  true),
+    DECLARE_BOOL_ATTR(CKA_COPYABLE,          'B', true,  true,  true,  true),
+    DECLARE_BOOL_ATTR(CKA_DESTROYABLE,       'Y', true,  true,  true,  true),
+    DECLARE_BOOL_ATTR(CKA_DERIVE,            'R', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_ENCRYPT,           'E', true,  true,  false, true),
+    DECLARE_BOOL_ATTR(CKA_DECRYPT,           'D', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_SIGN,              'G', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_SIGN_RECOVER,      'C', false, false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_VERIFY,            'V', true,  true,  false, true),
+    DECLARE_BOOL_ATTR(CKA_VERIFY_RECOVER,    'O', false, true,  false, true),
+    DECLARE_BOOL_ATTR(CKA_WRAP,              'W', true,  true,  false, true),
+    DECLARE_BOOL_ATTR(CKA_UNWRAP,            'U', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_SENSITIVE,         'S', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_ALWAYS_SENSITIVE,  'A', true,  false, true,  false),
+    DECLARE_BOOL_ATTR(CKA_EXTRACTABLE,       'X', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_NEVER_EXTRACTABLE, 'N', true,  false, true,  false),
+    DECLARE_BOOL_ATTR(CKA_TRUSTED,           'T', true,  true,  true,  false),
+    DECLARE_BOOL_ATTR(CKA_WRAP_WITH_TRUSTED, 'I', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_TOKEN,             'H', true,  true,  true,  false),
+    DECLARE_BOOL_ATTR(CKA_IBM_PROTKEY_EXTRACTABLE,
+                                             'K', true,  false, true,  true),
+    DECLARE_BOOL_ATTR(CKA_IBM_PROTKEY_NEVER_EXTRACTABLE,
+                                             'Z', true,  false, true,  false),
+    { .name = NULL, },
+};
+
 
 /* KMIP connection structure declarations */
 
@@ -2206,6 +2248,26 @@ static void term_pkcs11(void)
 /* PKCS#11 Key Attribute Functions                                           */
 /*****************************************************************************/
 
+static void print_bool_attr_short(const CK_ATTRIBUTE *val, bool applicable)
+{
+    if (val->ulValueLen == CK_UNAVAILABLE_INFORMATION ||
+        val->ulValueLen != sizeof(CK_BBOOL))
+        applicable = false;
+    printf("%c ", applicable ? (*(CK_BBOOL *)(val->pValue) ? '1' : '0') : '-');
+}
+
+static void print_bool_attr_long(const char *attr, const CK_ATTRIBUTE *val,
+                                 int indent, bool sensitive)
+{
+    if ((val->ulValueLen == CK_UNAVAILABLE_INFORMATION && !sensitive)||
+        val->ulValueLen != sizeof(CK_BBOOL))
+        return;
+
+    printf("%*s%s: %s\n", indent, "", attr,
+           sensitive ? "[sensitive]" :
+                   *(CK_BBOOL *)(val->pValue) ? "CK_TRUE" : "CK_FALSE");
+}
+
 static CK_RV add_attribute(CK_ATTRIBUTE_TYPE type, const void *value,
                            CK_ULONG value_len, CK_ATTRIBUTE **attrs,
                            CK_ULONG *num_attrs)
@@ -2230,6 +2292,105 @@ static CK_RV add_attribute(CK_ATTRIBUTE_TYPE type, const void *value,
     memcpy(tmp[*num_attrs].pValue, value, value_len);
 
     (*num_attrs)++;
+
+    return CKR_OK;
+}
+
+static const struct p11kmip_attr *find_attr_by_letter(char letter)
+{
+    const struct p11kmip_attr *attr;
+
+    for (attr = p11kmip_bool_attrs; attr->name != NULL; attr++) {
+        if (attr->letter == toupper(letter))
+            return attr;
+    }
+
+    return NULL;
+}
+
+static bool attr_applicaple_for_keytype(const struct p11kmip_keytype *keytype,
+                                        const struct p11kmip_attr *attr)
+{
+    switch (attr->type) {
+    case CKA_SIGN:
+    case CKA_SIGN_RECOVER:
+    case CKA_VERIFY:
+    case CKA_VERIFY_RECOVER:
+        return keytype->sign_verify;
+
+    case CKA_ENCRYPT:
+    case CKA_DECRYPT:
+        return keytype->encrypt_decrypt;
+
+    case CKA_WRAP:
+    case CKA_WRAP_WITH_TRUSTED:
+    case CKA_UNWRAP:
+        return keytype->wrap_unwrap;
+
+    case CKA_DERIVE:
+        return keytype->derive;
+
+    default:
+        return true;
+    }
+}
+
+static bool secret_attr_applicable(const struct p11kmip_keytype *keytype,
+                                   const struct p11kmip_attr *attr)
+{
+    return attr->secret && attr_applicaple_for_keytype(keytype, attr);
+}
+
+static bool public_attr_applicable(const struct p11kmip_keytype *keytype,
+                                   const struct p11kmip_attr *attr)
+{
+    UNUSED(keytype);
+
+    return attr->public && attr_applicaple_for_keytype(keytype, attr);
+}
+
+static bool private_attr_applicable(const struct p11kmip_keytype *keytype,
+                                    const struct p11kmip_attr *attr)
+{
+    UNUSED(keytype);
+
+    return attr->private && attr_applicaple_for_keytype(keytype, attr);
+}
+
+static CK_RV parse_boolean_attrs(const struct p11kmip_keytype *keytype,
+                                 const char *attr_string, CK_ATTRIBUTE **attrs,
+                                 CK_ULONG *num_attrs, bool check_settable,
+                                 bool (*attr_aplicable)(
+                                         const struct p11kmip_keytype *keytype,
+                                         const struct p11kmip_attr *attr))
+{
+    const struct p11kmip_attr *attr;
+    unsigned int i = 0;
+    CK_BBOOL val;
+    CK_RV rc;
+
+    if (attr_string == NULL)
+        return CKR_OK;
+
+    for (i = 0; attr_string[i] != '\0'; i++) {
+        attr = find_attr_by_letter(attr_string[i]);
+        if (attr == NULL) {
+            warnx("Attribute '%c' is not valid", attr_string[i]);
+            return CKR_ARGUMENTS_BAD;
+        }
+
+        /* silently ignore attributes that are not settable or not applicable */
+        if ((check_settable && !attr->settable) ||
+            (attr_aplicable != NULL && keytype != NULL &&
+             !attr_aplicable(keytype, attr)))
+            continue;
+
+        val = isupper(attr_string[i]) ? CK_TRUE : CK_FALSE;
+
+        rc = add_attribute(attr->type, &val, sizeof(val), attrs, num_attrs);
+        if (rc != CKR_OK)
+            return rc;
+    }
 
     return CKR_OK;
 }
@@ -2484,6 +2645,8 @@ static CK_RV p11kmip_import_key(void){
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length;
     CK_OBJECT_HANDLE unwrapped_key_handle;
+    CK_ATTRIBUTE *wrapped_key_attrs = NULL;
+    CK_ULONG wrapped_key_num_attrs = 0;
 
     pubkey_keytype = p11kmip_rsa_keytype;
     pubkey_keytype.class = CKO_PUBLIC_KEY;
@@ -2493,24 +2656,16 @@ static CK_RV p11kmip_import_key(void){
 
     secret_keytype = p11kmip_aes_keytype;
 
-    /*
-    Ways to deal with wrapping key and target key
+    // Parse the attrs and id options up front to fail fast
 
-        - Wrapping key
-            - public key
-                - *specify the label of the local key
-                - pass in the key material through the commandline
-                - specify a file containing the public key
-            - private key
-                - *assumed to have the same label as the public key
-                - specify a different label
-                - specify a file containing the private key
-        - Target key
-            - *specify the label on the KMIP server
-            - specify the local label if different
-            - maybe allow generation of new key on
-            KMIP server
-    */
+    if (opt_target_attrs != NULL) {
+        rc = parse_boolean_attrs(&secret_keytype, opt_target_attrs,
+            &wrapped_key_attrs, &wrapped_key_num_attrs, false,
+            NULL);
+        
+        if (rc != CKR_OK)
+            goto done;
+    }
 
 	rc = p11kmip_find_local_key(&pubkey_keytype, opt_wrap_label, NULL, &wrapping_pubkey);
 
@@ -2525,14 +2680,6 @@ static CK_RV p11kmip_import_key(void){
         goto done;
 
     printf("Wrapping Private Key Handle: 0x%lX\n", wrapping_privkey);
-
-    printf("Attempting to locate public key '%s' on server\n", opt_wrap_label);
-    rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype, &wrap_pubkey_uid);
-
-    if(rc != CKR_OK){
-        printf("Error while locating wrapping key on KMIP server\n");
-        goto done;
-    }
 
     // If we were unable to locate the key on the server, 
     if (wrap_pubkey_uid == NULL) {
@@ -2549,9 +2696,14 @@ static CK_RV p11kmip_import_key(void){
                     opt_wrap_label);
                 goto done;
             }
-        } else { // Else we fail here
-            rc = CKR_GENERAL_ERROR;
-            goto done;
+        } else {     
+            printf("Attempting to locate public key '%s' on server\n", opt_wrap_label);
+            rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype, &wrap_pubkey_uid);
+
+            if(rc != CKR_OK){
+                printf("Error while locating wrapping key on KMIP server\n");
+                goto done;
+            }
         }
     }
 
@@ -2604,6 +2756,7 @@ static CK_RV p11kmip_import_key(void){
     rc = p11kmip_unwrap_local_secret_key(wrapping_privkey,
             &secret_keytype, wrapped_key_length, 
             wrapped_key_blob, opt_target_label,
+            wrapped_key_attrs, wrapped_key_num_attrs,
             &unwrapped_key_handle);
     
     if(rc != CKR_OK){
@@ -2841,12 +2994,15 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
                                     unsigned long wrapped_key_length, 
                                     const char *wrapped_key_blob,
                                     const char *wrapped_key_label,
+                                    CK_ATTRIBUTE_PTR wrapped_key_attrs,
+                                    CK_ULONG wrapped_key_num_attrs,
                                     CK_OBJECT_HANDLE_PTR unwrapped_key_handle) {
     
     CK_MECHANISM mech = { 0 };
     CK_RSA_PKCS_OAEP_PARAMS oaep_param = { 0 };
     CK_BBOOL ck_true = true;
     CK_RV rc;
+    size_t i;
 
     int iscca = is_cca_token(opt_slot);
     CK_OBJECT_CLASS key_class = wrapped_keytype->class;
@@ -2855,18 +3011,32 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
     rc = wrapped_keytype->keygen_get_key_size(
             wrapped_keytype, NULL, &key_size);
 
-    CK_ATTRIBUTE unwrapped_template[] = {
-        {CKA_CLASS, &key_class, sizeof(key_class)},
-        {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
+    // Build the template for the default attribute
+    CK_ATTRIBUTE unwrapped_default_template[] = {
+        { CKA_CLASS, &key_class, sizeof(key_class)},
+        { CKA_KEY_TYPE, &key_type, sizeof(key_type)},
         { CKA_ENCRYPT, &ck_true, sizeof(ck_true) },
 		{ CKA_DECRYPT, &ck_true, sizeof(ck_true) },
 		{ CKA_SIGN, &ck_true, sizeof(ck_true) },
 		{ CKA_VERIFY, &ck_true, sizeof(ck_true) },
 		{ CKA_IBM_PROTKEY_EXTRACTABLE, &ck_true, sizeof(ck_true) },
-        {CKA_LABEL, &wrapped_key_label, strlen(wrapped_key_label)},
-        {CKA_VALUE_LEN, &key_size, sizeof(key_size)} /* For CCA only */
+        { CKA_LABEL, &wrapped_key_label, strlen(wrapped_key_label)},
+        { CKA_VALUE_LEN, &key_size, sizeof(key_size)} /* For CCA only */
     };
-    CK_ULONG unwrapped_templatecount = 8 + iscca;
+    CK_ULONG unwrapped_default_templatecount = 8 + iscca;
+
+    // Add variable attributes
+    CK_ULONG unwrapped_templatecount = unwrapped_default_templatecount 
+        + wrapped_key_num_attrs;
+    CK_ATTRIBUTE_PTR unwrapped_template = malloc(
+        unwrapped_templatecount * sizeof(CK_ATTRIBUTE));
+    memcpy(unwrapped_template, unwrapped_default_template, 
+        unwrapped_default_templatecount * sizeof(CK_ATTRIBUTE));
+    
+    for (i = 0; i < wrapped_key_num_attrs; i++) {
+        unwrapped_template[unwrapped_default_templatecount + i] = 
+            wrapped_key_attrs[i];
+    }
 
     switch (kmip_wrap_padding_method) {
     case KMIP_PADDING_METHOD_PKCS_1_5:
