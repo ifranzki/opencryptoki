@@ -3036,25 +3036,25 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
     };
     CK_ULONG unwrapped_default_templatecount = 8 + iscca;
 
-    // Add variable attributes
-    CK_ULONG unwrapped_templatecount = unwrapped_default_templatecount 
-        + wrapped_key_num_attrs;
-    CK_ATTRIBUTE_PTR unwrapped_template = malloc(
-        unwrapped_templatecount * sizeof(CK_ATTRIBUTE));
-    if (unwrapped_template == NULL) {
-        warnx("Allocate attribute template failed");
-        rc = -ENOMEM;
-        goto done;
-    }
+    // // Add variable attributes
+    // CK_ULONG unwrapped_templatecount = unwrapped_default_templatecount 
+    //     + wrapped_key_num_attrs;
+    // CK_ATTRIBUTE_PTR unwrapped_template = malloc(
+    //     unwrapped_templatecount * sizeof(CK_ATTRIBUTE));
+    // if (unwrapped_template == NULL) {
+    //     warnx("Allocate attribute template failed");
+    //     rc = -ENOMEM;
+    //     goto done;
+    // }
 
-    // Copy in default attributes and any additional attributes
-    // passed in by caller
-    memcpy(unwrapped_template, unwrapped_default_template, 
-        unwrapped_default_templatecount * sizeof(CK_ATTRIBUTE));
-    for (i = 0; i < wrapped_key_num_attrs; i++) {
-        unwrapped_template[unwrapped_default_templatecount + i] = 
-            wrapped_key_attrs[i];
-    }
+    // // Copy in default attributes and any additional attributes
+    // // passed in by caller
+    // memcpy(unwrapped_template, unwrapped_default_template, 
+    //     unwrapped_default_templatecount * sizeof(CK_ATTRIBUTE));
+    // for (i = 0; i < wrapped_key_num_attrs; i++) {
+    //     unwrapped_template[unwrapped_default_templatecount + i] = 
+    //         wrapped_key_attrs[i];
+    // }
 
     switch (kmip_wrap_padding_method) {
     case KMIP_PADDING_METHOD_PKCS_1_5:
@@ -3087,16 +3087,42 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE wrapping_key_handl
         return -EINVAL;
 	}
 
+    // rc = pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, 
+    //         wrapping_key_handle, 
+    //         wrapped_key_blob, wrapped_key_length,
+    //         unwrapped_template, unwrapped_templatecount, 
+    //         unwrapped_key_handle);
+
+    char *outdata;
+    int outdatalen = 0;
+    outdata = malloc(wrapped_key_length + 1);
+
+    rc = pkcs11_funcs->C_DecryptInit(pkcs11_session, &mech, 
+        wrapping_key_handle);
+    rc = pkcs11_funcs->C_Decrypt(pkcs11_session,
+        wrapped_key_blob, wrapped_key_length, 
+        outdata, &outdatalen);
+    
+    printf("Decrypted Blob Length: %d", outdatalen);
+
+    if (outdatalen == wrapped_key_length)
+        outdata[wrapped_key_length] = '\0';
+    
+    printf("Decrypted Blob (Raw): %s\n", outdata);
+    printf("Decrypted Blob (Hex): %x\n", outdata);
+
+    // Just want to make sure that hand-crafted template
+    // wasn't introducing any weirdness
     rc = pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech, 
-            wrapping_key_handle, 
-            wrapped_key_blob, wrapped_key_length,
-            unwrapped_template, unwrapped_templatecount, 
-            unwrapped_key_handle);
+        wrapping_key_handle, 
+        wrapped_key_blob, wrapped_key_length,
+        unwrapped_default_template, unwrapped_default_templatecount, 
+        unwrapped_key_handle);
 
 done:
-	if (unwrapped_template != NULL) {
-        free(unwrapped_template);
-    }
+	// if (unwrapped_template != NULL) {
+    //     free(unwrapped_template);
+    // }
 	
 	return rc;
 }
