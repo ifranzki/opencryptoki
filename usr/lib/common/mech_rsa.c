@@ -222,11 +222,6 @@ static CK_RV rsa_parse_block_type_1(CK_BYTE *in_data,
         return CKR_FUNCTION_FAILED;
     }
 
-    printf("rsa_parse_block in_data: ");
-    for (i = 0; i < in_data_len; i++)
-        printf("%02X", (unsigned char)in_data[i]);
-    printf("\n");
-
     if (in_data_len <= 11) {
         TRACE_DEVEL("%s\n", ock_err(ERR_FUNCTION_FAILED));
         return CKR_FUNCTION_FAILED;
