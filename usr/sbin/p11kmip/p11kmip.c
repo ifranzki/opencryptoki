@@ -3707,23 +3707,49 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
     }
 
 	rc = kmip_get_symmetric_key(kobj, &kblock);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get symmetric key", ph, out);
+
+    if (rc) {
+        warnx("Failed to get symmetric key");
+        goto out;
+    }
 
 	rc = kmip_get_key_block(kblock, &ftype, NULL, &kval, &algo, &bits,
 				&wrap);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get key block", ph, out);
-	// CHECK_ERROR(ftype != KMIP_KEY_FORMAT_TYPE_RAW, rc, -EINVAL,
-	// 	    "Key format is not RAW", ph, out);
-	// CHECK_ERROR(algo != KMIP_CRYPTO_ALGO_AES, rc, -EINVAL,
-	// 		    "Key algorithm is not AES", ph, out);
-	// CHECK_ERROR(bits < 128 || bits > 256, rc, -EINVAL,
-	// 	    "Key bit size is invalid", ph, out);
+    
+    if (rc) {
+        warnx("Failed to get key block");
+        goto out;
+    }
+
+    if (ftype != KMIP_KEY_FORMAT_TYPE_RAW) {
+        warnx("Key format is not RAW");
+        rc = -EINVAL;
+        goto out;
+    }
+
+    if (algo != KMIP_CRYPTO_ALGO_AES) {
+        warnx("Key algorithm is not AES");
+    }
+
+    if (bits < 128 || bits > 256) {
+        warnx("Key bit size is invalid");
+        rc = -EINVAL;
+        goto out;
+    }
 
 	rc = kmip_get_key_wrapping_data(wrap, &wmethod, &wkinfo, NULL, NULL,
 					NULL, NULL, NULL, &enc);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get wrapping data", ph, out);
-	// CHECK_ERROR(wmethod != KMIP_WRAPPING_METHOD_ENCRYPT, rc, -EINVAL,
-	// 	    "Wrapping method is not 'Encrypt'", ph, out);
+	
+    if (rc) {
+        warnx("Failed to get wrapping data");
+        goto out;
+    }
+
+    if (wmethod != KMIP_WRAPPING_METHOD_ENCRYPT) {
+        warnx("Wrapping method is not 'Encrypt'");
+        rc = -EINVAL;
+        goto out;
+    }
 	// if (ph->kmip_version.major > 1 ||
 	//     (ph->kmip_version.major == 1 && ph->kmip_version.minor >= 2)) {
 	// 	CHECK_ERROR(enc != KMIP_ENCODING_OPTION_NO, rc, -EINVAL,
@@ -3731,7 +3757,11 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
 	// }
 
 	rc = kmip_get_key_info(wkinfo, NULL, &wcparms);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get wrap key infos", ph, out);
+
+    if (rc) {
+        warnx("Failed to get wrap key infos");
+        goto out;
+    }
 
 	rc = kmip_get_cryptographic_parameter(wcparms, NULL, &pmeth, &halgo,
 					      NULL, NULL, &algo, NULL, NULL,
@@ -3762,7 +3792,11 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
 	// }
 
 	rc = kmip_get_key_value(kval, &key, NULL, 0, NULL);
-	// CHECK_ERROR(rc != 0, rc, rc, "Failed to get key value", ph, out);
+	
+    if (rc) {
+        warnx("Failed to get key value");
+        goto out;
+    }
 
 	kdata = kmip_node_get_byte_string(key, &klen);
 	// CHECK_ERROR(kdata == NULL, rc, -ENOMEM, "Failed to get key data",
