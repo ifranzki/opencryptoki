@@ -1937,7 +1937,7 @@ static int build_kmip_request2(enum kmip_operation operation1,
 		// 	    "Allocate KMIP node failed", ph, out);
 	}
 
-	req_hdr = kmip_new_request_header(NULL, 0, NULL, NULL, false, NULL,
+	req_hdr = kmip_new_request_header(&kmip_vers, 0, NULL, NULL, false, NULL,
 					  batch_err_opt, true,
 					  operation2 != 0 ? 2 : 1);
 	// CHECK_ERROR(req_hdr == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
@@ -3629,18 +3629,6 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(
     enum kmip_result_status status = 0;
     enum kmip_result_reason reason = 0;
 	int rc = 0;
-
-	// pr_verbose(&ph->pd, "Wrap padding method: %d",
-	// 	   ph->profile->wrap_padding_method);
-	// pr_verbose(&ph->pd, "Wrap hashing algorithm: %d",
-	// 	   ph->profile->wrap_hashing_algo);
-
-	// wrap_key_id = properties_get(ph->pd.properties,
-	// 			     KMIP_CONFIG_WRAPPING_KEY_ID);
-	// if (wrap_key_id == NULL) {
-	// 	_set_error(ph, "Wrapping key ID is not available");
-	// 	return -EINVAL;
-	// }
 
 	// pr_verbose(&ph->pd, "Wrapping key id: '%s'", wrap_key_id);
 
