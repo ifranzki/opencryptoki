@@ -1627,6 +1627,27 @@ static CK_RV init_kmip(void){
     }
 
     rc = discover_kmip_versions(&kmip_vers);
+	if (rc != 0) {
+        warnx("DISCOVER-VERSION failed, retry "
+            "with KMIP v1.2");
+
+        kmip_vers.major = 1;
+        kmip_vers.minor = 2;
+        kmip_set_default_protocol_version(&kmip_version_1_2);
+
+        rc = discover_kmip_versions(&kmip_vers);
+        if (rc != 0) {
+            warnx("2nd DISCOVER-VERSION "
+                    "failed, assume KMIP server only "
+                    "supports v1.0");
+
+            kmip_vers.major = 1;
+            kmip_vers.minor = 0;
+            rc = 0;
+        }
+    }
+
+    kmip_set_default_protocol_version(&kmip_vers);
     printf("KMIP server version: %d.%d\n", kmip_vers.major, kmip_vers.minor);
 
 done: 
@@ -1675,26 +1696,16 @@ static int discover_kmip_versions(struct kmip_version *version)
 	rc = perform_kmip_request(KMIP_OPERATION_DISCOVER_VERSIONS,
 				   req_pl, &resp_pl, &discover_status,
                    &discover_reason);
-	if (rc != 0 && 
-        discover_reason != KMIP_RESULT_REASON_ILLEGAL_OPERATION) {
+	if (rc) {
         warnx("Failed to request KMIP version from server");
         goto out;
     }
 
-    // This reason code can be returned if the DiscoverVersions
-    // function is not supported on the server, which, ironically,
-    // allows us to deduce it is version 1.0
-    if(discover_reason == KMIP_RESULT_REASON_ILLEGAL_OPERATION) {
-        rc = CKR_OK;
-        version->major = 1;
-        version->minor = 0;
-    } else {
-        rc = kmip_get_discover_versions_response_payload(resp_pl, NULL, 0,
-                            version);
-        if (rc != 0) {
-            warnx("Failed to get discover version response");
-            goto out;
-        }
+    rc = kmip_get_discover_versions_response_payload(resp_pl, NULL, 0,
+                        version);
+    if (rc != 0) {
+        warnx("Failed to get discover version response");
+        goto out;
     }
 
 out:
@@ -1937,7 +1948,7 @@ static int build_kmip_request2(enum kmip_operation operation1,
 		// 	    "Allocate KMIP node failed", ph, out);
 	}
 
-	req_hdr = kmip_new_request_header(&kmip_vers, 0, NULL, NULL, false, NULL,
+	req_hdr = kmip_new_request_header(NULL, 0, NULL, NULL, false, NULL,
 					  batch_err_opt, true,
 					  operation2 != 0 ? 2 : 1);
 	// CHECK_ERROR(req_hdr == NULL, rc, -ENOMEM, "Allocate KMIP node failed",
