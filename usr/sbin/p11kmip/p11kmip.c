@@ -1816,7 +1816,7 @@ static struct kmip_node *build_custom_attr(const char *name,
 
 	// switch (ph->profile->cust_attr_scheme) {
 	// case KMIP_PROFILE_CUST_ATTR_V1_STYLE:
-		util_asprintf(&v1_name, "kmip-%s", name);
+		asprintf(&v1_name, "kmip-%s", name);
 		attr = kmip_new_vendor_attribute("x", v1_name, text);
 		free(v1_name);
 	// 	break;
