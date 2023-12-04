@@ -1816,12 +1816,12 @@ static struct kmip_node *build_custom_attr(const char *name,
 
 	// switch (ph->profile->cust_attr_scheme) {
 	// case KMIP_PROFILE_CUST_ATTR_V1_STYLE:
-	// 	util_asprintf(&v1_name, "zkey-%s", name);
-	// 	attr = kmip_new_vendor_attribute("x", v1_name, text);
-	// 	free(v1_name);
+		util_asprintf(&v1_name, "kmip-%s", name);
+		attr = kmip_new_vendor_attribute("x", v1_name, text);
+		free(v1_name);
 	// 	break;
 	// case KMIP_PROFILE_CUST_ATTR_V2_STYLE:
-		attr = kmip_new_vendor_attribute("p11kmip", name, text);
+		//attr = kmip_new_vendor_attribute("p11kmip", name, text);
 	// 	break;
 	// default:
 	// 	_set_error(ph, "Invalid custom attribute style: %d",
@@ -1836,11 +1836,14 @@ static struct kmip_node *build_custom_attr(const char *name,
 
 static struct kmip_node *build_description_attr(const char *description)
 {
-	if (supports_description_attr())
-		return kmip_new_description(description);
+    // So on the one hand, we don't support KMIP version <1.2 at all
+    // but on the other hand, SKLM doesn't appear to support description
+    // or comment attributes. So neither of these are valid.
+	// if (supports_description_attr())
+	// 	return kmip_new_description(description);
 
-	if (supports_comment_attr())
-		return kmip_new_comment(description);
+	// if (supports_comment_attr())
+	// 	return kmip_new_comment(description);
 
 	return build_custom_attr("description", description);
 }
