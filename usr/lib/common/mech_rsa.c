@@ -222,11 +222,6 @@ static CK_RV rsa_parse_block_type_1(CK_BYTE *in_data,
         return CKR_FUNCTION_FAILED;
     }
 
-    printf("rsa_parse_block:in_data ");
-    for (i = 0; i < in_data_len; i++)
-        printf("%02X", in_data[i]);
-    printf("\n");
-
     if (in_data_len <= 11) {
         TRACE_DEVEL("%s\n", ock_err(ERR_FUNCTION_FAILED));
         return CKR_FUNCTION_FAILED;
@@ -574,12 +569,6 @@ CK_RV rsa_pkcs_decrypt(STDLL_TokData_t *tokdata,
     CK_RV rc;
 
     UNUSED(sess);
-
-    int i;
-    printf("rsa_pkcs_decrypt:in_data ");
-    for (i = 0; i < in_data_len; i++)
-        printf("%02X", in_data[i]);
-    printf("\n");
 
     rc = object_mgr_find_in_map1(tokdata, ctx->key, &key_obj, READ_LOCK);
     if (rc != CKR_OK) {
