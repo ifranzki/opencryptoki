@@ -1637,13 +1637,8 @@ static CK_RV init_kmip(void){
 
         rc = discover_kmip_versions(&kmip_vers);
         if (rc != 0) {
-            warnx("2nd DISCOVER-VERSION "
-                    "failed, assume KMIP server only "
-                    "supports v1.0");
-
-            kmip_vers.major = 1;
-            kmip_vers.minor = 0;
-            rc = 0;
+            warnx("KMIP server version <1.2 not supported");
+            goto done;
         }
     }
 
