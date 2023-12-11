@@ -308,6 +308,7 @@ static CK_RV import_ecc_priv_key(CK_SESSION_HANDLE session,
         {CKA_KEY_TYPE, &keyType, sizeof(keyType)},
         {CKA_LABEL, (char *) label, strlen(label) + 1},
         {CKA_SIGN, &true, sizeof(true)},
+        {CKA_DERIVE, &true, sizeof(true)},
         {CKA_TOKEN, &false, sizeof(false)},
         {CKA_IBM_OPAQUE, ccatoken, tokenlen}
     };
