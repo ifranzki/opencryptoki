@@ -1008,13 +1008,34 @@ CK_RV ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
         return CKR_MECHANISM_PARAM_INVALID;
     }
 
+    rc = object_mgr_create_skel(tokdata, sess, pTemplate, ulCount, MODE_DERIVE,
+                                class, keytype, &temp_obj);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Object Mgr create skeleton failed, rc=%s.\n", ock_err(rc));
+        return rc;
+    }
+
+    if (token_specific.t_ecdh_pkcs_derive_kdf != NULL) {
+        rc = token_specific.t_ecdh_pkcs_derive_kdf(tokdata, sess, base_key_obj,
+                                                   pParms, temp_obj,
+                                                   class, keytype);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("t_ecdh_pkcs_derive_kdf failed, rc=%s.\n", ock_err(rc));
+            goto end;
+        }
+
+        INC_COUNTER(tokdata, sess, mech, base_key_obj, POLICY_STRENGTH_IDX_0);
+
+        goto derive_done;
+    }
+
     /* Derive the shared secret */
     rc = ckm_ecdh_pkcs_derive(tokdata, sess, pParms->pPublicData,
                               pParms->ulPublicDataLen, base_key_obj, z_value,
                               &z_len, mech);
     if (rc != CKR_OK) {
         TRACE_ERROR("Error deriving the shared secret.\n");
-        return rc;
+        goto end;
     }
 
     /* Determine derived key length */
@@ -1022,14 +1043,14 @@ CK_RV ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
                                      &key_len);
     if (rc == CKR_ATTRIBUTE_VALUE_INVALID) {
         TRACE_ERROR("%s\n", ock_err(ERR_ATTRIBUTE_VALUE_INVALID));
-        return rc;
+        goto end;
     }
 
     rc = ecdh_get_derived_key_size(z_len, NULL, 0, pParms->kdf, keytype,
                                    key_len, &key_len);
     if (rc != CKR_OK) {
         TRACE_ERROR("Can not determine the derived key length\n");
-        return rc;
+        goto end;
     }
 
     /* Determine digest length */
@@ -1037,12 +1058,14 @@ CK_RV ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
         rc = digest_from_kdf(pParms->kdf, &digest_mech);
         if (rc != CKR_OK) {
             TRACE_ERROR("Cannot determine mech from kdf.\n");
-            return CKR_MECHANISM_PARAM_INVALID;
+            rc = CKR_MECHANISM_PARAM_INVALID;
+            goto end;
         }
         rc = get_sha_size(digest_mech, &kdf_digest_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("Cannot determine SHA digest size.\n");
-            return CKR_MECHANISM_PARAM_INVALID;
+            rc = CKR_MECHANISM_PARAM_INVALID;
+            goto end;
         }
     } else {
         kdf_digest_len = z_len;
@@ -1054,7 +1077,8 @@ CK_RV ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
     if (!derived_key) {
         TRACE_ERROR("Cannot allocate %lu bytes for derived key.\n",
                     derived_key_len);
-        return CKR_HOST_MEMORY;
+        rc = CKR_HOST_MEMORY;
+        goto end;
     }
 
     /* Apply KDF function to shared secret */
@@ -1163,20 +1187,23 @@ CK_RV ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
         }
     }
 
+derive_done:
     /* At this point, the derived key is fully constructed...assign an object
      * handle and store the key */
     rc = object_mgr_create_final(tokdata, sess, temp_obj, derived_key_obj);
     if (rc != CKR_OK) {
         TRACE_ERROR("Object Mgr create final failed, rc=%s.\n", ock_err(rc));
-        object_free(temp_obj);
-        temp_obj = NULL;
         goto end;
     }
+    temp_obj = NULL;
 
     rc = CKR_OK;
 
 end:
-    free(derived_key);
+    if (derived_key != NULL)
+      free(derived_key);
+    if (temp_obj != NULL)
+        object_free(temp_obj);
 
     return rc;
 }
