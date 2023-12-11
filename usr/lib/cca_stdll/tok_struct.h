@@ -86,7 +86,7 @@ token_spec_t token_specific = {
     &token_specific_ec_verify,
     &token_specific_ec_generate_keypair,
     NULL,                       // ecdh_derive
-    NULL,                       // ecdh_derive_kdf
+    &token_specific_ecdh_pkcs_derive_kdf,
     NULL,                       // dh_pkcs_derive
     NULL,                       // dh_pkcs_key_pair_gen
     // SHA
@@ -144,7 +144,7 @@ token_spec_t token_specific = {
     &token_specific_key_wrap,
     &token_specific_key_unwrap,
     &token_specific_reencrypt_single,
-    NULL,                       // set_attribute_values
+    &token_specific_set_attribute_values,
     &token_specific_set_attrs_for_new_object,
     &token_specific_handle_event,
     NULL,                       // check_obj_access
