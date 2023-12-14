@@ -4045,13 +4045,6 @@ out:
     kmip_node_free(act_resp);
     //kmip_node_free(unique_id);
 
-#if OPENSSL_VERSION_PREREQ(3, 0)
-    if (modulus != NULL)
-        BN_free(modulus);
-    if (pub_exp != NULL)
-        BN_free(pub_exp);
-#endif
-
     return rc;
 }
 
