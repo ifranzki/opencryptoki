@@ -364,6 +364,7 @@ static const struct p11kmip_opt p11kmip_import_key_opts[] = {
              .value.plain = &opt_gen_targkey,},
      .description = "If specified, the secret key to be imported is "
      "first created on the KMIP server. Currently only" " supports AES-256.",},
+     { .short_opt = 0, .long_opt = NULL, },
 };
 
 static const struct p11kmip_opt p11kmip_export_key_opts[] = {
@@ -375,7 +376,7 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     {.short_opt = 't',.long_opt = "targkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_target_label,.name = "TARGKEY-LABEL",},
-     .description = "The label of the secret key to be imported from the "
+     .description = "The label of the secret key to be exported into the "
      "KMIP server.",},
     {.short_opt = 0,.long_opt = "wrapkey-attrs",.required = false,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
@@ -397,8 +398,8 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     {.short_opt = 'u',.long_opt = "unwrapkey-label",.required = false,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_unwrap_label,.name = "UNWRAPKEY-LABEL",},
-     .description = "The label of the private key in the PKCS#11 "
-     "slot to be used for unwrapping the target key, if different from"
+     .description = "The label of the private key on the KMIP "
+     "server to be used for unwrapping the target key, if different from"
      " the label of the public key used for wrapping (optional).",},
     {.short_opt = 0,.long_opt = "retr-wrapkey",.required = false,
      .long_opt_val = OPT_RETR_WRAPKEY,
@@ -410,6 +411,7 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
      "'wrapkey-label' option is used to select the public key to "
      "be retrieved, and the public key is stored under"
      " the same label in the PKCS#11 slot.",},
+     { .short_opt = 0, .long_opt = NULL, },
 };
 
 static const struct p11kmip_cmd p11kmip_commands[] = {
