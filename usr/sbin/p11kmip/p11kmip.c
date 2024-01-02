@@ -419,7 +419,6 @@ static const struct p11kmip_cmd p11kmip_commands[] = {
      .description = "Import a key from a KMIP server.",
      /*.help = print_generate_import_key_attr_help, */
      .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION,},
-    {.cmd = NULL,.func = NULL},
     {.cmd = "export-key",.cmd_short1 = "export",.cmd_short2 = "exp",
      .func = p11kmip_export_key,
      .opts = p11kmip_export_key_opts,.args = p11kmip_export_key_args,
