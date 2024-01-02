@@ -3390,6 +3390,10 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
         warnx("Unsupported padding method: %d");
         return -EINVAL;
     }
+    // Allocate "enough" storage until I think of a better
+    // way to determine this given the object size and padding
+    // method
+    *wrapped_key_blob = malloc(512);
 
     rc = pkcs11_funcs->C_WrapKey(pkcs11_session,
                                  &mech, wrapping_key_handle, secret_key_handle,
@@ -3454,15 +3458,10 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         {CKA_TOKEN, &ck_true, sizeof(ck_true)},
         {CKA_CLASS, &key_class, sizeof(key_class)},
         {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
-        {CKA_ENCRYPT, &ck_true, sizeof(ck_true)},
-        {CKA_DECRYPT, &ck_true, sizeof(ck_true)},
-        {CKA_SIGN, &ck_true, sizeof(ck_true)},
-        {CKA_VERIFY, &ck_true, sizeof(ck_true)},
-        {CKA_IBM_PROTKEY_EXTRACTABLE, &ck_true, sizeof(ck_true)},
         {CKA_LABEL, public_key_label, strlen(public_key_label)},
         {CKA_VALUE_LEN, &key_size, sizeof(key_size)}    /* For CCA only */
     };
-    CK_ULONG public_default_templatecount = 9 + iscca;
+    CK_ULONG public_default_templatecount = 4 + iscca;
 
     // Add variable attributes
     CK_ULONG public_templatecount = public_default_templatecount
