@@ -4335,7 +4335,8 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
     int rc = 0;
 
     req_pl = kmip_new_get_request_payload(NULL, pubkey_uid,
-                                          KMIP_KEY_FORMAT_TYPE_RAW, 0, 0, NULL);
+                                          KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY,
+                                          0, 0, NULL);
     if (req_pl == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
@@ -4371,7 +4372,7 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
         goto out;
     }
 
-    if (ftype != KMIP_KEY_FORMAT_TYPE_RAW) {
+    if (ftype != KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY) {
         warnx("Key format is not RAW");
         rc = -EINVAL;
         goto out;
