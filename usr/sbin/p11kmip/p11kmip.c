@@ -3382,9 +3382,10 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
     CK_RV rc;
     size_t i;
 #if !OPENSSL_VERSION_PREREQ(3, 0)
-    const BIGNUM *modulus = NULL, *pub_exp = NULL;
+    const RSA *rsa;
+    const BIGNUM *bn_n = NULL, *bn_e = NULL;
 #else
-    BIGNUM *modulus = NULL, *pub_exp = NULL;
+    BIGNUM *bn_n = NULL, *bn_e = NULL;
 #endif
 
     int iscca = is_cca_token(opt_slot);
@@ -3398,11 +3399,25 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
     }
 
 #if !OPENSSL_VERSION_PREREQ(3, 0)
-        modulus = RSA_get0_n(EVP_PKEY_get0_RSA(pub_key));
-        pub_exp = RSA_get0_e(EVP_PKEY_get0_RSA(pub_key));
+        rsa = EVP_PKEY_get0_RSA(pub_key);
+        if (rsa == NULL) {
+            warnx("Failed to get public key params");
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
+        RSA_get0_key(rsa, &bn_n, &bn_e, NULL);
+        if (bn_n == NULL || bn_e == NULL) {
+            warnx("Failed to get public key params");
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
 #else
-        EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_N, &modulus);
-        EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_E, &pub_exp);
+        if(!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &bn_n) ||
+           !EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_E, &bn_e)) {
+            warnx("Failged to get public key params");
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
 #endif
 
     // Build the template for the default attribute
@@ -3416,11 +3431,9 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         {CKA_VERIFY, &ck_true, sizeof(ck_true)},
         {CKA_IBM_PROTKEY_EXTRACTABLE, &ck_true, sizeof(ck_true)},
         {CKA_LABEL, public_key_label, strlen(public_key_label)},
-        {CKA_MODULUS, modulus, sizeof(modulus)},
-        {CKA_PUBLIC_EXPONENT, pub_exp, sizeof(pub_exp)},
         {CKA_VALUE_LEN, &key_size, sizeof(key_size)}    /* For CCA only */
     };
-    CK_ULONG public_default_templatecount = 11 + iscca;
+    CK_ULONG public_default_templatecount = 9 + iscca;
 
     // Add variable attributes
     CK_ULONG public_templatecount = public_default_templatecount
@@ -3439,6 +3452,14 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
     for (i = 0; i < public_key_num_attrs; i++) {
         public_template[public_default_templatecount + i] = public_key_attrs[i];
     }
+
+    rc = add_bignum_attr(CKA_MODULUS, bn_n, &public_template, &public_templatecount);
+    if (rc != CKR_OK)
+       goto done;
+
+    rc = add_bignum_attr(CKA_PUBLIC_EXPONENT, bn_e, &public_template, &public_templatecount);
+    if (rc != CKR_OK)
+       goto done;
 
     rc = pkcs11_funcs->C_CreateObject(pkcs11_session,
                                       public_template, public_templatecount,
