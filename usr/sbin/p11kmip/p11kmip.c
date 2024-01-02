@@ -143,8 +143,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
 static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
                                                 *keytype,
                                                 struct kmip_node *pubkey_uid,
-                                                int *public_key_length,
-                                                char **public_key_value);
+                                                EVP_PKEY **pub_key);
 static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
                                                  *wrapping_keytype, const struct kmip_node
                                                  *wrapping_key_uid, const struct p11kmip_keytype
@@ -177,8 +176,7 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
                                            char **wrapped_key_blob);
 static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
                                              *public_keytype,
-                                             const char *public_key_value,
-                                             CK_ULONG public_key_length,
+                                             EVP_PKEY *pub_key,
                                              const char *public_key_label,
                                              CK_ATTRIBUTE_PTR public_key_attrs,
                                              CK_ULONG public_key_num_attrs,
@@ -2909,8 +2907,9 @@ static CK_RV p11kmip_export_key(void)
         secret_keytype;
     struct kmip_node *wrap_pubkey_uid = NULL, *wrap_privkey_uuid,
         *secret_key_uid = NULL;
-    char *public_key_value, *wrapped_key_blob = NULL;
-    unsigned long public_key_length, wrapped_key_length;
+    char *wrapped_key_blob = NULL;
+    unsigned long wrapped_key_length;
+    EVP_PKEY *pub_key;
     CK_ATTRIBUTE *wrapping_key_attrs = NULL;
     CK_ULONG wrapping_key_num_attrs = 0;
 
@@ -2941,8 +2940,7 @@ static CK_RV p11kmip_export_key(void)
 
         rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
                                                 wrap_pubkey_uid,
-                                                &public_key_length,
-                                                &public_key_value);
+                                                &pub_key);
 
         if (rc != CKR_OK) {
             warnx("Failed to retrieve public key from KMIP server\n");
@@ -2950,8 +2948,7 @@ static CK_RV p11kmip_export_key(void)
         }
 
         rc = p11kmip_create_local_public_key(&pubkey_keytype,
-                                             public_key_value,
-                                             public_key_length, opt_wrap_label,
+                                             pub_key, opt_wrap_label,
                                              NULL, 0, &wrapping_pubkey);
 
         if (rc != CKR_OK) {
@@ -3374,8 +3371,7 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
 
 static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
                                              *public_keytype,
-                                             const char *public_key_value,
-                                             CK_ULONG public_key_length,
+                                             EVP_PKEY *pub_key,
                                              const char *public_key_label,
                                              CK_ATTRIBUTE_PTR public_key_attrs,
                                              CK_ULONG public_key_num_attrs,
@@ -3385,6 +3381,11 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
     CK_BBOOL ck_true = true;
     CK_RV rc;
     size_t i;
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+    const BIGNUM *modulus = NULL, *pub_exp = NULL;
+#else
+    BIGNUM *modulus = NULL, *pub_exp = NULL;
+#endif
 
     int iscca = is_cca_token(opt_slot);
     CK_OBJECT_CLASS key_class = public_keytype->class;
@@ -3395,6 +3396,15 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         warnx("Failed to key size of wrapped key");
         goto done;
     }
+
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+        modulus = RSA_get0_n(EVP_PKEY_get0_RSA(pub_key));
+        pub_exp = RSA_get0_e(EVP_PKEY_get0_RSA(pub_key));
+#else
+        EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_N, &modulus);
+        EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_E, &pub_exp);
+#endif
+
     // Build the template for the default attribute
     CK_ATTRIBUTE public_default_template[] = {
         {CKA_TOKEN, &ck_true, sizeof(ck_true)},
@@ -3406,9 +3416,11 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         {CKA_VERIFY, &ck_true, sizeof(ck_true)},
         {CKA_IBM_PROTKEY_EXTRACTABLE, &ck_true, sizeof(ck_true)},
         {CKA_LABEL, public_key_label, strlen(public_key_label)},
+        {CKA_MODULUS, modulus, sizeof(modulus)},
+        {CKA_PUBLIC_EXPONENT, pub_exp, sizeof(pub_exp)},
         {CKA_VALUE_LEN, &key_size, sizeof(key_size)}    /* For CCA only */
     };
-    CK_ULONG public_default_templatecount = 9 + iscca;
+    CK_ULONG public_default_templatecount = 11 + iscca;
 
     // Add variable attributes
     CK_ULONG public_templatecount = public_default_templatecount
@@ -4311,14 +4323,19 @@ out:
 static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
                                                 *keytype,
                                                 struct kmip_node *pubkey_uid,
-                                                int *public_key_length,
-                                                char **public_key_value)
+                                                EVP_PKEY **pub_key)
 {
     struct kmip_node *cparams = NULL, *wrap_id = NULL, *wkey_info = NULL;
     struct kmip_node *wrap_spec = NULL, *req_pl = NULL, *resp_pl = NULL;
     struct kmip_node *uid = NULL, *kobj = NULL, *kblock = NULL;
     struct kmip_node *kval = NULL, *wrap = NULL, *key = NULL;
     struct kmip_node *wkinfo = NULL, *wcparms = NULL;
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+    const BIGNUM *modulus = NULL, *pub_exp = NULL;
+    const RSA *rsa_key = NULL;
+#else
+    BIGNUM *modulus = NULL, *pub_exp = NULL;
+#endif
     enum kmip_hashing_algo halgo, mgfhalgo;
     enum kmip_wrapping_method wmethod;
     enum kmip_key_format_type ftype;
@@ -4335,7 +4352,7 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
     int rc = 0;
 
     req_pl = kmip_new_get_request_payload(NULL, pubkey_uid,
-                                          KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY,
+                                          kmip_wrap_key_format,
                                           0, 0, NULL);
     if (req_pl == NULL) {
         warnx("Allocate KMIP node failed");
@@ -4372,7 +4389,7 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
         goto out;
     }
 
-    if (ftype != KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY) {
+    if (ftype != kmip_wrap_key_format) {
         warnx("Key format is not RAW");
         rc = -EINVAL;
         goto out;
@@ -4394,16 +4411,50 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
         goto out;
     }
 
-    kdata = kmip_node_get_byte_string(key, &klen);
-    if (kdata == NULL) {
-        rc = -ENOMEM;
-        warnx("Failed to get key data");
+
+    switch (kmip_wrap_key_format) {
+    case KMIP_KEY_FORMAT_TYPE_PKCS_1:
+        rc = kmip_get_pkcs1_public_key(kval, algo, pub_key);
+        break;
+    case KMIP_KEY_FORMAT_TYPE_PKCS_8:
+        rc = kmip_get_pkcs8_public_key(kval, pub_key);
+        break;
+    case KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY:
+        rc = kmip_get_transparent_rsa_public_key(kval, &modulus, &pub_exp);
+        if (rc != CKR_OK) {
+            warnx("Failed to get RSA public key parts");
+            rc = -EIO;
+            goto out;
+        }
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+        rsa_key = RSA_new();
+        if (rsa_key == NULL) {
+            warnx("RSA_new failed.");
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+
+        if (RSA_set0_key(rsa_key, modulus, pub_exp, NULL)) {
+            warnx("RSA_set0_key failed.");
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+        
+        if (EVP_PKEY_set1_RSA(pub_key, rsa_key)) {
+            warnx("RSA_PKEY_set1_RSA failed.");
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+#else
+        EVP_PKEY_set_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_N, &modulus);
+        EVP_PKEY_set_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_E, &pub_exp);
+#endif
+        break;
+    default:
+        warnx("Unsupported wrapping key format: %d", kmip_wrap_key_format);
+        rc = -EINVAL;
         goto out;
     }
-
-    *public_key_value = malloc(klen);
-    *public_key_length = klen;
-    memcpy(*public_key_value, kdata, klen);
 
 out:
     kmip_node_free(cparams);
@@ -4420,6 +4471,10 @@ out:
     kmip_node_free(wkinfo);
     kmip_node_free(wcparms);
     kmip_node_free(key);
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+    if (rsa_key != NULL)
+        RSA_free(rsa_key);
+#endif
 
     return rc;
 }
