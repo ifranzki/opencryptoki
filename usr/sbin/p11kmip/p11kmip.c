@@ -191,6 +191,7 @@ static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
 /* P11 function prototypes */
 static bool opt_slot_is_set(const struct p11kmip_arg *arg);
 static CK_RV p11kmip_import_key(void);
+static CK_RV p11kmip_export_key(void);
 static CK_RV p11kmip_export_local_rsa_pkey(const struct p11kmip_keytype
                                            *keytype, EVP_PKEY ** pkey,
                                            bool private, CK_OBJECT_HANDLE key,
@@ -312,6 +313,10 @@ static const struct p11kmip_arg p11kmip_import_key_args[] = {
     {.name = NULL},
 };
 
+static const struct p11kmip_arg p11kmip_export_key_args[] = {
+    {.name = NULL},
+};
+
 static const struct p11kmip_opt p11kmip_import_key_opts[] = {
     PKCS11_OPTS,
     {.short_opt = 'w',.long_opt = "wrapkey-label",.required = true,
@@ -412,6 +417,13 @@ static const struct p11kmip_cmd p11kmip_commands[] = {
      .func = p11kmip_import_key,
      .opts = p11kmip_import_key_opts,.args = p11kmip_import_key_args,
      .description = "Import a key from a KMIP server.",
+     /*.help = print_generate_import_key_attr_help, */
+     .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION,},
+    {.cmd = NULL,.func = NULL},
+    {.cmd = "export-key",.cmd_short1 = "export",.cmd_short2 = "exp",
+     .func = p11kmip_export_key,
+     .opts = p11kmip_export_key_opts,.args = p11kmip_export_key_args,
+     .description = "Export a key into a KMIP server.",
      /*.help = print_generate_import_key_attr_help, */
      .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION,},
     {.cmd = NULL,.func = NULL},
@@ -4087,8 +4099,6 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
     enum kmip_result_status status = 0;
     enum kmip_result_reason reason = 0;
     int rc = 0;
-
-    // pr_verbose(&ph->pd, "Wrapping key id: '%s'", wrap_key_id);
 
     cparams = kmip_new_cryptographic_parameters(NULL, 0,
                                                 kmip_wrap_padding_method,
