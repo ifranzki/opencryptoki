@@ -4415,9 +4415,19 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
     switch (kmip_wrap_key_format) {
     case KMIP_KEY_FORMAT_TYPE_PKCS_1:
         rc = kmip_get_pkcs1_public_key(kval, algo, pub_key);
+        if (rc != CKR_OK) {
+            warnx("Failed to get RSA public key parts");
+            rc = -EIO;
+            goto out;
+        }
         break;
     case KMIP_KEY_FORMAT_TYPE_PKCS_8:
         rc = kmip_get_pkcs8_public_key(kval, pub_key);
+        if (rc != CKR_OK) {
+            warnx("Failed to get RSA public key parts");
+            rc = -EIO;
+            goto out;
+        }
         break;
     case KMIP_KEY_FORMAT_TYPE_TRANSPARENT_RSA_PUBLIC_KEY:
         rc = kmip_get_transparent_rsa_public_key(kval, &modulus, &pub_exp);
