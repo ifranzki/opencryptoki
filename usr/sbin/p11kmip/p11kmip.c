@@ -2637,6 +2637,35 @@ static CK_RV get_attribute(CK_OBJECT_HANDLE key, CK_ATTRIBUTE *attr)
     return rc;
 }
 
+static CK_RV add_bignum_attr(CK_ATTRIBUTE_TYPE type, const BIGNUM* bn,
+                             CK_ATTRIBUTE **attrs, CK_ULONG *num_attrs)
+{
+    int len;
+    CK_BYTE *buff = NULL;
+    CK_RV rc;
+
+    len = BN_num_bytes(bn);
+    buff = calloc(len, 1);
+    if (buff == NULL || len == 0) {
+        warnx("Failed to allocate a buffer for a bignum");
+        if (buff != NULL)
+            free(buff);
+        return CKR_HOST_MEMORY;
+    }
+
+    if (BN_bn2bin(bn, buff) != len) {
+        warnx("Failed to get a bignum.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        free(buff);
+        return CKR_FUNCTION_FAILED;
+    }
+
+    rc = add_attribute(type, buff, len, attrs, num_attrs);
+    free(buff);
+
+    return rc;
+}
+
 static CK_RV get_bignum_attr(CK_OBJECT_HANDLE key, CK_ATTRIBUTE_TYPE type,
                              BIGNUM **bn)
 {
@@ -3412,8 +3441,8 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
             goto done;
         }
 #else
-        if(!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &bn_n) ||
-           !EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_E, &bn_e)) {
+        if(!EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_N, &bn_n) ||
+           !EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_E, &bn_e)) {
             warnx("Failged to get public key params");
             rc = CKR_FUNCTION_FAILED;
             goto done;
