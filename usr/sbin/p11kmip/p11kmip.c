@@ -173,7 +173,7 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
                                            wrapping_key_handle,
                                            CK_OBJECT_HANDLE secret_key_handle,
                                            CK_ULONG_PTR wrapped_key_length,
-                                           char **wrapped_key_blob);
+                                           CK_BYTE_PTR wrapped_key_blob);
 static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
                                              *public_keytype,
                                              EVP_PKEY *pub_key,
@@ -3008,7 +3008,7 @@ static CK_RV p11kmip_export_key(void)
 
     rc = p11kmip_wrap_local_secret_key(wrapping_pubkey,
                                        secret_key_handle, &wrapped_key_length,
-                                       &wrapped_key_blob);
+                                       wrapped_key_blob);
 
     if (rc != CKR_OK) {
         warnx("Failed to wrap local secret key\n");
@@ -3353,7 +3353,7 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
                                            wrapping_key_handle,
                                            CK_OBJECT_HANDLE secret_key_handle,
                                            CK_ULONG_PTR wrapped_key_length,
-                                           char **wrapped_key_blob)
+                                           CK_BYTE_PTR wrapped_key_blob)
 {
     CK_MECHANISM mech = { 0 };
     CK_RSA_PKCS_OAEP_PARAMS oaep_param = { 0 };
@@ -3390,11 +3390,24 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
         warnx("Unsupported padding method: %d");
         return -EINVAL;
     }
-    // Allocate "enough" storage until I think of a better
-    // way to determine this given the object size and padding
-    // method
-    *wrapped_key_blob = malloc(512);
+    
+    // wrap key (length only)
+    rc = pkcs11_funcs->C_WrapKey(pkcs11_session,
+                                &mech, wrapping_key_handle, secret_key_handle,
+                                NULL, wrapped_key_length);
 
+    if (rc != CKR_OK) {
+        warnx("Unable to determine length of wrapped key object");
+        return -EINVAL;
+    }
+
+    wrapped_key_blob = malloc(sizeof(CK_BYTE) * (*wrapped_key_length));
+    if (wrapped_key_blob == NULL) {
+        warnx("Unable to allocated storage for wrapped key blob");
+        return -ENOMEM;
+    }
+
+    // Wrap key blob
     rc = pkcs11_funcs->C_WrapKey(pkcs11_session,
                                  &mech, wrapping_key_handle, secret_key_handle,
                                  wrapped_key_blob, wrapped_key_length);
