@@ -3985,7 +3985,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
 {
     struct kmip_node *kobj = NULL, *name_attr = NULL, *unique_id = NULL;
     struct kmip_node *reg_req = NULL, *reg_resp = NULL, *descr_attr = NULL;
-    struct kmip_node *key = NULL, *enc_cparams = NULL, *enc_kinfo =
+    struct kmip_node *key = NULL, *kval = NULL, *enc_cparams = NULL, *enc_kinfo =
         NULL, *kblock = NULL, *wrap_data = NULL;
     struct kmip_node *umask_attr = NULL, *cparams_attr = NULL;
     struct kmip_node *act_req = NULL, *act_resp = NULL;
@@ -4012,15 +4012,45 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                     KMIP_PADDING_METHOD_OAEP ?
                                                     kmip_wrap_hash_alg : 0,
                                                     NULL);
+    if (enc_cparams == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
 
     enc_kinfo = kmip_new_key_info(false, unwrapkey_uid, enc_cparams);
+    if (enc_kinfo == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
 
     wrap_data = kmip_new_key_wrapping_data(NULL,
                                            KMIP_WRAPPING_METHOD_ENCRYPT,
                                            enc_kinfo, NULL, NULL, 0, NULL, 0,
                                            KMIP_ENCODING_OPTION_NO);
+    if (wrap_data == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
 
-    kblock = kmip_new_key_block(kmip_wrap_key_format, 0, wrapped_key_blob,
+    key = kmip_new_raw_key(wrapped_key_blob, wrapped_key_length);
+    
+    if (key == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+    kval = kmip_new_key_value_va(NULL, key, 0);
+    if (kval == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+    kblock = kmip_new_key_block(kmip_wrap_key_format, 0, kval,
                                 kmip_wrap_key_alg, kmip_wrap_key_size, wrap_data);
     if (kblock == NULL) {
         warnx("Allocate KMIP node failed");
