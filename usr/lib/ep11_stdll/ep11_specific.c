@@ -8817,10 +8817,12 @@ CK_RV ep11tok_decrypt_final(STDLL_TokData_t * tokdata, SESSION * session,
     rc = constant_time_select(constant_time_eq(rc, CKR_OK),
                               ep11_error_to_pkcs11_error(rc, session),
                               rc);
-    if (rc != CKR_OK) {
-        TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
-    } else {
-        TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
+    if (!is_rsa_mechanism(ctx->mech.mechanism)) {
+        if (rc != CKR_OK) {
+            TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
+        } else {
+            TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
+        }
     }
 
 done:
@@ -8866,10 +8868,12 @@ CK_RV ep11tok_decrypt(STDLL_TokData_t * tokdata, SESSION * session,
     rc = constant_time_select(constant_time_eq(rc, CKR_OK),
                               ep11_error_to_pkcs11_error(rc, session),
                               rc);
-    if (rc != CKR_OK) {
-        TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
-    } else {
-        TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
+    if (!is_rsa_mechanism(ctx->mech.mechanism)) {
+        if (rc != CKR_OK) {
+            TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
+        } else {
+            TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
+        }
     }
 
 done:
@@ -8921,10 +8925,12 @@ CK_RV ep11tok_decrypt_update(STDLL_TokData_t * tokdata, SESSION * session,
     rc = constant_time_select(constant_time_eq(rc, CKR_OK),
                               ep11_error_to_pkcs11_error(rc, session),
                               rc);
-    if (rc != CKR_OK) {
-        TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
-    } else {
-        TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
+    if (!is_rsa_mechanism(ctx->mech.mechanism)) {
+        if (rc != CKR_OK) {
+            TRACE_ERROR("%s rc=0x%lx\n", __func__, rc);
+        } else {
+            TRACE_INFO("%s rc=0x%lx\n", __func__, rc);
+        }
     }
 
 done:
