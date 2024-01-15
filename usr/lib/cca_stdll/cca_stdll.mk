@@ -36,7 +36,7 @@ opencryptoki_stdll_libpkcs11_cca_la_SOURCES =				\
 	usr/lib/common/p11util.c usr/lib/common/sw_crypt.c		\
 	usr/lib/common/shared_memory.c usr/lib/common/profile_obj.c	\
 	usr/lib/cca_stdll/cca_specific.c usr/lib/common/attributes.c	\
-	usr/lib/common/dlist.c
+	usr/lib/common/dlist.c usr/lib/common/mech_openssl.c
 
 if ENABLE_LOCKS
 opencryptoki_stdll_libpkcs11_cca_la_SOURCES +=				\

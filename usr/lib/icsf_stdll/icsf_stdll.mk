@@ -48,7 +48,7 @@ opencryptoki_stdll_libpkcs11_icsf_la_SOURCES =				\
 	usr/lib/icsf_stdll/pbkdf.c usr/lib/icsf_stdll/icsf_specific.c	\
 	usr/lib/icsf_stdll/icsf_config_parse.y				\
 	usr/lib/icsf_stdll/icsf_config_lexer.l				\
-	usr/lib/icsf_stdll/icsf.c
+	usr/lib/icsf_stdll/icsf.c usr/lib/common/mech_openssl.c
 
 if ENABLE_LOCKS
 opencryptoki_stdll_libpkcs11_icsf_la_SOURCES +=				\
