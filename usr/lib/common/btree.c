@@ -31,7 +31,8 @@
 /*
  * __bt_get_node() - Low level function, needs proper locking before invocation.
  */
-static struct btnode *__bt_get_node(struct btree *t, unsigned long node_num)
+static struct btnode *__bt_get_node(const struct btree *t,
+                                    unsigned long node_num)
 {
     struct btnode *temp;
     unsigned long i;
@@ -276,7 +277,7 @@ unsigned long bt_node_add(struct btree *t, void *value)
     return new_node_index;
 }
 
-void tree_dump(struct btnode *n, int depth)
+void tree_dump(const struct btnode *n, int depth)
 {
     int i;
 
