@@ -4042,7 +4042,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         goto out;
     }
 
-    kblock = kmip_new_key_block(kmip_wrap_key_format, 0, kval,
+    kblock = kmip_new_key_block(KMIP_KEY_FORMAT_TYPE_RAW, 0, kval,
                                 KMIP_CRYPTO_ALGO_AES, 256, wrap_data);
     if (kblock == NULL) {
         warnx("Allocate KMIP node failed");
@@ -4104,8 +4104,6 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         rc = -ENOMEM;
         goto out;
     }
-
-
 
     reg_req = kmip_new_register_request_payload_va(NULL,
                                                    KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
