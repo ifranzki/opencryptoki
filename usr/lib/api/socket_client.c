@@ -191,7 +191,8 @@ int init_socket_data(int socketfd)
     return TRUE;
 }
 
-static bool match_token_label_filter(event_msg_t *event, API_Slot_t *sltp)
+static bool match_token_label_filter(const event_msg_t *event,
+                                     const API_Slot_t *sltp)
 {
     if (event->token_label[0] == ' ' || event->token_label[0] == '\0')
         return true;
@@ -211,7 +212,8 @@ static const struct type_model type_model_flt[] = {
         { .type = EVENT_TOK_TYPE_EP11, .model = "EP11            " },
 };
 
-static bool match_token_type_filter(event_msg_t *event, API_Slot_t *sltp)
+static bool match_token_type_filter(const event_msg_t *event,
+                                    const API_Slot_t *sltp)
 {
     size_t i;
 
@@ -229,11 +231,12 @@ static bool match_token_type_filter(event_msg_t *event, API_Slot_t *sltp)
     return false;
 }
 
-static int handle_event(API_Proc_Struct_t *anchor, event_msg_t *event,
-                        char *payload, event_reply_t *reply)
+static int handle_event(const API_Proc_Struct_t *anchor,
+                        const event_msg_t *event,
+                        const char *payload, event_reply_t *reply)
 {
     CK_SLOT_ID slotID;
-    API_Slot_t *sltp;
+    const API_Slot_t *sltp;
     CK_RV rc;
 
     /* If its not for our process, ignore it, don't increment reply counters */

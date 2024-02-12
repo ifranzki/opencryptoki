@@ -51,7 +51,7 @@
 
 typedef struct {
     CK_BOOL DLLoaded;           // Flag to indicate if the STDDL has been loaded
-    char *dll_name;             // Malloced space to copy the name.
+    const char *dll_name;             // Malloced space to copy the name.
     void *dlop_p;
     int dll_load_count;
 //   STDLL_FcnList_t   *FcnList;  // Function list pointer for the STDLL

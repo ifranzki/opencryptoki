@@ -140,7 +140,7 @@ void CloseMe(STDLL_TokData_t *tokdata, void *node_value,
              unsigned long node_handle, void *arg)
 {
     CK_RV rv;
-    struct closeme_arg *closeme_arg = (struct closeme_arg *) arg;
+    const struct closeme_arg *closeme_arg = (struct closeme_arg *) arg;
     ST_SESSION_T *s = (ST_SESSION_T *) node_value;
     API_Slot_t *sltp;
     STDLL_FcnList_t *fcn;
@@ -550,7 +550,7 @@ void DL_UnLoad(API_Slot_t *sltp, CK_SLOT_ID slotID, CK_BBOOL inchildforkinit)
     return;
 }
 
-int DL_Loaded(char *location, DLL_Load_t *dllload)
+int DL_Loaded(const char *location, const DLL_Load_t *dllload)
 {
     int i;
 
@@ -568,9 +568,9 @@ int DL_Loaded(char *location, DLL_Load_t *dllload)
 }
 
 #ifdef PKCS64
-int DL_Load(Slot_Info_t_64 *sinfp, API_Slot_t *sltp, DLL_Load_t *dllload)
+int DL_Load(const Slot_Info_t_64 *sinfp, API_Slot_t *sltp, DLL_Load_t *dllload)
 #else
-int DL_Load(Slot_Info_t *sinfp, API_Slot_t *sltp, DLL_Load_t *dllload)
+int DL_Load(const Slot_Info_t *sinfp, API_Slot_t *sltp, DLL_Load_t *dllload)
 #endif
 {
     int i;
@@ -749,7 +749,7 @@ int DL_Load_and_Init(API_Slot_t *sltp, CK_SLOT_ID slotID, policy_t policy,
 
 // copies internal representation of ck_info structure to local process
 // representation
-void CK_Info_From_Internal(CK_INFO_PTR dest, CK_INFO_PTR_64 src)
+void CK_Info_From_Internal(CK_INFO_PTR dest, const CK_INFO_PTR_64 src)
 {
     dest->cryptokiVersion = src->cryptokiVersion;
 
