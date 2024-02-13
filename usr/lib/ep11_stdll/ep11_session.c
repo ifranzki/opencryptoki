@@ -63,9 +63,9 @@ static CK_RV update_ep11_object(STDLL_TokData_t *tokdata,
                                 ep11_serialno_t *serial_numbers,
                                 CK_ULONG num_serial_numbers);
 
-CK_BOOL ep11_is_session_object(CK_ATTRIBUTE_PTR attrs, CK_ULONG attrs_len)
+CK_BOOL ep11_is_session_object(const CK_ATTRIBUTE *attrs, CK_ULONG attrs_len)
 {
-    CK_ATTRIBUTE_PTR attr;
+    const CK_ATTRIBUTE *attr;
 
     attr = get_attribute_by_type(attrs, attrs_len, CKA_TOKEN);
     if (attr == NULL)
@@ -80,9 +80,9 @@ CK_BOOL ep11_is_session_object(CK_ATTRIBUTE_PTR attrs, CK_ULONG attrs_len)
     return FALSE;
 }
 
-CK_BOOL ep11_is_private_object(CK_ATTRIBUTE_PTR attrs, CK_ULONG attrs_len)
+CK_BOOL ep11_is_private_object(const CK_ATTRIBUTE *attrs, CK_ULONG attrs_len)
 {
-    CK_ATTRIBUTE_PTR attr;
+    const CK_ATTRIBUTE *attr;
 
     attr = get_attribute_by_type(attrs, attrs_len, CKA_PRIVATE);
     if (attr == NULL)

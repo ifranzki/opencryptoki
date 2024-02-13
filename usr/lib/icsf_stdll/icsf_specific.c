@@ -1782,7 +1782,7 @@ CK_RV icsftok_copy_object(STDLL_TokData_t * tokdata,
         ,
     };
 
-    CK_ATTRIBUTE_PTR temp_attrs;
+    const CK_ATTRIBUTE *temp_attrs;
 
     /* Get session state */
     if (!(session_state = get_session_state(tokdata, session->handle))) {
@@ -1994,7 +1994,7 @@ static CK_RV check_key_attributes(CK_ULONG class, CK_ULONG key_type,
 
     for (i = 0; i < sizeof(check_types) / sizeof(*check_types); i++) {
         /* Search for the attribute */
-        CK_ATTRIBUTE_PTR attr = get_attribute_by_type(*p_attrs,
+        const CK_ATTRIBUTE *attr = get_attribute_by_type(*p_attrs,
                                                       *p_attrs_len,
                                                       check_types[i]);
         if (attr) {

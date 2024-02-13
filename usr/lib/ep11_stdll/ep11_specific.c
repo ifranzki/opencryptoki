@@ -1871,7 +1871,7 @@ static CK_RV check_key_attributes(STDLL_TokData_t * tokdata,
     }
 
     for (i = 0; i < attr_cnt; i++, check_types++) {
-        CK_ATTRIBUTE_PTR attr = get_attribute_by_type(*p_attrs,
+        const CK_ATTRIBUTE *attr = get_attribute_by_type(*p_attrs,
                                                       *p_attrs_len,
                                                       *check_types);
         if (!attr) {
@@ -10974,9 +10974,9 @@ CK_RV ep11tok_unwrap_key(STDLL_TokData_t * tokdata, SESSION * session,
     memset(keyblobreenc, 0, sizeof(keyblobreenc));
 
     /*get key type of unwrapped key */
-    CK_ATTRIBUTE_PTR cla_attr =
+    const CK_ATTRIBUTE *cla_attr =
         get_attribute_by_type(attrs, attrs_len, CKA_CLASS);
-    CK_ATTRIBUTE_PTR keytype_attr =
+    const CK_ATTRIBUTE *keytype_attr =
         get_attribute_by_type(attrs, attrs_len, CKA_KEY_TYPE);
     if (!cla_attr || !keytype_attr) {
         TRACE_ERROR("%s CKA_CLASS or CKA_KEY_CLASS attributes not found\n",

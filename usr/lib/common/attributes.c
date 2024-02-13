@@ -88,7 +88,7 @@ void cleanse_and_free_attribute_array(CK_ATTRIBUTE_PTR attrs,
  *
  * The returned array must be freed with free_attribute_array().
  */
-CK_RV dup_attribute_array_no_alloc(CK_ATTRIBUTE_PTR orig, CK_ULONG num_attrs,
+CK_RV dup_attribute_array_no_alloc(const CK_ATTRIBUTE *orig, CK_ULONG num_attrs,
                                    CK_ATTRIBUTE_PTR dest)
 {
     CK_RV rc = CKR_OK;
@@ -135,7 +135,7 @@ done:
  *
  * The returned array must be freed with free_attribute_array().
  */
-CK_RV dup_attribute_array(CK_ATTRIBUTE_PTR orig, CK_ULONG orig_len,
+CK_RV dup_attribute_array(const CK_ATTRIBUTE *orig, CK_ULONG orig_len,
                           CK_ATTRIBUTE_PTR *p_dest, CK_ULONG *p_dest_len)
 {
     CK_RV rc = CKR_OK;
@@ -171,10 +171,10 @@ CK_RV dup_attribute_array(CK_ATTRIBUTE_PTR orig, CK_ULONG orig_len,
 /*
  * Return the attribute structure for a given type.
  */
-CK_ATTRIBUTE_PTR get_attribute_by_type(CK_ATTRIBUTE_PTR attrs,
+const CK_ATTRIBUTE *get_attribute_by_type(const CK_ATTRIBUTE *attrs,
                                        CK_ULONG attrs_len, CK_ULONG type)
 {
-    CK_ATTRIBUTE_PTR it;
+    const CK_ATTRIBUTE *it;
 
     if (attrs == NULL || attrs_len == 0)
         return NULL;
@@ -189,11 +189,11 @@ CK_ATTRIBUTE_PTR get_attribute_by_type(CK_ATTRIBUTE_PTR attrs,
 /*
  * Return the ULONG attribute value for a given type
  */
-CK_RV get_ulong_attribute_by_type(CK_ATTRIBUTE_PTR attrs,
-                                   CK_ULONG attrs_len, CK_ULONG type,
-                                   CK_ULONG *value)
+CK_RV get_ulong_attribute_by_type(const CK_ATTRIBUTE *attrs,
+                                  CK_ULONG attrs_len, CK_ULONG type,
+                                  CK_ULONG *value)
 {
-    CK_ATTRIBUTE_PTR attr;
+    const CK_ATTRIBUTE *attr;
 
     attr = get_attribute_by_type(attrs, attrs_len, type);
     if (attr == NULL)
@@ -211,11 +211,11 @@ CK_RV get_ulong_attribute_by_type(CK_ATTRIBUTE_PTR attrs,
 /*
  * Return the BOOL attribute value for a given type
  */
-CK_RV get_bool_attribute_by_type(CK_ATTRIBUTE_PTR attrs,
-                                   CK_ULONG attrs_len, CK_ULONG type,
-                                   CK_BBOOL *value)
+CK_RV get_bool_attribute_by_type(const CK_ATTRIBUTE *attrs,
+                                 CK_ULONG attrs_len, CK_ULONG type,
+                                 CK_BBOOL *value)
 {
-    CK_ATTRIBUTE_PTR attr;
+    const CK_ATTRIBUTE *attr;
 
     attr = get_attribute_by_type(attrs, attrs_len, type);
     if (attr == NULL)
@@ -234,7 +234,7 @@ CK_RV get_bool_attribute_by_type(CK_ATTRIBUTE_PTR attrs,
  */
 CK_RV add_to_attribute_array(CK_ATTRIBUTE_PTR *p_attrs,
                              CK_ULONG_PTR p_attrs_len, CK_ULONG type,
-                             CK_BYTE_PTR value, CK_ULONG value_len)
+                             const CK_BYTE *value, CK_ULONG value_len)
 {
     CK_ATTRIBUTE_PTR attrs;
     CK_BYTE_PTR copied_value = NULL;
@@ -242,7 +242,7 @@ CK_RV add_to_attribute_array(CK_ATTRIBUTE_PTR *p_attrs,
 
     if (value_len > 0) {
         if (is_attribute_attr_array(type)) {
-            rc = dup_attribute_array((CK_ATTRIBUTE_PTR)value,
+            rc = dup_attribute_array((const CK_ATTRIBUTE *)value,
                                      value_len / sizeof(CK_ATTRIBUTE),
                                      (CK_ATTRIBUTE_PTR *)&copied_value,
                                      &value_len);
@@ -279,7 +279,7 @@ CK_RV add_to_attribute_array(CK_ATTRIBUTE_PTR *p_attrs,
     return CKR_OK;
 }
 
-CK_BBOOL compare_attribute(CK_ATTRIBUTE_PTR a1, CK_ATTRIBUTE_PTR a2)
+CK_BBOOL compare_attribute(const CK_ATTRIBUTE *a1, const CK_ATTRIBUTE *a2)
 {
     if (a1->type != a2->type)
          return FALSE;
@@ -311,10 +311,10 @@ CK_BBOOL compare_attribute(CK_ATTRIBUTE_PTR a1, CK_ATTRIBUTE_PTR a2)
  * Compares two attribute arrays. Returns true if a1 and a2 contain the same
  * attributes. The order of the attributes does not care.
  */
-CK_BBOOL compare_attribute_array(CK_ATTRIBUTE_PTR a1, CK_ULONG a1_len,
-                                 CK_ATTRIBUTE_PTR a2, CK_ULONG a2_len)
+CK_BBOOL compare_attribute_array(const CK_ATTRIBUTE *a1, CK_ULONG a1_len,
+                                 const CK_ATTRIBUTE *a2, CK_ULONG a2_len)
 {
-    CK_ATTRIBUTE_PTR attr;
+    const CK_ATTRIBUTE *attr;
     CK_ULONG i;
 
     if (a1_len != a2_len)
@@ -336,7 +336,7 @@ CK_BBOOL compare_attribute_array(CK_ATTRIBUTE_PTR a1, CK_ULONG a1_len,
     return TRUE;
 }
 
-CK_RV validate_attribute_array(CK_ATTRIBUTE_PTR attrs, CK_ULONG num_attrs)
+CK_RV validate_attribute_array(const CK_ATTRIBUTE *attrs, CK_ULONG num_attrs)
 {
     CK_ULONG i;
     CK_RV rc;
@@ -378,9 +378,9 @@ CK_RV validate_attribute_array(CK_ATTRIBUTE_PTR attrs, CK_ULONG num_attrs)
 }
 
 #ifdef DEBUG
-void dump_array_attr(CK_ATTRIBUTE_PTR a)
+void dump_array_attr(const CK_ATTRIBUTE *a)
 {
-    CK_ATTRIBUTE_PTR attrs;
+    const CK_ATTRIBUTE *attrs;
     CK_ULONG num_attrs, i;
     const char *typestr = p11_get_cka(a->type);
 
@@ -389,11 +389,11 @@ void dump_array_attr(CK_ATTRIBUTE_PTR a)
 
     TRACE_DEBUG("  %s: begin array: num_elements=%lu\n", typestr, num_attrs);
     for (i = 0; i < num_attrs; i++)
-        dump_attr(&attrs[i]);
+        dump_attr((const CK_ATTRIBUTE *)&attrs[i]);
     TRACE_DEBUG("  %s: end array\n", p11_get_cka(a->type));
 }
 
-void dump_attr(CK_ATTRIBUTE_PTR a)
+void dump_attr(const CK_ATTRIBUTE *a)
 {
     const char *typestr;
 

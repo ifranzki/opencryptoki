@@ -396,6 +396,7 @@ CK_RV key_object_apply_template_attr(TEMPLATE *unwrap_tmpl,
                                      CK_ULONG *new_attrs_count)
 {
     CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr2 = NULL;
     CK_ATTRIBUTE_PTR apply_attrs;
     CK_ULONG num_apply_attrs, i;
     CK_RV rc;
@@ -420,9 +421,9 @@ CK_RV key_object_apply_template_attr(TEMPLATE *unwrap_tmpl,
          * If the attribute to apply is already in the user supplied template,
          * make sure that it does not conflict.
          */
-        attr = get_attribute_by_type(attrs, attrs_count, apply_attrs[i].type);
-        if (attr != NULL) {
-            if (compare_attribute(attr, &apply_attrs[i]) == FALSE) {
+        attr2 = get_attribute_by_type(attrs, attrs_count, apply_attrs[i].type);
+        if (attr2 != NULL) {
+            if (compare_attribute(attr2, &apply_attrs[i]) == FALSE) {
                 TRACE_DEVEL("%s: %lu conflicts\n",
                             ock_err(ERR_TEMPLATE_INCONSISTENT),
                             apply_attrs[i].type);
