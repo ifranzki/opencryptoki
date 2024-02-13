@@ -648,7 +648,7 @@ done:
 // convert from the local PKCS11 template representation to
 // the underlying requirement
 // returns the pointer to the local key representation
-static EVP_PKEY *rsa_convert_public_key(OBJECT *key_obj)
+static EVP_PKEY *rsa_convert_public_key(const OBJECT *key_obj)
 {
     CK_BBOOL rc;
     const CK_ATTRIBUTE *modulus = NULL;
@@ -748,7 +748,7 @@ out:
     return pkey;
 }
 
-static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
+static EVP_PKEY *rsa_convert_private_key(const OBJECT *key_obj)
 {
     const CK_ATTRIBUTE *modulus = NULL;
     const CK_ATTRIBUTE *pub_exp = NULL;
@@ -967,7 +967,8 @@ out:
     return NULL;
 }
 
-CK_RV openssl_specific_rsa_encrypt(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
+CK_RV openssl_specific_rsa_encrypt(STDLL_TokData_t *tokdata,
+                                   const CK_BYTE *in_data,
                                    CK_ULONG in_data_len, CK_BYTE *out_data,
                                    OBJECT *key_obj)
 {
@@ -1035,7 +1036,8 @@ done:
     return rc;
 }
 
-CK_RV openssl_specific_rsa_decrypt(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
+CK_RV openssl_specific_rsa_decrypt(STDLL_TokData_t *tokdata,
+                                   const CK_BYTE *in_data,
                                    CK_ULONG in_data_len, CK_BYTE *out_data,
                                    OBJECT *key_obj)
 {
@@ -1104,7 +1106,8 @@ done:
 }
 
 CK_RV openssl_specific_rsa_pkcs_encrypt(STDLL_TokData_t *tokdata,
-                                        CK_BYTE *in_data, CK_ULONG in_data_len,
+                                        const CK_BYTE *in_data,
+                                        CK_ULONG in_data_len,
                                         CK_BYTE *out_data,
                                         CK_ULONG *out_data_len,
                                         OBJECT *key_obj,
@@ -1146,7 +1149,8 @@ done:
 }
 
 CK_RV openssl_specific_rsa_pkcs_decrypt(STDLL_TokData_t *tokdata,
-                                        CK_BYTE *in_data, CK_ULONG in_data_len,
+                                        const CK_BYTE *in_data,
+                                        CK_ULONG in_data_len,
                                         CK_BYTE *out_data,
                                         CK_ULONG *out_data_len, OBJECT *key_obj,
                                         t_rsa_decrypt rsa_decrypt_func)
@@ -1182,7 +1186,8 @@ done:
 
 
 CK_RV openssl_specific_rsa_pkcs_sign(STDLL_TokData_t *tokdata, SESSION *sess,
-                                     CK_BYTE *in_data, CK_ULONG in_data_len,
+                                     const CK_BYTE *in_data,
+                                     CK_ULONG in_data_len,
                                      CK_BYTE *signature, CK_ULONG *sig_len,
                                      OBJECT *key_obj,
                                      t_rsa_decrypt rsa_decrypt_func)
@@ -1222,8 +1227,10 @@ CK_RV openssl_specific_rsa_pkcs_sign(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV openssl_specific_rsa_pkcs_verify(STDLL_TokData_t *tokdata, SESSION *sess,
-                                       CK_BYTE *in_data, CK_ULONG in_data_len,
-                                       CK_BYTE *signature, CK_ULONG sig_len,
+                                       const CK_BYTE *in_data,
+                                       CK_ULONG in_data_len,
+                                       const CK_BYTE *signature,
+                                       CK_ULONG sig_len,
                                        OBJECT *key_obj,
                                        t_rsa_encrypt rsa_encrypt_func)
 {
@@ -1287,7 +1294,7 @@ CK_RV openssl_specific_rsa_pkcs_verify(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV openssl_specific_rsa_pkcs_verify_recover(STDLL_TokData_t *tokdata,
-                                               CK_BYTE *signature,
+                                               const CK_BYTE *signature,
                                                CK_ULONG sig_len,
                                                CK_BYTE *out_data,
                                                CK_ULONG *out_data_len,
@@ -1342,7 +1349,8 @@ CK_RV openssl_specific_rsa_pkcs_verify_recover(STDLL_TokData_t *tokdata,
 
 CK_RV openssl_specific_rsa_pss_sign(STDLL_TokData_t *tokdata, SESSION *sess,
                                     SIGN_VERIFY_CONTEXT *ctx,
-                                    CK_BYTE *in_data, CK_ULONG in_data_len,
+                                    const CK_BYTE *in_data,
+                                    CK_ULONG in_data_len,
                                     CK_BYTE *sig, CK_ULONG *sig_len,
                                     t_rsa_decrypt rsa_decrypt_func)
 {
@@ -1351,7 +1359,7 @@ CK_RV openssl_specific_rsa_pss_sign(STDLL_TokData_t *tokdata, SESSION *sess,
     const CK_ATTRIBUTE *attr = NULL;
     OBJECT *key_obj = NULL;
     CK_BYTE *emdata = NULL;
-    CK_RSA_PKCS_PSS_PARAMS *pssParms = NULL;
+    const CK_RSA_PKCS_PSS_PARAMS *pssParms = NULL;
 
     UNUSED(sess);
 
@@ -1416,8 +1424,10 @@ done:
 
 CK_RV openssl_specific_rsa_pss_verify(STDLL_TokData_t *tokdata, SESSION *sess,
                                       SIGN_VERIFY_CONTEXT *ctx,
-                                      CK_BYTE *in_data, CK_ULONG in_data_len,
-                                      CK_BYTE *signature, CK_ULONG sig_len,
+                                      const CK_BYTE *in_data,
+                                      CK_ULONG in_data_len,
+                                      const CK_BYTE *signature,
+                                      CK_ULONG sig_len,
                                       t_rsa_encrypt rsa_encrypt_func)
 {
     CK_RV rc;
@@ -1425,7 +1435,7 @@ CK_RV openssl_specific_rsa_pss_verify(STDLL_TokData_t *tokdata, SESSION *sess,
     OBJECT *key_obj = NULL;
     const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN];
-    CK_RSA_PKCS_PSS_PARAMS *pssParms = NULL;
+    const CK_RSA_PKCS_PSS_PARAMS *pssParms = NULL;
 
     UNUSED(sess);
 
@@ -1488,7 +1498,8 @@ done:
 
 
 CK_RV openssl_specific_rsa_x509_encrypt(STDLL_TokData_t *tokdata,
-                                        CK_BYTE *in_data, CK_ULONG in_data_len,
+                                        const CK_BYTE *in_data,
+                                        CK_ULONG in_data_len,
                                         CK_BYTE *out_data,
                                         CK_ULONG *out_data_len, OBJECT *key_obj,
                                         t_rsa_encrypt rsa_encrypt_func)
@@ -1526,7 +1537,8 @@ done:
 }
 
 CK_RV openssl_specific_rsa_x509_decrypt(STDLL_TokData_t *tokdata,
-                                        CK_BYTE *in_data, CK_ULONG in_data_len,
+                                        const CK_BYTE *in_data,
+                                        CK_ULONG in_data_len,
                                         CK_BYTE *out_data,
                                         CK_ULONG *out_data_len, OBJECT *key_obj,
                                         t_rsa_decrypt rsa_decrypt_func)
@@ -1561,7 +1573,8 @@ done:
 }
 
 
-CK_RV openssl_specific_rsa_x509_sign(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
+CK_RV openssl_specific_rsa_x509_sign(STDLL_TokData_t *tokdata,
+                                     const CK_BYTE *in_data,
                                      CK_ULONG in_data_len, CK_BYTE *signature,
                                      CK_ULONG *sig_len, OBJECT *key_obj,
                                      t_rsa_decrypt rsa_decrypt_func)
@@ -1608,8 +1621,10 @@ CK_RV openssl_specific_rsa_x509_sign(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
 }
 
 CK_RV openssl_specific_rsa_x509_verify(STDLL_TokData_t *tokdata,
-                                       CK_BYTE *in_data, CK_ULONG in_data_len,
-                                       CK_BYTE *signature, CK_ULONG sig_len,
+                                       const CK_BYTE *in_data,
+                                       CK_ULONG in_data_len,
+                                       const CK_BYTE *signature,
+                                       CK_ULONG sig_len,
                                        OBJECT *key_obj,
                                        t_rsa_encrypt rsa_encrypt_func)
 {
@@ -1675,7 +1690,7 @@ CK_RV openssl_specific_rsa_x509_verify(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_rsa_x509_verify_recover(STDLL_TokData_t *tokdata,
-                                               CK_BYTE *signature,
+                                               const CK_BYTE *signature,
                                                CK_ULONG sig_len,
                                                CK_BYTE *out_data,
                                                CK_ULONG *out_data_len,
@@ -1711,9 +1726,11 @@ CK_RV openssl_specific_rsa_x509_verify_recover(STDLL_TokData_t *tokdata,
 
 CK_RV openssl_specific_rsa_oaep_encrypt(STDLL_TokData_t *tokdata,
                                         ENCR_DECR_CONTEXT *ctx,
-                                        CK_BYTE *in_data, CK_ULONG in_data_len,
+                                        const CK_BYTE *in_data,
+                                        CK_ULONG in_data_len,
                                         CK_BYTE *out_data,
-                                        CK_ULONG *out_data_len, CK_BYTE *hash,
+                                        CK_ULONG *out_data_len,
+                                        const CK_BYTE *hash,
                                         CK_ULONG hlen,
                                         t_rsa_encrypt rsa_encrypt_func)
 {
@@ -1784,9 +1801,11 @@ done:
 
 CK_RV openssl_specific_rsa_oaep_decrypt(STDLL_TokData_t *tokdata,
                                         ENCR_DECR_CONTEXT *ctx,
-                                        CK_BYTE *in_data, CK_ULONG in_data_len,
+                                        const CK_BYTE *in_data,
+                                        CK_ULONG in_data_len,
                                         CK_BYTE *out_data,
-                                        CK_ULONG *out_data_len, CK_BYTE *hash,
+                                        CK_ULONG *out_data_len,
+                                        const CK_BYTE *hash,
                                         CK_ULONG hlen,
                                         t_rsa_encrypt rsa_decrypt_func)
 {
@@ -2221,7 +2240,8 @@ out:
     return rc;
 }
 
-CK_RV openssl_make_ec_key_from_template(TEMPLATE *template, EVP_PKEY **pkey)
+CK_RV openssl_make_ec_key_from_template(const TEMPLATE *template,
+                                        EVP_PKEY **pkey)
 {
     const CK_ATTRIBUTE *attr = NULL;
     CK_OBJECT_CLASS keyclass;
@@ -2561,7 +2581,7 @@ out:
 }
 
 CK_RV openssl_specific_ec_sign(STDLL_TokData_t *tokdata,  SESSION *sess,
-                               CK_BYTE *in_data, CK_ULONG in_data_len,
+                               const CK_BYTE *in_data, CK_ULONG in_data_len,
                                CK_BYTE *out_data, CK_ULONG *out_data_len,
                                OBJECT *key_obj)
 {
@@ -2679,9 +2699,9 @@ out:
 
 CK_RV openssl_specific_ec_verify(STDLL_TokData_t *tokdata,
                                  SESSION *sess,
-                                 CK_BYTE *in_data,
+                                 const CK_BYTE *in_data,
                                  CK_ULONG in_data_len,
-                                 CK_BYTE *signature,
+                                 const CK_BYTE *signature,
                                  CK_ULONG signature_len, OBJECT *key_obj)
 {
     struct openssl_ex_data *ex_data = NULL;
@@ -2801,13 +2821,13 @@ out:
 }
 
 CK_RV openssl_specific_ecdh_pkcs_derive(STDLL_TokData_t *tokdata,
-                                        CK_BYTE *priv_bytes,
+                                        const CK_BYTE *priv_bytes,
                                         CK_ULONG priv_length,
-                                        CK_BYTE *pub_bytes,
+                                        const CK_BYTE *pub_bytes,
                                         CK_ULONG pub_length,
                                         CK_BYTE *secret_value,
                                         CK_ULONG *secret_value_len,
-                                        CK_BYTE *oid, CK_ULONG oid_length)
+                                        const CK_BYTE *oid, CK_ULONG oid_length)
 {
 #if !OPENSSL_VERSION_PREREQ(3, 0)
     EC_KEY *pub = NULL, *priv = NULL;
@@ -2957,7 +2977,7 @@ out:
 
 #endif
 
-static const EVP_MD *md_from_mech(CK_MECHANISM *mech)
+static const EVP_MD *md_from_mech(const CK_MECHANISM *mech)
 {
     const EVP_MD *md = NULL;
 
@@ -3071,7 +3091,7 @@ static void openssl_specific_sha_free(STDLL_TokData_t *tokdata, SESSION *sess,
 #endif
 
 CK_RV openssl_specific_sha_init(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                                CK_MECHANISM *mech)
+                                const CK_MECHANISM *mech)
 {
 #if !OPENSSL_VERSION_PREREQ(3, 0)
     EVP_MD_CTX *md_ctx;
@@ -3116,7 +3136,7 @@ CK_RV openssl_specific_sha_init(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
 }
 
 CK_RV openssl_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                           CK_BYTE *in_data, CK_ULONG in_data_len,
+                           const CK_BYTE *in_data, CK_ULONG in_data_len,
                            CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     unsigned int len;
@@ -3183,7 +3203,7 @@ out:
 }
 
 CK_RV openssl_specific_sha_update(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                                  CK_BYTE *in_data, CK_ULONG in_data_len)
+                                  const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
 #if !OPENSSL_VERSION_PREREQ(3, 0)
     EVP_MD_CTX *md_ctx;
@@ -3459,10 +3479,10 @@ static const EVP_CIPHER *openssl_cipher_from_mech(CK_MECHANISM_TYPE mech,
     return NULL;
 }
 
-static CK_RV openssl_cipher_perform(OBJECT *key, CK_MECHANISM_TYPE mech,
-                                    CK_BYTE *in_data,  CK_ULONG in_data_len,
+static CK_RV openssl_cipher_perform(const OBJECT *key, CK_MECHANISM_TYPE mech,
+                                    const CK_BYTE *in_data,  CK_ULONG in_data_len,
                                     CK_BYTE *out_data, CK_ULONG *out_data_len,
-                                    CK_BYTE *init_v, CK_BYTE *out_v,
+                                    const CK_BYTE *init_v, CK_BYTE *out_v,
                                     CK_BYTE encrypt)
 {
     const EVP_CIPHER *cipher = NULL;
@@ -3539,8 +3559,9 @@ done:
     return rc;
 }
 
-CK_RV openssl_cmac_perform(CK_MECHANISM_TYPE mech, CK_BYTE *message,
-                           CK_ULONG message_len, OBJECT *key, CK_BYTE *mac,
+CK_RV openssl_cmac_perform(CK_MECHANISM_TYPE mech, const CK_BYTE *message,
+                           CK_ULONG message_len, const OBJECT *key,
+                           CK_BYTE *mac,
                            CK_BBOOL first, CK_BBOOL last, CK_VOID_PTR *ctx)
 {
     int rc;
@@ -3737,11 +3758,11 @@ err:
 }
 
 CK_RV openssl_specific_aes_ecb(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
                                CK_ULONG *out_data_len,
-                               OBJECT *key, CK_BYTE encrypt)
+                               const OBJECT *key, CK_BYTE encrypt)
 {
     UNUSED(tokdata);
 
@@ -3751,11 +3772,12 @@ CK_RV openssl_specific_aes_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_aes_cbc(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
                                CK_ULONG *out_data_len,
-                               OBJECT *key, CK_BYTE *init_v, CK_BYTE encrypt)
+                               const OBJECT *key, const CK_BYTE *init_v,
+                               CK_BYTE encrypt)
 {
     UNUSED(tokdata);
 
@@ -3765,11 +3787,11 @@ CK_RV openssl_specific_aes_cbc(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_aes_ctr(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
                                CK_ULONG *out_data_len,
-                               OBJECT *key,
+                               const OBJECT *key,
                                CK_BYTE *counterblock,
                                CK_ULONG counter_width, CK_BYTE encrypt)
 {
@@ -3799,10 +3821,10 @@ CK_RV openssl_specific_aes_ctr(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_aes_ofb(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
-                               OBJECT *key,
+                               const OBJECT *key,
                                CK_BYTE *init_v, CK_BYTE encrypt)
 {
     CK_ULONG out_data_len;
@@ -3815,10 +3837,10 @@ CK_RV openssl_specific_aes_ofb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_aes_cfb(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
-                               OBJECT *key,
+                               const OBJECT *key,
                                CK_BYTE *init_v, CK_ULONG cfb_len,
                                CK_BYTE encrypt)
 {
@@ -3865,7 +3887,8 @@ static void openssl_specific_aes_gcm_free(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                                    ENCR_DECR_CONTEXT *ctx, CK_MECHANISM *mech,
+                                    ENCR_DECR_CONTEXT *ctx,
+                                    const CK_MECHANISM *mech,
                                     CK_OBJECT_HANDLE hkey, CK_BYTE encrypt)
 {
     CK_GCM_PARAMS *aes_gcm_param = NULL;
@@ -3954,7 +3977,7 @@ done:
 }
 
 CK_RV openssl_specific_aes_gcm(STDLL_TokData_t *tokdata, SESSION *sess,
-                               ENCR_DECR_CONTEXT *ctx, CK_BYTE *in_data,
+                               ENCR_DECR_CONTEXT *ctx, const CK_BYTE *in_data,
                                CK_ULONG in_data_len, CK_BYTE *out_data,
                                CK_ULONG *out_data_len, CK_BYTE encrypt)
 {
@@ -4004,7 +4027,8 @@ CK_RV openssl_specific_aes_gcm(STDLL_TokData_t *tokdata, SESSION *sess,
 
         /* Set the expected tag */
         if (EVP_CIPHER_CTX_ctrl(gcm_ctx, EVP_CTRL_AEAD_SET_TAG, tag_len,
-                                in_data + in_data_len - tag_len) != 1) {
+                                (void *)(in_data + in_data_len - tag_len))
+                                                                    != 1) {
             TRACE_ERROR("GCM set tag failed\n");
             rc = CKR_GENERAL_ERROR;
             goto done;
@@ -4028,7 +4052,8 @@ done:
 }
 
 CK_RV openssl_specific_aes_gcm_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                                      ENCR_DECR_CONTEXT *ctx, CK_BYTE *in_data,
+                                      ENCR_DECR_CONTEXT *ctx,
+                                      const CK_BYTE *in_data,
                                       CK_ULONG in_data_len, CK_BYTE *out_data,
                                       CK_ULONG *out_data_len, CK_BYTE encrypt)
 {
@@ -4241,8 +4266,9 @@ done:
     return rc;
 }
 
-CK_RV openssl_specific_aes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
-                               CK_ULONG message_len, OBJECT *key, CK_BYTE *mac)
+CK_RV openssl_specific_aes_mac(STDLL_TokData_t *tokdata, const CK_BYTE *message,
+                               CK_ULONG message_len,
+                               const OBJECT *key, CK_BYTE *mac)
 {
     CK_BYTE *out_buf;
     CK_ULONG out_len;
@@ -4265,8 +4291,10 @@ CK_RV openssl_specific_aes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
     return rc;
 }
 
-CK_RV openssl_specific_aes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
-                                CK_ULONG message_len, OBJECT *key, CK_BYTE *mac,
+CK_RV openssl_specific_aes_cmac(STDLL_TokData_t *tokdata,
+                                const CK_BYTE *message,
+                                CK_ULONG message_len, const OBJECT *key,
+                                CK_BYTE *mac,
                                 CK_BBOOL first, CK_BBOOL last, CK_VOID_PTR *ctx)
 {
     UNUSED(tokdata);
@@ -4380,9 +4408,9 @@ static CK_RV aes_xts_cipher_blocks(const CK_BYTE *in, CK_BYTE *out,
 }
 
 CK_RV openssl_specific_aes_xts(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data, CK_ULONG in_data_len,
+                               const CK_BYTE *in_data, CK_ULONG in_data_len,
                                CK_BYTE *out_data, CK_ULONG *out_data_len,
-                               OBJECT *key_obj, CK_BYTE *tweak,
+                               const OBJECT *key_obj, const CK_BYTE *tweak,
                                CK_BOOL encrypt, CK_BBOOL initial,
                                CK_BBOOL final, CK_BYTE* iv)
 {
@@ -4441,11 +4469,11 @@ out:
 }
 
 CK_RV openssl_specific_des_ecb(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
                                CK_ULONG *out_data_len,
-                               OBJECT *key, CK_BYTE encrypt)
+                               const OBJECT *key, CK_BYTE encrypt)
 {
     UNUSED(tokdata);
 
@@ -4455,11 +4483,12 @@ CK_RV openssl_specific_des_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_des_cbc(STDLL_TokData_t *tokdata,
-                               CK_BYTE *in_data,
+                               const CK_BYTE *in_data,
                                CK_ULONG in_data_len,
                                CK_BYTE *out_data,
                                CK_ULONG *out_data_len,
-                               OBJECT *key, CK_BYTE *init_v, CK_BYTE encrypt)
+                               const OBJECT *key, const CK_BYTE *init_v,
+                               CK_BYTE encrypt)
 {
     UNUSED(tokdata);
 
@@ -4469,11 +4498,11 @@ CK_RV openssl_specific_des_cbc(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_tdes_ecb(STDLL_TokData_t *tokdata,
-                                CK_BYTE *in_data,
+                                const CK_BYTE *in_data,
                                 CK_ULONG in_data_len,
                                 CK_BYTE *out_data,
                                 CK_ULONG *out_data_len,
-                                OBJECT *key, CK_BYTE encrypt)
+                                const OBJECT *key, CK_BYTE encrypt)
 {
     UNUSED(tokdata);
 
@@ -4483,11 +4512,12 @@ CK_RV openssl_specific_tdes_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_tdes_cbc(STDLL_TokData_t *tokdata,
-                                CK_BYTE *in_data,
+                                const CK_BYTE *in_data,
                                 CK_ULONG in_data_len,
                                 CK_BYTE *out_data,
                                 CK_ULONG *out_data_len,
-                                OBJECT *key, CK_BYTE *init_v, CK_BYTE encrypt)
+                                const OBJECT *key, const CK_BYTE *init_v,
+                                CK_BYTE encrypt)
 {
     UNUSED(tokdata);
 
@@ -4497,10 +4527,11 @@ CK_RV openssl_specific_tdes_cbc(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_tdes_ofb(STDLL_TokData_t *tokdata,
-                                CK_BYTE *in_data,
+                                const CK_BYTE *in_data,
                                 CK_ULONG in_data_len,
                                 CK_BYTE *out_data,
-                                OBJECT *key, CK_BYTE *init_v, CK_BYTE encrypt)
+                                const OBJECT *key, CK_BYTE *init_v,
+                                CK_BYTE encrypt)
 {
     CK_ULONG out_data_len;
 
@@ -4513,10 +4544,10 @@ CK_RV openssl_specific_tdes_ofb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV openssl_specific_tdes_cfb(STDLL_TokData_t *tokdata,
-                                CK_BYTE *in_data,
+                                const CK_BYTE *in_data,
                                 CK_ULONG in_data_len,
                                 CK_BYTE *out_data,
-                                OBJECT *key,
+                                const OBJECT *key,
                                 CK_BYTE *init_v, CK_ULONG cfb_len,
                                 CK_BYTE encrypt)
 {
@@ -4542,8 +4573,10 @@ CK_RV openssl_specific_tdes_cfb(STDLL_TokData_t *tokdata,
                                   encrypt);
 }
 
-CK_RV openssl_specific_tdes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
-                                CK_ULONG message_len, OBJECT *key, CK_BYTE *mac)
+CK_RV openssl_specific_tdes_mac(STDLL_TokData_t *tokdata,
+                                const CK_BYTE *message,
+                                CK_ULONG message_len, const OBJECT *key,
+                                CK_BYTE *mac)
 {
     CK_BYTE *out_buf;
     CK_ULONG out_len;
@@ -4566,8 +4599,10 @@ CK_RV openssl_specific_tdes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
     return rc;
 }
 
-CK_RV openssl_specific_tdes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
-                                 CK_ULONG message_len, OBJECT *key, CK_BYTE *mac,
+CK_RV openssl_specific_tdes_cmac(STDLL_TokData_t *tokdata,
+                                 const CK_BYTE *message,
+                                 CK_ULONG message_len, const OBJECT *key,
+                                 CK_BYTE *mac,
                                  CK_BBOOL first, CK_BBOOL last, CK_VOID_PTR *ctx)
 {
     UNUSED(tokdata);
@@ -4588,7 +4623,7 @@ static void openssl_specific_hmac_free(STDLL_TokData_t *tokdata, SESSION *sess,
 
 CK_RV openssl_specific_hmac_init(STDLL_TokData_t *tokdata,
                                  SIGN_VERIFY_CONTEXT *ctx,
-                                 CK_MECHANISM_PTR mech,
+                                 const CK_MECHANISM *mech,
                                  CK_OBJECT_HANDLE Hkey)
 {
     int rc;
@@ -4710,7 +4745,7 @@ done:
     return rc;
 }
 
-CK_RV openssl_specific_hmac(SIGN_VERIFY_CONTEXT *ctx, CK_BYTE *in_data,
+CK_RV openssl_specific_hmac(SIGN_VERIFY_CONTEXT *ctx, const CK_BYTE *in_data,
                             CK_ULONG in_data_len, CK_BYTE *signature,
                             CK_ULONG *sig_len, CK_BBOOL sign)
 {
@@ -4847,7 +4882,8 @@ done:
     return rv;
 }
 
-CK_RV openssl_specific_hmac_update(SIGN_VERIFY_CONTEXT *ctx, CK_BYTE *in_data,
+CK_RV openssl_specific_hmac_update(SIGN_VERIFY_CONTEXT *ctx,
+                                   const CK_BYTE *in_data,
                                    CK_ULONG in_data_len, CK_BBOOL sign)
 {
     int rc;
@@ -4998,7 +5034,7 @@ done:
     return rv;
 }
 
-static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, const OBJECT *key_obj,
                                CK_BYTE *priv_exp, CK_ULONG priv_exp_len)
 {
     const CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
@@ -5117,7 +5153,8 @@ done:
     return rc;
 }
 
-CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata,
+                                      const OBJECT *key_obj,
                                       const CK_BYTE *in, CK_ULONG inlen,
                                       CK_BYTE *kdk, CK_ULONG kdklen)
 {

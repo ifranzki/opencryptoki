@@ -90,7 +90,7 @@ CK_RV rsa_get_key_info(OBJECT *key_obj, CK_ULONG *mod_bytes,
  */
 
 CK_RV rsa_format_block(STDLL_TokData_t *tokdata,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG out_data_len, CK_ULONG type)
 {
@@ -200,7 +200,7 @@ CK_RV rsa_format_block(STDLL_TokData_t *tokdata,
  * 1.5.
  */
 
-static CK_RV rsa_parse_block_type_1(CK_BYTE *in_data,
+static CK_RV rsa_parse_block_type_1(const CK_BYTE *in_data,
                                     CK_ULONG in_data_len,
                                     CK_BYTE *out_data,
                                     CK_ULONG *out_data_len)
@@ -291,11 +291,11 @@ static CK_RV rsa_parse_block_type_1(CK_BYTE *in_data,
 
 #define MAX_LEN_GEN_TRIES 128
 
-static CK_RV rsa_parse_block_type_2(CK_BYTE *in_data,
+static CK_RV rsa_parse_block_type_2(const CK_BYTE *in_data,
                                     CK_ULONG in_data_len,
                                     CK_BYTE *out_data,
                                     CK_ULONG *out_data_len,
-                                    CK_BYTE *kdk, CK_ULONG kdklen)
+                                    const CK_BYTE *kdk, CK_ULONG kdklen)
 {
     unsigned int good = 0, found_zero_byte, equals0;
     size_t zero_index = 0, msg_index;
@@ -450,11 +450,11 @@ out:
     return rc;
 }
 
-CK_RV rsa_parse_block(CK_BYTE *in_data,
+CK_RV rsa_parse_block(const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data,
                       CK_ULONG *out_data_len, CK_ULONG type,
-                      CK_BYTE *kdk, CK_ULONG kdklen)
+                      const CK_BYTE *kdk, CK_ULONG kdklen)
 {
     switch (type) {
     case PKCS_BT_1:
@@ -2600,9 +2600,11 @@ done:
 
 // RSA mechanism - EME-OAEP encoding
 //
-CK_RV encode_eme_oaep(STDLL_TokData_t *tokdata, CK_BYTE *mData, CK_ULONG mLen,
+CK_RV encode_eme_oaep(STDLL_TokData_t *tokdata,
+                      const CK_BYTE *mData, CK_ULONG mLen,
                       CK_BYTE *emData, CK_ULONG modLength,
-                      CK_RSA_PKCS_MGF_TYPE mgf, CK_BYTE *hash, CK_ULONG hlen)
+                      CK_RSA_PKCS_MGF_TYPE mgf,
+                      const CK_BYTE *hash, CK_ULONG hlen)
 {
     int ps_len;
     CK_ULONG dbMask_len, i;
@@ -2685,10 +2687,10 @@ done:
     return rc;
 }
 
-CK_RV decode_eme_oaep(STDLL_TokData_t *tokdata, CK_BYTE *emData,
+CK_RV decode_eme_oaep(STDLL_TokData_t *tokdata, const CK_BYTE *emData,
                       CK_ULONG emLen, CK_BYTE *out_data,
                       CK_ULONG *out_data_len, CK_RSA_PKCS_MGF_TYPE mgf,
-                      CK_BYTE *hash, CK_ULONG hlen)
+                      const CK_BYTE *hash, CK_ULONG hlen)
 {
     size_t i, dblen = 0, mlen = -1, one_index = 0, msg_index;
     unsigned int ok = 0, found_one_byte, mask;
@@ -2823,7 +2825,8 @@ done:
 }
 
 CK_RV emsa_pss_encode(STDLL_TokData_t *tokdata,
-                      CK_RSA_PKCS_PSS_PARAMS *pssParms, CK_BYTE *in_data,
+                      const CK_RSA_PKCS_PSS_PARAMS *pssParms,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len, CK_BYTE *em, CK_ULONG *modbytes)
 {
     CK_BYTE *salt, *DB, *H, *buf = NULL;
@@ -2925,11 +2928,14 @@ done:
 }
 
 CK_RV emsa_pss_verify(STDLL_TokData_t *tokdata,
-                      CK_RSA_PKCS_PSS_PARAMS *pssParms, CK_BYTE *in_data,
-                      CK_ULONG in_data_len, CK_BYTE *sig, CK_ULONG modbytes)
+                      const CK_RSA_PKCS_PSS_PARAMS *pssParms,
+                      const CK_BYTE *in_data,
+                      CK_ULONG in_data_len, const CK_BYTE *sig,
+                      CK_ULONG modbytes)
 {
     CK_ULONG buflen, hlen, emBits, emLen, plen, i;
-    CK_BYTE *salt, *H, *M, *buf = NULL;
+    CK_BYTE *salt, *M, *buf = NULL;
+    const CK_BYTE *H;
     CK_BYTE hash[MAX_SHA_HASH_SIZE];
     CK_RV rc = CKR_OK;
 

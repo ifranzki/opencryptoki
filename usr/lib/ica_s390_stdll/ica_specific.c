@@ -2694,7 +2694,7 @@ done:
 
 static CK_RV ica_blinding_convert(STDLL_TokData_t *tokdata,
                                   ica_ex_data_t *ex_data, BN_CTX *bn_ctx,
-                                  CK_BYTE *in_data, CK_BYTE *out_data,
+                                  const CK_BYTE *in_data, CK_BYTE *out_data,
                                   CK_ULONG data_len, BIGNUM **unblind)
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
@@ -2744,7 +2744,7 @@ static CK_RV ica_blinding_convert(STDLL_TokData_t *tokdata,
 
 static CK_RV ica_blinding_invert(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                  ica_ex_data_t *ex_data, BN_CTX *bn_ctx,
-                                 CK_BYTE *in_data, CK_BYTE *out_data,
+                                 const CK_BYTE *in_data, CK_BYTE *out_data,
                                  CK_ULONG data_len, BIGNUM *unblind)
 {
 #ifdef HAVE_ALT_FIX_FOR_CVE2022_4304
@@ -2823,7 +2823,7 @@ static CK_RV ica_blinding_invert(STDLL_TokData_t *tokdata, OBJECT *key_obj,
 //
 //
 static CK_RV ica_specific_rsa_encrypt(STDLL_TokData_t *tokdata,
-                                      CK_BYTE *in_data,
+                                      const CK_BYTE *in_data,
                                       CK_ULONG in_data_len,
                                       CK_BYTE *out_data, OBJECT *key_obj)
 {
@@ -2901,7 +2901,7 @@ done:
 //
 //
 static CK_RV ica_specific_rsa_decrypt(STDLL_TokData_t *tokdata,
-                                      CK_BYTE *in_data,
+                                      const CK_BYTE *in_data,
                                       CK_ULONG in_data_len,
                                       CK_BYTE *out_data, OBJECT *key_obj)
 {
@@ -3081,7 +3081,7 @@ done:
 }
 
 static CK_RV os_specific_rsa_encrypt(STDLL_TokData_t *tokdata,
-                                     CK_BYTE *in_data,
+                                     const CK_BYTE *in_data,
                                      CK_ULONG in_data_len,
                                      CK_BYTE *out_data, OBJECT *key_obj)
 {
@@ -3103,7 +3103,7 @@ static CK_RV os_specific_rsa_encrypt(STDLL_TokData_t *tokdata,
 }
 
 static CK_RV os_specific_rsa_decrypt(STDLL_TokData_t *tokdata,
-                                     CK_BYTE *in_data,
+                                     const CK_BYTE *in_data,
                                      CK_ULONG in_data_len,
                                      CK_BYTE *out_data, OBJECT *key_obj)
 {
