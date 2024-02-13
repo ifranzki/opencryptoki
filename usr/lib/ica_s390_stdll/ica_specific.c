@@ -5401,7 +5401,7 @@ static CK_RV ica_build_ec_pub_key(OBJECT *key_obj, ICA_EC_KEY **eckey,
     unsigned char x_array[ICATOK_EC_MAX_D_LEN];
     unsigned char y_array[ICATOK_EC_MAX_D_LEN];
     int rc, nid;
-    CK_BYTE *ecpoint;
+    const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;
 
     /* Prepare the ICA key */

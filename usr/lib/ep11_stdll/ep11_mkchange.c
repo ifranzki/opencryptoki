@@ -27,11 +27,11 @@
 #include <err.h>
 
 CK_BBOOL ep11tok_is_blob_new_wkid(STDLL_TokData_t *tokdata,
-                                   CK_BYTE *blob, CK_ULONG blob_len)
+                                  const CK_BYTE *blob, CK_ULONG blob_len)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
     CK_ULONG data_len = 0, spki_len = 0, wkid_len = 0;
-    CK_BYTE *data;
+    const CK_BYTE *data;
     CK_RV rc;
 
     /*

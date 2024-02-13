@@ -1153,7 +1153,7 @@ end:
     return rc;
 }
 
-static int ec_nid_from_oid(CK_BYTE *oid, CK_ULONG oid_length)
+static int ec_nid_from_oid(const CK_BYTE *oid, CK_ULONG oid_length)
 {
     int i;
 
@@ -1166,7 +1166,7 @@ static int ec_nid_from_oid(CK_BYTE *oid, CK_ULONG oid_length)
     return -1;
 }
 
-static int ec_curve_type_from_oid(CK_BYTE *oid, CK_ULONG oid_length)
+static int ec_curve_type_from_oid(const CK_BYTE *oid, CK_ULONG oid_length)
 {
     int i;
 
@@ -1189,8 +1189,8 @@ static int ec_curve_type_from_oid(CK_BYTE *oid, CK_ULONG oid_length)
  * Bit 0x01 determines if it is odd or even
  * The out_pubkey buffer size must be at least 1+2*privkey_len.
  */
-CK_RV ec_uncompress_public_key(CK_BYTE *curve, CK_ULONG curve_len,
-                               CK_BYTE *pubkey, CK_ULONG pubkey_len,
+CK_RV ec_uncompress_public_key(const CK_BYTE *curve, CK_ULONG curve_len,
+                               const CK_BYTE *pubkey, CK_ULONG pubkey_len,
                                CK_ULONG privkey_len,
                                CK_BYTE *out_pubkey, CK_ULONG *out_len)
 {
@@ -1202,7 +1202,7 @@ CK_RV ec_uncompress_public_key(CK_BYTE *curve, CK_ULONG curve_len,
     BN_CTX *ctx = NULL;
     CK_RV rc;
     int y_bit = 0;
-    CK_BYTE *x;
+    const CK_BYTE *x;
     int nid, type;
 
     if (*out_len < 1 + 2 * privkey_len)
@@ -1414,7 +1414,7 @@ int ec_point_from_public_data(const CK_BYTE *data, CK_ULONG data_len,
                               CK_ULONG *ec_point_len)
 {
     CK_ULONG value_len = 0, field_len = 0, pad_len;
-    CK_BYTE *value = NULL;
+    const CK_BYTE *value = NULL;
     CK_BYTE *buff = NULL;
     CK_BYTE form;
     CK_RV rc;
@@ -1453,8 +1453,8 @@ int ec_point_from_public_data(const CK_BYTE *data, CK_ULONG data_len,
 
 check_encoded:
     /* If we reach here, try to BER decode it as OCTET-STRING */
-    rc = ber_decode_OCTET_STRING((CK_BYTE *)data, &value, &value_len,
-                                  &field_len);
+    rc = ber_decode_OCTET_STRING(data, &value, &value_len, 
+                                 &field_len);
     if (rc == CKR_OK && field_len == data_len && value_len <= data_len - 2) {
          /* Looks like a BER encoded EC Point */
         form  = value[0] & ~0x01;

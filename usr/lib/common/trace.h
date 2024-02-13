@@ -153,7 +153,7 @@ void dump_shm(LW_SHM_TYPE *, const char *);
 
 #ifdef DEBUG
 /* a simple function for dumping out a memory area */
-void hexdump(const char *prestr, void *buf, size_t buflen);
+void hexdump(const char *prestr, const void *buf, size_t buflen);
 #define TRACE_DEBUG_DUMP(_prestr, _buf, _buflen) hexdump(_prestr, _buf, _buflen)
 #else
 #define TRACE_DEBUG_DUMP(...)

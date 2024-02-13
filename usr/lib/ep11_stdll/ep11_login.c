@@ -93,7 +93,7 @@ static CK_RV get_login_importer_key(target_t target,
 {
     CK_BYTE res[XCP_LOGIN_IMPR_MAX_SIZE];
     CK_ULONG reslen = sizeof(res);
-    CK_BYTE *data = NULL, *spki = NULL, *ski_field = NULL, *cnt = NULL;
+    const CK_BYTE *data = NULL, *spki = NULL, *ski_field = NULL, *cnt = NULL;
     CK_ULONG data_len = 0, field_len = 0;
     CK_ULONG spki_len = 0, ski_field_len, cnt_len = 0;
     const unsigned char *p;

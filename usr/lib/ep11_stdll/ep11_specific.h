@@ -416,7 +416,7 @@ CK_RV ep11tok_handle_mk_change_event(STDLL_TokData_t *tokdata,
                                      unsigned int payload_len);
 CK_RV ep11tok_mk_change_check_pending_ops(STDLL_TokData_t *tokdata);
 CK_BBOOL ep11tok_is_blob_new_wkid(STDLL_TokData_t *tokdata,
-                                   CK_BYTE *blob, CK_ULONG blob_len);
+                                  const CK_BYTE *blob, CK_ULONG blob_len);
 CK_RV ep11tok_reencipher_blob(STDLL_TokData_t *tokdata, SESSION *session,
                               ep11_target_info_t **target_info,
                               CK_BYTE *blob, CK_ULONG blob_len,

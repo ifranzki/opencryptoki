@@ -1371,8 +1371,8 @@ done:
 CK_RV key_mgr_get_private_key_type(CK_BYTE *keydata,
                                    CK_ULONG keylen, CK_KEY_TYPE *keytype)
 {
-    CK_BYTE *alg = NULL;
-    CK_BYTE *priv_key = NULL;
+    const CK_BYTE *alg = NULL;
+    const CK_BYTE *priv_key = NULL;
     CK_ULONG alg_len, i;
     CK_RV rc;
 

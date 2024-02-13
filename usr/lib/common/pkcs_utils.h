@@ -61,7 +61,7 @@ typedef enum {
 void pkcs_trace(pkcs_trace_level_t level, const char * file, int line,
                 const char *fmt, ...)
                 __attribute__ ((format(printf, 4, 5)));
-void pkcs_hexdump(const char *prestr, void *buf, size_t buflen);
+void pkcs_hexdump(const char *prestr, const void *buf, size_t buflen);
 
 #define TRACE_NONE(...)    \
     pkcs_trace(TRACE_LEVEL_NONE, __FILE__, __LINE__, __VA_ARGS__)
@@ -76,7 +76,7 @@ void pkcs_hexdump(const char *prestr, void *buf, size_t buflen);
 #define TRACE_DEBUG(...)    \
     pkcs_trace(TRACE_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 #ifdef DEBUG
-void hexdump(const char *prestr, void *buf, size_t buflen);
+void hexdump(const char *prestr, const void *buf, size_t buflen);
 #define TRACE_DEBUG_DUMP(_prestr, _buf, _buflen) pkcs_hexdump(_prestr, _buf, _buflen)
 #else
 #define TRACE_DEBUG_DUMP(...)

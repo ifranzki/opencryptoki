@@ -447,7 +447,8 @@ CK_RV init_token_data(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
 //
 //
 CK_RV build_attribute(CK_ATTRIBUTE_TYPE type,
-                      CK_BYTE *data, CK_ULONG data_len, CK_ATTRIBUTE **attrib)
+                      const CK_BYTE *data, CK_ULONG data_len,
+                      CK_ATTRIBUTE **attrib)
 {
     CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;

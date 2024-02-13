@@ -8129,7 +8129,7 @@ static unsigned int bitlen2bytelen(uint16_t bitlen)
     return bitlen / 8 + 1;
 }
 
-static CK_RV build_public_EC_key_value_structure(CK_BYTE *pubkey, CK_ULONG publen,
+static CK_RV build_public_EC_key_value_structure(const CK_BYTE *pubkey, CK_ULONG publen,
         uint8_t curve_type, uint16_t curve_bitlen, int curve_nid,
         unsigned char *key_value_structure, long *key_value_structure_length)
 {
@@ -8687,7 +8687,7 @@ static CK_RV import_ec_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *pub_templ)
         uint8_t curve_type;
         uint16_t curve_bitlen;
         int curve_nid;
-        CK_BYTE *pubkey = NULL;
+        const CK_BYTE *pubkey = NULL;
         CK_ULONG publen = 0;
         CK_ATTRIBUTE *attr = NULL;
         CK_ULONG field_len;

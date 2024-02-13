@@ -1285,7 +1285,7 @@ struct {                          \
     unsigned long fc;
     CK_ATTRIBUTE *pub_attr = NULL;
     int rc, hash_off, key_off;
-    CK_BYTE *ecpoint;
+    const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;
     cpacf_curve_type_t curve_type;
 
@@ -1403,7 +1403,7 @@ struct {                            \
     unsigned long fc;
     CK_ATTRIBUTE *pub_attr = NULL;
     int rc;
-    CK_BYTE *ecpoint;
+    const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;
     cpacf_curve_type_t curve_type;
 

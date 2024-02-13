@@ -308,7 +308,7 @@ const char *ock_err(int num)
 #ifdef DEBUG
 
 /* a simple function for dumping out a memory area */
-void hexdump(const char *prestr, void *buf, size_t buflen)
+void hexdump(const char *prestr, const void *buf, size_t buflen)
 {
     /*           1         2         3         4         5         6
        0123456789012345678901234567890123456789012345678901234567890123456789

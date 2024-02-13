@@ -31,7 +31,7 @@
 //
 CK_ULONG ber_encode_INTEGER(CK_BBOOL length_only,
                             CK_BYTE **ber_int,
-                            CK_ULONG *ber_int_len, CK_BYTE *data,
+                            CK_ULONG *ber_int_len, const CK_BYTE *data,
                             CK_ULONG data_len)
 {
     CK_BYTE *buf = NULL;
@@ -155,8 +155,8 @@ CK_ULONG ber_encode_INTEGER(CK_BBOOL length_only,
 
 //
 //
-CK_RV ber_decode_INTEGER(CK_BYTE *ber_int,
-                         CK_BYTE **data, CK_ULONG *data_len,
+CK_RV ber_decode_INTEGER(const CK_BYTE *ber_int,
+                         const CK_BYTE **data, CK_ULONG *data_len,
                          CK_ULONG *field_len)
 {
     CK_ULONG len, length_octets;
@@ -247,7 +247,7 @@ CK_RV ber_decode_INTEGER(CK_BYTE *ber_int,
 //
 CK_RV ber_encode_OCTET_STRING(CK_BBOOL length_only,
                               CK_BYTE **str,
-                              CK_ULONG *str_len, CK_BYTE *data,
+                              CK_ULONG *str_len, const CK_BYTE *data,
                               CK_ULONG data_len)
 {
     CK_BYTE *buf = NULL;
@@ -343,8 +343,8 @@ CK_RV ber_encode_OCTET_STRING(CK_BBOOL length_only,
 
 //
 //
-CK_RV ber_decode_OCTET_STRING(CK_BYTE *str,
-                              CK_BYTE **data,
+CK_RV ber_decode_OCTET_STRING(const CK_BYTE *str,
+                              const CK_BYTE **data,
                               CK_ULONG *data_len, CK_ULONG *field_len)
 {
     CK_ULONG len, length_octets;
@@ -418,7 +418,7 @@ CK_RV ber_decode_OCTET_STRING(CK_BYTE *str,
  */
 CK_ULONG ber_encode_BIT_STRING(CK_BBOOL length_only,
                             CK_BYTE **ber_str,
-                            CK_ULONG *ber_str_len, CK_BYTE *data,
+                            CK_ULONG *ber_str_len, const CK_BYTE *data,
                             CK_ULONG data_len,
                             CK_BYTE unused_bits)
 {
@@ -515,8 +515,8 @@ CK_ULONG ber_encode_BIT_STRING(CK_BBOOL length_only,
  * The first byte of output parm *data is the number of unused bits and must
  * be removed later by the calling function.
  */
-CK_RV ber_decode_BIT_STRING(CK_BYTE *str,
-                            CK_BYTE **data,
+CK_RV ber_decode_BIT_STRING(const CK_BYTE *str,
+                            const CK_BYTE **data,
                             CK_ULONG *data_len, CK_ULONG *field_len)
 {
     CK_ULONG len, length_octets;
@@ -584,7 +584,8 @@ CK_RV ber_decode_BIT_STRING(CK_BYTE *str,
 //
 CK_RV ber_encode_SEQUENCE(CK_BBOOL length_only,
                           CK_BYTE **seq,
-                          CK_ULONG *seq_len, CK_BYTE *data, CK_ULONG data_len)
+                          CK_ULONG *seq_len, const CK_BYTE *data,
+                          CK_ULONG data_len)
 {
     CK_BYTE *buf = NULL;
     CK_ULONG len;
@@ -674,8 +675,8 @@ CK_RV ber_encode_SEQUENCE(CK_BBOOL length_only,
 
 //
 //
-CK_RV ber_decode_SEQUENCE(CK_BYTE *seq,
-                          CK_BYTE **data, CK_ULONG *data_len,
+CK_RV ber_decode_SEQUENCE(const CK_BYTE *seq,
+                          const CK_BYTE **data, CK_ULONG *data_len,
                           CK_ULONG *field_len)
 {
     CK_ULONG len, length_octets;
@@ -746,7 +747,8 @@ CK_RV ber_decode_SEQUENCE(CK_BYTE *seq,
 CK_RV ber_encode_CHOICE(CK_BBOOL length_only,
                         CK_BYTE option,
                         CK_BYTE **str,
-                        CK_ULONG *str_len, CK_BYTE *data, CK_ULONG data_len)
+                        CK_ULONG *str_len, const CK_BYTE *data,
+                        CK_ULONG data_len)
 {
     CK_BYTE *buf = NULL;
     CK_ULONG len;
@@ -840,8 +842,8 @@ CK_RV ber_encode_CHOICE(CK_BBOOL length_only,
 //    attributes
 // }
 //
-CK_RV ber_decode_CHOICE(CK_BYTE *choice,
-                        CK_BYTE **data,
+CK_RV ber_decode_CHOICE(const CK_BYTE *choice,
+                        const CK_BYTE **data,
                         CK_ULONG *data_len, CK_ULONG *field_len,
                         CK_ULONG *option)
 {
@@ -919,7 +921,7 @@ CK_RV ber_encode_PrivateKeyInfo(CK_BBOOL length_only,
                                 CK_ULONG *data_len,
                                 const CK_BYTE *algorithm_id,
                                 const CK_ULONG algorithm_id_len,
-                                CK_BYTE *priv_key, CK_ULONG priv_key_len)
+                                const CK_BYTE *priv_key, CK_ULONG priv_key_len)
 {
     CK_BYTE *buf = NULL;
     CK_BYTE *tmp = NULL;
@@ -1006,14 +1008,14 @@ error:
 
 //
 //
-CK_RV ber_decode_PrivateKeyInfo(CK_BYTE *data,
+CK_RV ber_decode_PrivateKeyInfo(const CK_BYTE *data,
                                 CK_ULONG data_len,
-                                CK_BYTE **algorithm,
-                                CK_ULONG *alg_len, CK_BYTE **priv_key)
+                                const CK_BYTE **algorithm,
+                                CK_ULONG *alg_len, const CK_BYTE **priv_key)
 {
-    CK_BYTE *buf = NULL;
-    CK_BYTE *alg = NULL;
-    CK_BYTE *ver = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *alg = NULL;
+    const CK_BYTE *ver = NULL;
     CK_ULONG buf_len, offset, len, field_len;
     CK_RV rc;
 
@@ -1064,12 +1066,13 @@ CK_RV ber_decode_PrivateKeyInfo(CK_BYTE *data,
  *     parameters  ANY DEFINED BY algorithm OPTIONAL
  *   }
  */
-CK_RV ber_decode_SPKI(CK_BYTE *spki, CK_BYTE **alg_oid, CK_ULONG *alg_oid_len,
-                      CK_BYTE **param, CK_ULONG *param_len,
-                      CK_BYTE **key, CK_ULONG *key_len)
+CK_RV ber_decode_SPKI(const CK_BYTE *spki, const CK_BYTE **alg_oid,
+                      CK_ULONG *alg_oid_len,
+                      const CK_BYTE **param, CK_ULONG *param_len,
+                      const CK_BYTE **key, CK_ULONG *key_len)
 {
-    CK_BYTE *out_seq, *id_seq, *bit_str;
-    CK_BYTE *data;
+    const CK_BYTE *out_seq, *id_seq, *bit_str;
+    const CK_BYTE *data;
     CK_ULONG data_len;
     CK_ULONG field_len;
     CK_RV rc;
@@ -1131,14 +1134,14 @@ CK_RV ber_decode_SPKI(CK_BYTE *spki, CK_BYTE **alg_oid, CK_ULONG *alg_oid_len,
 CK_RV ber_encode_RSAPrivateKey(CK_BBOOL length_only,
                                CK_BYTE **data,
                                CK_ULONG *data_len,
-                               CK_ATTRIBUTE *modulus,
-                               CK_ATTRIBUTE *publ_exp,
-                               CK_ATTRIBUTE *priv_exp,
-                               CK_ATTRIBUTE *prime1,
-                               CK_ATTRIBUTE *prime2,
-                               CK_ATTRIBUTE *exponent1,
-                               CK_ATTRIBUTE *exponent2,
-                               CK_ATTRIBUTE *coeff)
+                               const CK_ATTRIBUTE *modulus,
+                               const CK_ATTRIBUTE *publ_exp,
+                               const CK_ATTRIBUTE *priv_exp,
+                               const CK_ATTRIBUTE *prime1,
+                               const CK_ATTRIBUTE *prime2,
+                               const CK_ATTRIBUTE *exponent1,
+                               const CK_ATTRIBUTE *exponent2,
+                               const CK_ATTRIBUTE *coeff)
 {
     CK_BYTE *buf = NULL;
     CK_BYTE *buf2 = NULL;
@@ -1345,7 +1348,7 @@ error:
 
 //
 //
-CK_RV ber_decode_RSAPrivateKey(CK_BYTE *data,
+CK_RV ber_decode_RSAPrivateKey(const CK_BYTE *data,
                                CK_ULONG data_len,
                                CK_ATTRIBUTE **modulus,
                                CK_ATTRIBUTE **publ_exp,
@@ -1365,10 +1368,10 @@ CK_RV ber_decode_RSAPrivateKey(CK_BYTE *data,
     CK_ATTRIBUTE *e2_attr = NULL;
     CK_ATTRIBUTE *coeff_attr = NULL;
 
-    CK_BYTE *alg = NULL;
-    CK_BYTE *rsa_priv_key = NULL;
-    CK_BYTE *buf = NULL;
-    CK_BYTE *tmp = NULL;
+    const CK_BYTE *alg = NULL;
+    const CK_BYTE *rsa_priv_key = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *tmp = NULL;
     CK_ULONG offset, buf_len, field_len, len;
     CK_RV rc;
 
@@ -1646,8 +1649,8 @@ cleanup:
 }
 
 CK_RV ber_encode_RSAPublicKey(CK_BBOOL length_only, CK_BYTE **data,
-                              CK_ULONG *data_len, CK_ATTRIBUTE *modulus,
-                              CK_ATTRIBUTE *publ_exp)
+                              CK_ULONG *data_len, const CK_ATTRIBUTE *modulus,
+                              const CK_ATTRIBUTE *publ_exp)
 {
     CK_ULONG len = 0, offset, total, total_len;
     CK_RV rc;
@@ -1764,7 +1767,7 @@ out:
     return rc;
 }
 
-CK_RV ber_decode_RSAPublicKey(CK_BYTE *data,
+CK_RV ber_decode_RSAPublicKey(const CK_BYTE *data,
                               CK_ULONG data_len,
                               CK_ATTRIBUTE **modulus,
                               CK_ATTRIBUTE **publ_exp)
@@ -1772,18 +1775,18 @@ CK_RV ber_decode_RSAPublicKey(CK_BYTE *data,
     CK_ATTRIBUTE *modulus_attr = NULL;
     CK_ATTRIBUTE *publ_exp_attr = NULL;
 
-    CK_BYTE *algid_RSABase = NULL;
-    CK_BYTE *algid = NULL;
+    const CK_BYTE *algid_RSABase = NULL;
+    const CK_BYTE *algid = NULL;
     CK_ULONG algid_len;
-    CK_BYTE *param = NULL;
+    const CK_BYTE *param = NULL;
     CK_ULONG param_len;
-    CK_BYTE *val = NULL;
+    const CK_BYTE *val = NULL;
     CK_ULONG val_len;
-    CK_BYTE *seq;
+    const CK_BYTE *seq;
     CK_ULONG seq_len;
-    CK_BYTE *mod;
+    const CK_BYTE *mod;
     CK_ULONG mod_len;
-    CK_BYTE *exp;
+    const CK_BYTE *exp;
     CK_ULONG exp_len;
     CK_ULONG field_len, offset, len;
     CK_RV rc;
@@ -1873,9 +1876,10 @@ cleanup:
 CK_RV ber_encode_DSAPrivateKey(CK_BBOOL length_only,
                                CK_BYTE **data,
                                CK_ULONG *data_len,
-                               CK_ATTRIBUTE *prime1,
-                               CK_ATTRIBUTE *prime2,
-                               CK_ATTRIBUTE *base, CK_ATTRIBUTE *priv_key)
+                               const CK_ATTRIBUTE *prime1,
+                               const CK_ATTRIBUTE *prime2,
+                               const CK_ATTRIBUTE *base,
+                               const CK_ATTRIBUTE *priv_key)
 {
     CK_BYTE *param = NULL;
     CK_BYTE *buf = NULL;
@@ -2045,7 +2049,7 @@ error:
 
 //
 //
-CK_RV ber_decode_DSAPrivateKey(CK_BYTE *data,
+CK_RV ber_decode_DSAPrivateKey(const CK_BYTE *data,
                                CK_ULONG data_len,
                                CK_ATTRIBUTE **prime,
                                CK_ATTRIBUTE **subprime,
@@ -2055,10 +2059,10 @@ CK_RV ber_decode_DSAPrivateKey(CK_BYTE *data,
     CK_ATTRIBUTE *q_attr = NULL;
     CK_ATTRIBUTE *g_attr = NULL;
     CK_ATTRIBUTE *x_attr = NULL;
-    CK_BYTE *alg = NULL;
-    CK_BYTE *buf = NULL;
-    CK_BYTE *dsakey = NULL;
-    CK_BYTE *tmp = NULL;
+    const CK_BYTE *alg = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *dsakey = NULL;
+    const CK_BYTE *tmp = NULL;
     CK_ULONG buf_len, field_len, len, offset;
     CK_RV rc;
 
@@ -2202,9 +2206,10 @@ cleanup:
 }
 
 CK_RV ber_encode_DSAPublicKey(CK_BBOOL length_only, CK_BYTE **data,
-                              CK_ULONG *data_len, CK_ATTRIBUTE *prime,
-                              CK_ATTRIBUTE *subprime, CK_ATTRIBUTE *base,
-                              CK_ATTRIBUTE *value)
+                              CK_ULONG *data_len, const CK_ATTRIBUTE *prime,
+                              const CK_ATTRIBUTE *subprime,
+                              const CK_ATTRIBUTE *base,
+                              const CK_ATTRIBUTE *value)
 {
     CK_ULONG len = 0, parm_len, id_len, pub_len, offset, total;
     CK_RV rc = 0;
@@ -2382,7 +2387,7 @@ CK_RV ber_encode_DSAPublicKey(CK_BBOOL length_only, CK_BYTE **data,
     return rc;
 }
 
-CK_RV ber_decode_DSAPublicKey(CK_BYTE *data,
+CK_RV ber_decode_DSAPublicKey(const CK_BYTE *data,
                               CK_ULONG data_len,
                               CK_ATTRIBUTE **prime,
                               CK_ATTRIBUTE **subprime,
@@ -2394,19 +2399,19 @@ CK_RV ber_decode_DSAPublicKey(CK_BYTE *data,
     CK_ATTRIBUTE *base_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
 
-    CK_BYTE *algid = NULL;
+    const CK_BYTE *algid = NULL;
     CK_ULONG algid_len;
-    CK_BYTE *param = NULL;
+    const CK_BYTE *param = NULL;
     CK_ULONG param_len;
-    CK_BYTE *val = NULL;
+    const CK_BYTE *val = NULL;
     CK_ULONG val_len;
-    CK_BYTE *seq;
+    const CK_BYTE *seq;
     CK_ULONG seq_len;
-    CK_BYTE *p;
+    const CK_BYTE *p;
     CK_ULONG p_len;
-    CK_BYTE *sp;
+    const CK_BYTE *sp;
     CK_ULONG sp_len;
-    CK_BYTE *b;
+    const CK_BYTE *b;
     CK_ULONG b_len;
     CK_ULONG field_len, offset;
     CK_RV rc;
@@ -2512,9 +2517,9 @@ cleanup:
 CK_RV der_encode_ECPrivateKey(CK_BBOOL length_only,
                               CK_BYTE **data,
                               CK_ULONG *data_len,
-                              CK_ATTRIBUTE *params,
-                              CK_ATTRIBUTE *point,
-                              CK_ATTRIBUTE *pubkey)
+                              const CK_ATTRIBUTE *params,
+                              const CK_ATTRIBUTE *point,
+                              const CK_ATTRIBUTE *pubkey)
 {
     CK_BYTE *buf = NULL;
     CK_BYTE *buf2 = NULL;
@@ -2522,7 +2527,7 @@ CK_RV der_encode_ECPrivateKey(CK_BBOOL length_only,
     CK_BYTE version[] = { 1 };  // ecPrivkeyVer1
     CK_BYTE der_AlgIdEC[der_AlgIdECBaseLen + params->ulValueLen];
     CK_ULONG der_AlgIdECLen = sizeof(der_AlgIdEC);
-    CK_BYTE *ecpoint;
+    const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;
     BerElement *ber;
     BerValue *val = NULL;
@@ -2705,7 +2710,7 @@ error:
 //     publicKey  [1] BIT STRING OPTIONAL
 //   }
 //
-CK_RV der_decode_ECPrivateKey(CK_BYTE *data,
+CK_RV der_decode_ECPrivateKey(const CK_BYTE *data,
                               CK_ULONG data_len,
                               CK_ATTRIBUTE **params,
                               CK_ATTRIBUTE **pub_key,
@@ -2714,14 +2719,14 @@ CK_RV der_decode_ECPrivateKey(CK_BYTE *data,
     CK_ATTRIBUTE *pub_attr = NULL;
     CK_ATTRIBUTE *priv_attr = NULL;
     CK_ATTRIBUTE *parm_attr = NULL;
-    CK_BYTE *alg = NULL;
-    CK_BYTE *buf = NULL;
-    CK_BYTE *priv_buf = NULL;
-    CK_BYTE *pub_buf = NULL;
-    CK_BYTE *parm_buf = NULL;
-    CK_BYTE *eckey = NULL;
-    CK_BYTE *version = NULL;
-    CK_BYTE *choice = NULL;
+    const CK_BYTE *alg = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *priv_buf = NULL;
+    const CK_BYTE *pub_buf = NULL;
+    const CK_BYTE *parm_buf = NULL;
+    const CK_BYTE *eckey = NULL;
+    const CK_BYTE *version = NULL;
+    const CK_BYTE *choice = NULL;
     CK_ULONG version_len, alg_len, priv_len, pub_len, parm_len, buf_len;
     CK_ULONG buf_offset, field_len, offset, choice_len, option;
     CK_ULONG pubkey_available = 0;
@@ -2880,8 +2885,8 @@ cleanup:
 }
 
 CK_RV ber_encode_ECPublicKey(CK_BBOOL length_only, CK_BYTE **data,
-                             CK_ULONG *data_len, CK_ATTRIBUTE *params,
-                             CK_ATTRIBUTE *point)
+                             CK_ULONG *data_len, const CK_ATTRIBUTE *params,
+                             const CK_ATTRIBUTE *point)
 {
     CK_ULONG len, total;
     CK_ULONG algid_len = der_AlgIdECBaseLen + params->ulValueLen;
@@ -2889,7 +2894,7 @@ CK_RV ber_encode_ECPublicKey(CK_BBOOL length_only, CK_BYTE **data,
     CK_BYTE *buf = NULL;
     BerValue *val = NULL;
     BerElement *ber;
-    CK_BYTE *ecpoint;
+    const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;
 
     /* CKA_EC_POINT is an BER encoded OCTET STRING. Extract it. */
@@ -3004,7 +3009,7 @@ CK_RV ber_encode_ECPublicKey(CK_BBOOL length_only, CK_BYTE **data,
  *   publicKey  [1] BIT STRING (OPTIONAL)
  * }
  */
-CK_RV der_decode_ECPublicKey(CK_BYTE *data,
+CK_RV der_decode_ECPublicKey(const CK_BYTE *data,
                              CK_ULONG data_len,
                              CK_ATTRIBUTE **ec_params,
                              CK_ATTRIBUTE **ec_point)
@@ -3012,12 +3017,12 @@ CK_RV der_decode_ECPublicKey(CK_BYTE *data,
     CK_ATTRIBUTE *params_attr = NULL;
     CK_ATTRIBUTE *point_attr = NULL;
 
-    CK_BYTE *algid = NULL;
+    const CK_BYTE *algid = NULL;
     CK_ULONG algid_len;
-    CK_BYTE *algid_ECBase = NULL;
-    CK_BYTE *param = NULL;
+    const CK_BYTE *algid_ECBase = NULL;
+    const CK_BYTE *param = NULL;
     CK_ULONG param_len;
-    CK_BYTE *point = NULL;
+    const CK_BYTE *point = NULL;
     CK_ULONG point_len;
     CK_BYTE *ecpoint = NULL;
     CK_ULONG ecpoint_len;
@@ -3099,8 +3104,9 @@ cleanup:
 CK_RV ber_encode_DHPrivateKey(CK_BBOOL length_only,
                               CK_BYTE **data,
                               CK_ULONG *data_len,
-                              CK_ATTRIBUTE *prime,
-                              CK_ATTRIBUTE *base, CK_ATTRIBUTE *priv_key)
+                              const CK_ATTRIBUTE *prime,
+                              const CK_ATTRIBUTE *base,
+                              const CK_ATTRIBUTE *priv_key)
 {
     CK_BYTE *param = NULL;
     CK_BYTE *buf = NULL;
@@ -3245,7 +3251,7 @@ error:
 
 //
 //
-CK_RV ber_decode_DHPrivateKey(CK_BYTE *data,
+CK_RV ber_decode_DHPrivateKey(const CK_BYTE *data,
                               CK_ULONG data_len,
                               CK_ATTRIBUTE **prime,
                               CK_ATTRIBUTE **base, CK_ATTRIBUTE **priv_key)
@@ -3253,10 +3259,10 @@ CK_RV ber_decode_DHPrivateKey(CK_BYTE *data,
     CK_ATTRIBUTE *p_attr = NULL;
     CK_ATTRIBUTE *g_attr = NULL;
     CK_ATTRIBUTE *x_attr = NULL;
-    CK_BYTE *alg = NULL;
-    CK_BYTE *buf = NULL;
-    CK_BYTE *dhkey = NULL;
-    CK_BYTE *tmp = NULL;
+    const CK_BYTE *alg = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *dhkey = NULL;
+    const CK_BYTE *tmp = NULL;
     CK_ULONG buf_len, field_len, len, offset;
     CK_RV rc;
 
@@ -3364,8 +3370,9 @@ cleanup:
 }
 
 CK_RV ber_encode_DHPublicKey(CK_BBOOL length_only, CK_BYTE **data,
-                             CK_ULONG *data_len, CK_ATTRIBUTE *prime,
-                             CK_ATTRIBUTE *base, CK_ATTRIBUTE *value)
+                             CK_ULONG *data_len, const CK_ATTRIBUTE *prime,
+                             const CK_ATTRIBUTE *base,
+                             const CK_ATTRIBUTE *value)
 {
     CK_ULONG len = 0, parm_len, id_len, pub_len, offset, total;
     CK_RV rc = 0;
@@ -3530,7 +3537,7 @@ CK_RV ber_encode_DHPublicKey(CK_BBOOL length_only, CK_BYTE **data,
 }
 
 
-CK_RV ber_decode_DHPublicKey(CK_BYTE *data,
+CK_RV ber_decode_DHPublicKey(const CK_BYTE *data,
                              CK_ULONG data_len,
                              CK_ATTRIBUTE **prime,
                              CK_ATTRIBUTE **base,
@@ -3539,18 +3546,17 @@ CK_RV ber_decode_DHPublicKey(CK_BYTE *data,
     CK_ATTRIBUTE *prime_attr = NULL;
     CK_ATTRIBUTE *base_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
-
-    CK_BYTE *algid = NULL;
+    const CK_BYTE *algid = NULL;
     CK_ULONG algid_len;
-    CK_BYTE *param = NULL;
+    const CK_BYTE *param = NULL;
     CK_ULONG param_len;
-    CK_BYTE *val = NULL;
+    const CK_BYTE *val = NULL;
     CK_ULONG val_len;
-    CK_BYTE *seq;
+    const CK_BYTE *seq;
     CK_ULONG seq_len;
-    CK_BYTE *p;
+    const CK_BYTE *p;
     CK_ULONG p_len;
-    CK_BYTE *b;
+    const CK_BYTE *b;
     CK_ULONG b_len;
     CK_ULONG field_len, offset;
     CK_RV rc;
@@ -3641,7 +3647,8 @@ cleanup:
 CK_RV ber_encode_IBM_DilithiumPublicKey(CK_BBOOL length_only,
                                         CK_BYTE **data, CK_ULONG *data_len,
                                         const CK_BYTE *oid, CK_ULONG oid_len,
-                                        CK_ATTRIBUTE *rho, CK_ATTRIBUTE *t1)
+                                        const CK_ATTRIBUTE *rho,
+                                        const CK_ATTRIBUTE *t1)
 {
     CK_BYTE *buf = NULL, *buf2 = NULL, *buf3 = NULL, *buf4 = NULL;
     CK_BYTE *buf5 = NULL, *algid = NULL;
@@ -3800,7 +3807,7 @@ error:
 }
 
 
-CK_RV ber_decode_IBM_DilithiumPublicKey(CK_BYTE *data,
+CK_RV ber_decode_IBM_DilithiumPublicKey(const CK_BYTE *data,
                                         CK_ULONG data_len,
                                         CK_ATTRIBUTE **rho_attr,
                                         CK_ATTRIBUTE **t1_attr,
@@ -3810,18 +3817,17 @@ CK_RV ber_decode_IBM_DilithiumPublicKey(CK_BYTE *data,
     CK_ATTRIBUTE *rho_attr_temp = NULL;
     CK_ATTRIBUTE *t1_attr_temp = NULL;
     CK_ATTRIBUTE *value_attr_temp = NULL;
-
-    CK_BYTE *algoid = NULL;
+    const CK_BYTE *algoid = NULL;
     CK_ULONG algoid_len;
-    CK_BYTE *param = NULL;
+    const CK_BYTE *param = NULL;
     CK_ULONG param_len;
-    CK_BYTE *val = NULL;
+    const CK_BYTE *val = NULL;
     CK_ULONG val_len;
-    CK_BYTE *seq;
+    const CK_BYTE *seq;
     CK_ULONG seq_len;
-    CK_BYTE *rho;
+    const CK_BYTE *rho;
     CK_ULONG rho_len;
-    CK_BYTE *t1;
+    const CK_BYTE *t1;
     CK_ULONG t1_len;
     CK_ULONG field_len, offset, raw_spki_len;
     CK_RV rc;
@@ -3934,13 +3940,13 @@ CK_RV ber_encode_IBM_DilithiumPrivateKey(CK_BBOOL length_only,
                                          CK_BYTE **data,
                                          CK_ULONG *data_len,
                                          const CK_BYTE *oid, CK_ULONG oid_len,
-                                         CK_ATTRIBUTE *rho,
-                                         CK_ATTRIBUTE *seed,
-                                         CK_ATTRIBUTE *tr,
-                                         CK_ATTRIBUTE *s1,
-                                         CK_ATTRIBUTE *s2,
-                                         CK_ATTRIBUTE *t0,
-                                         CK_ATTRIBUTE *t1)
+                                         const CK_ATTRIBUTE *rho,
+                                         const CK_ATTRIBUTE *seed,
+                                         const CK_ATTRIBUTE *tr,
+                                         const CK_ATTRIBUTE *s1,
+                                         const CK_ATTRIBUTE *s2,
+                                         const CK_ATTRIBUTE *t0,
+                                         const CK_ATTRIBUTE *t1)
 {
     CK_BYTE *buf = NULL, *buf2 = NULL, *buf3 = NULL;
     CK_BYTE *algid = NULL, *algid_buf = NULL;
@@ -4163,7 +4169,7 @@ error:
  *         }
  *       }
  */
-CK_RV ber_decode_IBM_DilithiumPrivateKey(CK_BYTE *data,
+CK_RV ber_decode_IBM_DilithiumPrivateKey(const CK_BYTE *data,
                                          CK_ULONG data_len,
                                          CK_ATTRIBUTE **rho,
                                          CK_ATTRIBUTE **seed,
@@ -4178,10 +4184,10 @@ CK_RV ber_decode_IBM_DilithiumPrivateKey(CK_BYTE *data,
     CK_ATTRIBUTE *rho_attr = NULL, *seed_attr = NULL;
     CK_ATTRIBUTE *tr_attr = NULL, *s1_attr = NULL, *s2_attr = NULL;
     CK_ATTRIBUTE *t0_attr = NULL, *t1_attr = NULL, *value_attr = NULL;
-    CK_BYTE *algoid = NULL;
-    CK_BYTE *dilithium_priv_key = NULL;
-    CK_BYTE *buf = NULL;
-    CK_BYTE *tmp = NULL;
+    const CK_BYTE *algoid = NULL;
+    const CK_BYTE *dilithium_priv_key = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *tmp = NULL;
     CK_ULONG offset, buf_len, field_len, len, option;
     CK_RV rc;
 
@@ -4415,7 +4421,7 @@ cleanup:
 CK_RV ber_encode_IBM_KyberPublicKey(CK_BBOOL length_only,
                                     CK_BYTE **data, CK_ULONG *data_len,
                                     const CK_BYTE *oid, CK_ULONG oid_len,
-                                    CK_ATTRIBUTE *pk)
+                                    const CK_ATTRIBUTE *pk)
 {
     CK_BYTE *buf = NULL, *buf2 = NULL, *buf3 = NULL, *buf4 = NULL;
     CK_BYTE *buf5 = NULL, *algid = NULL;
@@ -4557,7 +4563,7 @@ error:
     return rc;
 }
 
-CK_RV ber_decode_IBM_KyberPublicKey(CK_BYTE *data,
+CK_RV ber_decode_IBM_KyberPublicKey(const CK_BYTE *data,
                                     CK_ULONG data_len,
                                     CK_ATTRIBUTE **pk_attr,
                                     CK_ATTRIBUTE **value_attr,
@@ -4565,16 +4571,15 @@ CK_RV ber_decode_IBM_KyberPublicKey(CK_BYTE *data,
 {
     CK_ATTRIBUTE *pk_attr_temp = NULL;
     CK_ATTRIBUTE *value_attr_temp = NULL;
-
-    CK_BYTE *algoid = NULL;
+    const CK_BYTE *algoid = NULL;
     CK_ULONG algoid_len;
-    CK_BYTE *param = NULL;
+    const CK_BYTE *param = NULL;
     CK_ULONG param_len;
-    CK_BYTE *val = NULL;
+    const CK_BYTE *val = NULL;
     CK_ULONG val_len;
-    CK_BYTE *seq;
+    const CK_BYTE *seq;
     CK_ULONG seq_len;
-    CK_BYTE *pk;
+    const CK_BYTE *pk;
     CK_ULONG pk_len;
     CK_ULONG field_len, raw_spki_len;
     CK_RV rc;
@@ -4661,8 +4666,8 @@ CK_RV ber_encode_IBM_KyberPrivateKey(CK_BBOOL length_only,
                                      CK_BYTE **data,
                                      CK_ULONG *data_len,
                                      const CK_BYTE *oid, CK_ULONG oid_len,
-                                     CK_ATTRIBUTE *sk,
-                                     CK_ATTRIBUTE *pk)
+                                     const CK_ATTRIBUTE *sk,
+                                     const CK_ATTRIBUTE *pk)
 {
     CK_BYTE *buf = NULL, *buf2 = NULL, *buf3 = NULL;
     CK_BYTE *algid = NULL, *algid_buf = NULL, *pk_rs = NULL;
@@ -4825,7 +4830,7 @@ error:
  *       }
  *     }
  */
-CK_RV ber_decode_IBM_KyberPrivateKey(CK_BYTE *data,
+CK_RV ber_decode_IBM_KyberPrivateKey(const CK_BYTE *data,
                                      CK_ULONG data_len,
                                      CK_ATTRIBUTE **sk,
                                      CK_ATTRIBUTE **pk,
@@ -4833,10 +4838,10 @@ CK_RV ber_decode_IBM_KyberPrivateKey(CK_BYTE *data,
                                      const struct pqc_oid **oid)
 {
     CK_ATTRIBUTE *sk_attr = NULL, *pk_attr = NULL, *value_attr = NULL;
-    CK_BYTE *algoid = NULL;
-    CK_BYTE *kyber_priv_key = NULL;
-    CK_BYTE *buf = NULL;
-    CK_BYTE *tmp = NULL;
+    const CK_BYTE *algoid = NULL;
+    const CK_BYTE *kyber_priv_key = NULL;
+    const CK_BYTE *buf = NULL;
+    const CK_BYTE *tmp = NULL;
     CK_ULONG offset, buf_len, field_len, len, option;
     CK_RV rc;
 

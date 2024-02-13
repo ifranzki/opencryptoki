@@ -340,12 +340,12 @@ static CK_RV cleanse_attribute(TEMPLATE *template,
     return CKR_OK;
 }
 
-static CK_RV check_expected_mkvp(STDLL_TokData_t *tokdata, CK_BYTE *blob,
+static CK_RV check_expected_mkvp(STDLL_TokData_t *tokdata, const CK_BYTE *blob,
                                  size_t blobsize, CK_BBOOL *new_wk)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
     CK_ULONG data_len = 0, spki_len = 0, wkid_len = 0;
-    CK_BYTE *data, *wkid;
+    const CK_BYTE *data, *wkid;
     CK_RV rc;
 
     if (new_wk != NULL)
@@ -2925,7 +2925,7 @@ static CK_RV make_maced_spki(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_ULONG cslen = sizeof(csum);
     CK_KEY_TYPE keytype;
     CK_BBOOL is_private, is_session;
-    CK_BYTE *tmp;
+    const CK_BYTE *tmp;
     CK_ULONG i, tmp_len, seq_len;
     CK_RV rc;
 
@@ -3524,7 +3524,8 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
         CK_ATTRIBUTE *ec_params;
         CK_ATTRIBUTE *ec_point_attr;
         CK_ATTRIBUTE ec_point_uncompr;
-        CK_BYTE *ecpoint;
+        const CK_BYTE *ecpoint;
+        CK_BYTE *ecpoint2 = NULL;
         CK_ULONG ecpoint_len, field_len;
 
         rc = template_attribute_get_non_empty(ec_key_obj->template,
@@ -3570,7 +3571,7 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
             goto import_EC_key_end;
 
         /* build ec-point attribute as BER encoded OCTET STRING */
-        rc = ber_encode_OCTET_STRING(FALSE, &ecpoint, &ecpoint_len,
+        rc = ber_encode_OCTET_STRING(FALSE, &ecpoint2, &ecpoint_len,
                                      pubkey, pubkey_len);
         if (rc != CKR_OK) {
             TRACE_DEVEL("ber_encode_OCTET_STRING failed\n");
@@ -3578,7 +3579,7 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
         }
 
         ec_point_uncompr.type = ec_point_attr->type;
-        ec_point_uncompr.pValue = ecpoint;
+        ec_point_uncompr.pValue = ecpoint2;
         ec_point_uncompr.ulValueLen = ecpoint_len;
 
         /*
@@ -3586,7 +3587,7 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
          */
         rc = ber_encode_ECPublicKey(FALSE, &data, &data_len,
                                     ec_params, &ec_point_uncompr);
-        free(ecpoint);
+        free(ecpoint2);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s public key import class=0x%lx rc=0x%lx "
                         "data_len=0x%lx\n", __func__, class, rc, data_len);
@@ -4440,7 +4441,7 @@ CK_RV token_specific_object_add(STDLL_TokData_t * tokdata, SESSION * sess,
     CK_RV rc;
     CK_ULONG class;
     CK_BBOOL attrbound;
-    CK_BYTE *temp;
+    const CK_BYTE *temp;
     CK_ULONG temp_len;
 
     /* get key type */
@@ -6562,7 +6563,8 @@ CK_RV ep11tok_derive_key(STDLL_TokData_t *tokdata, SESSION *session,
                 object_put(tokdata, base_key_obj, TRUE);
                 base_key_obj = NULL;
             } else {
-                rc = ber_decode_OCTET_STRING(ecdh1_parms->pPublicData, &ecpoint,
+                rc = ber_decode_OCTET_STRING(ecdh1_parms->pPublicData,
+                                             (const CK_BYTE **)&ecpoint,
                                              &ecpoint_len, &field_len);
                 if (rc != CKR_OK || field_len != ecdh1_parms->ulPublicDataLen ||
                     ecpoint_len > ecdh1_parms->ulPublicDataLen - 2) {
@@ -6987,8 +6989,8 @@ static CK_RV dh_generate_keypair(STDLL_TokData_t *tokdata,
     CK_ULONG dh_ulPrivateKeyAttributeCount = 0;
     CK_ULONG data_len;
     CK_ULONG field_len;
-    CK_BYTE *data;
-    CK_BYTE *y_start, *oid, *parm;
+    const CK_BYTE *data;
+    const CK_BYTE *y_start, *oid, *parm;
     CK_ULONG bit_str_len, oid_len, parm_len, value_bits = 0;
     unsigned char *priv_ep11_pin_blob = NULL;
     CK_ULONG priv_ep11_pin_blob_len = 0;
@@ -7369,8 +7371,8 @@ static CK_RV dsa_generate_keypair(STDLL_TokData_t *tokdata,
     CK_ATTRIBUTE *opaque_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *attr = NULL;
-    CK_BYTE *key;
-    CK_BYTE *data, *oid, *parm;
+    const CK_BYTE *key;
+    const CK_BYTE *data, *oid, *parm;
     CK_ULONG data_len, field_len, bit_str_len, oid_len, parm_len;
     CK_ATTRIBUTE_PTR dsa_pPublicKeyTemplate = NULL;
     CK_ULONG dsa_ulPublicKeyAttributeCount = 0;
@@ -7740,8 +7742,8 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
     unsigned char spkireenc[MAX_BLOBSIZE];
     size_t spki_len = sizeof(spki);
     CK_ULONG bit_str_len;
-    CK_BYTE *key;
-    CK_BYTE *data, *oid, *parm;
+    const CK_BYTE *key, *data, *oid, *parm;
+    CK_BYTE *data2;
     CK_ULONG data_len, oid_len, parm_len;
     CK_ULONG field_len;
     CK_ULONG ktype;
@@ -7976,8 +7978,6 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
          * of the BIT STRING.
          */
         TRACE_INFO("%s ecpoint length 0x%lx\n", __func__, bit_str_len);
-        data_len = bit_str_len;
-        data = key;
 
 #ifdef DEBUG
         TRACE_DEBUG("%s ec_generate_keypair ecpoint:\n", __func__);
@@ -7985,15 +7985,15 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
 #endif
 
         /* build and add CKA_EC_POINT as BER encoded OCTET STRING */
-        rc = ber_encode_OCTET_STRING(FALSE, &data, &data_len,
+        rc = ber_encode_OCTET_STRING(FALSE, &data2, &data_len,
                                      key, bit_str_len);
         if (rc != CKR_OK) {
             TRACE_DEVEL("ber_encode_OCTET_STRING failed\n");
             goto error;
         }
 
-        rc = build_attribute(CKA_EC_POINT, data, data_len, &attr);
-        free(data);
+        rc = build_attribute(CKA_EC_POINT, data2, data_len, &attr);
+        free(data2);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s build_attribute failed with rc=0x%lx\n",
                         __func__, rc);
@@ -8051,7 +8051,7 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
          * set the public key attributes, a user would use the
          * already built SPKI (in CKA_IBM_OPAQUE of the public key).
          */
-        CK_BYTE *modulus, *publ_exp;
+        const CK_BYTE *modulus, *publ_exp;
 
         rc = ber_decode_SPKI(spki, &oid, &oid_len, &parm, &parm_len,
                              &key, &bit_str_len);
@@ -10900,7 +10900,8 @@ CK_RV ep11tok_unwrap_key(STDLL_TokData_t * tokdata, SESSION * session,
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
     CK_RV rc;
-    CK_BYTE *wrapping_blob, *use_wrapping_blob, *temp;
+    CK_BYTE *wrapping_blob, *use_wrapping_blob;
+    const CK_BYTE *temp;
     size_t wrapping_blob_len, use_wrapping_blob_len;
     CK_BYTE csum[MAX_BLOBSIZE];
     CK_ULONG cslen = sizeof(csum), temp_len;
