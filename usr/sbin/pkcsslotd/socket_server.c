@@ -165,7 +165,7 @@ static unsigned long pending_events_count = 0;
  * connections, none of them gets removed from the list.
  */
 #define FOR_EACH_CONN_SAFE_BEGIN(list, conn) {                              \
-        DL_NODE *_node, *_next;                                             \
+        const DL_NODE *_node, *_next;                                       \
         _node = dlist_get_first(list);                                      \
         while (_node != NULL) {                                             \
             conn = _node->data;                                             \
@@ -558,12 +558,12 @@ static int event_add_to_pending_list(struct event_info *event)
 
 static void event_remove_from_pending_list(struct event_info *event)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     int trigger = 0;
 
     node = dlist_find(pending_events, event);
     if (node != NULL) {
-        pending_events = dlist_remove_node(pending_events, node);
+        pending_events = dlist_remove_node(pending_events, (DL_NODE *)node);
 
         if (pending_events_count >= MAX_PENDING_EVENTS)
             trigger = 1;
@@ -644,7 +644,8 @@ static int proc_new_conn(int socket, struct listener_info *listener)
 {
     struct proc_conn_info *conn;
     struct event_info *event;
-    DL_NODE *list, *node;
+    DL_NODE *list;
+    const DL_NODE *node;
     struct ucred ucred;
     socklen_t  len;
     int rc = 0;
@@ -829,7 +830,7 @@ static int proc_xfer_complete(void *client)
 
 static int proc_start_deliver_event(struct proc_conn_info *conn)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     int rc;
 
     if (conn->state != PROC_WAIT_FOR_EVENT)
@@ -880,7 +881,7 @@ static int proc_deliver_event(struct proc_conn_info *conn,
 static int proc_event_delivered(struct proc_conn_info *conn,
                                 struct event_info *event)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     int rc;
 
     DbgLog(DL3, "%s: process: %p event: %p", __func__, conn, event);
@@ -890,7 +891,7 @@ static int proc_event_delivered(struct proc_conn_info *conn,
     /* Remove from process's event list and decr. reference count */
     node = dlist_find(conn->events, event);
     if (node != NULL) {
-        conn->events = dlist_remove_node(conn->events, node);
+        conn->events = dlist_remove_node(conn->events, (DL_NODE *)node);
         event->proc_ref_count--;
     }
 
@@ -919,7 +920,7 @@ static void proc_hangup(void *client)
 {
     struct proc_conn_info *conn = client;
     struct event_info *event;
-    DL_NODE *node;
+    const DL_NODE *node;
 
     DbgLog(DL0, "%s: process: %p socket: %d state: %d", __func__, conn,
            conn->client_info.socket, conn->state);
@@ -943,12 +944,12 @@ static void proc_hangup(void *client)
 static void proc_free(void *client)
 {
     struct proc_conn_info *conn = client;
-    DL_NODE *node;
+    const DL_NODE *node;
 
     /* Remove it from the process connections list */
     node = dlist_find(proc_connections, conn);
     if (node != NULL) {
-        proc_connections = dlist_remove_node(proc_connections, node);
+        proc_connections = dlist_remove_node(proc_connections, (DL_NODE *)node);
         listener_client_hangup(&proc_listener);
     }
 
@@ -1246,12 +1247,13 @@ static void admin_hangup(void *client)
 static void admin_free(void *client)
 {
     struct admin_conn_info *conn = client;
-    DL_NODE *node;
+    const DL_NODE *node;
 
     /* Remove it from the admin connections list */
     node = dlist_find(admin_connections, conn);
     if (node != NULL) {
-        admin_connections = dlist_remove_node(admin_connections, node);
+        admin_connections = dlist_remove_node(admin_connections,
+                                              (DL_NODE *)node);
         listener_client_hangup(&admin_listener);
     }
 
@@ -1790,7 +1792,7 @@ int init_socket_server(int event_support_disabled)
 
 int term_socket_server(void)
 {
-    DL_NODE *node, *next;
+    const DL_NODE *node, *next;
 
 #ifdef WITH_LIBUDEV
     udev_mon_term(&udev_mon);
@@ -1875,7 +1877,7 @@ static void dump_event_info(struct event_info *event, int indent)
 
 static void dump_proc_conn(struct proc_conn_info *proc_conn)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     unsigned long i;
 
     DbgLog(DL0, "      socket: %d", proc_conn->client_info.socket);
@@ -1937,7 +1939,7 @@ void dump_udev_mon(struct udev_mon *udev_mon)
 
 void dump_socket_handler(void)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     unsigned long i;
 
     DbgLog(DL0, "%s: Dump of socket handler data:", __func__);

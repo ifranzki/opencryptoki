@@ -20,12 +20,12 @@
 //
 DL_NODE *dlist_add_as_first(DL_NODE *list, void *data);
 DL_NODE *dlist_add_as_last(DL_NODE *list, void *data);
-DL_NODE *dlist_find(DL_NODE *list, void *data);
-DL_NODE *dlist_get_first(DL_NODE *list);
-DL_NODE *dlist_get_last(DL_NODE *list);
-CK_ULONG dlist_length(DL_NODE *list);
-DL_NODE *dlist_next(DL_NODE *list);
-DL_NODE *dlist_prev(DL_NODE *list);
+const DL_NODE *dlist_find(const DL_NODE *list, const void *data);
+const DL_NODE *dlist_get_first(const DL_NODE *list);
+const DL_NODE *dlist_get_last(const DL_NODE *list);
+CK_ULONG dlist_length(const DL_NODE *list);
+const DL_NODE *dlist_next(const DL_NODE *list);
+const DL_NODE *dlist_prev(const DL_NODE *list);
 void dlist_purge(DL_NODE *list);
 DL_NODE *dlist_remove_node(DL_NODE *list, DL_NODE *node);
 

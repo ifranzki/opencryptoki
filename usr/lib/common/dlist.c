@@ -70,7 +70,7 @@ DL_NODE *dlist_add_as_last(DL_NODE *list, void *data)
         node->prev = NULL;
         return node;
     } else {
-        DL_NODE *temp = dlist_get_last(list);
+        DL_NODE *temp = (DL_NODE *)dlist_get_last(list);
         temp->next = node;
         node->prev = temp;
 
@@ -80,9 +80,9 @@ DL_NODE *dlist_add_as_last(DL_NODE *list, void *data)
 
 // Function:  dlist_find()
 //
-DL_NODE *dlist_find(DL_NODE *list, void *data)
+const DL_NODE *dlist_find(const DL_NODE *list, const void *data)
 {
-    DL_NODE *node = list;
+    const DL_NODE *node = list;
 
     while (node && node->data != data)
         node = node->next;
@@ -94,9 +94,9 @@ DL_NODE *dlist_find(DL_NODE *list, void *data)
 //
 // Returns the last node in the list or NULL if list is empty
 //
-DL_NODE *dlist_get_first(DL_NODE *list)
+const DL_NODE *dlist_get_first(const DL_NODE *list)
 {
-    DL_NODE *temp = list;
+    const DL_NODE *temp = list;
 
     if (!list)
         return NULL;
@@ -111,9 +111,9 @@ DL_NODE *dlist_get_first(DL_NODE *list)
 //
 // Returns the last node in the list or NULL if list is empty
 //
-DL_NODE *dlist_get_last(DL_NODE *list)
+const DL_NODE *dlist_get_last(const DL_NODE *list)
 {
-    DL_NODE *temp = list;
+    const DL_NODE *temp = list;
 
     if (!list)
         return NULL;
@@ -126,9 +126,9 @@ DL_NODE *dlist_get_last(DL_NODE *list)
 
 //
 //
-CK_ULONG dlist_length(DL_NODE *list)
+CK_ULONG dlist_length(const DL_NODE *list)
 {
-    DL_NODE *temp = list;
+    const DL_NODE *temp = list;
     CK_ULONG len = 0;
 
     while (temp) {
@@ -141,7 +141,7 @@ CK_ULONG dlist_length(DL_NODE *list)
 
 //
 //
-DL_NODE *dlist_next(DL_NODE *node)
+const DL_NODE *dlist_next(const DL_NODE *node)
 {
     if (!node)
         return NULL;
@@ -151,7 +151,7 @@ DL_NODE *dlist_next(DL_NODE *node)
 
 //
 //
-DL_NODE *dlist_prev(DL_NODE *node)
+const DL_NODE *dlist_prev(const DL_NODE *node)
 {
     if (!node)
         return NULL;
