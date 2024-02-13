@@ -84,7 +84,7 @@ static inline void list_init(list_t *list)
     list->head = list->tail = NULL;
 }
 
-static inline int list_is_empty(list_t *list)
+static inline int list_is_empty(const list_t *list)
 {
     return (list->head == NULL);
 }

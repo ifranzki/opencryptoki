@@ -40,7 +40,7 @@
 #include <sys/file.h>
 #include <syslog.h>
 
-CK_RV CreateXProcLock(char *tokname, STDLL_TokData_t *tokdata)
+CK_RV CreateXProcLock(const char *tokname, STDLL_TokData_t *tokdata)
 {
     char lockfile[PATH_MAX];
     char lockdir[PATH_MAX];
@@ -48,7 +48,7 @@ CK_RV CreateXProcLock(char *tokname, STDLL_TokData_t *tokdata)
     struct stat statbuf;
     mode_t mode = (S_IRUSR | S_IRGRP);
     int ret = -1;
-    char *toklockname;
+    const char *toklockname;
 
     if (tokdata->spinxplfd == -1) {
 
@@ -491,7 +491,7 @@ CK_RV build_attribute(CK_ATTRIBUTE_TYPE type,
  * CKR_ATTRIBUTE_TYPE_INVALID when length doesn't match the expected and
  * CKR_OK when values is returned in the `value` argument.
  */
-CK_RV find_bbool_attribute(CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
+CK_RV find_bbool_attribute(const CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
                            CK_ATTRIBUTE_TYPE type, CK_BBOOL *value)
 {
     CK_ULONG i;
@@ -535,7 +535,8 @@ CK_RV add_pkcs_padding(CK_BYTE *ptr,
 
 //
 //
-CK_RV strip_pkcs_padding(CK_BYTE *ptr, CK_ULONG total_len, CK_ULONG *data_len)
+CK_RV strip_pkcs_padding(const CK_BYTE *ptr, CK_ULONG total_len,
+                         CK_ULONG *data_len)
 {
     CK_BYTE pad_value;
 
@@ -635,7 +636,7 @@ err:
 }
 
 /* Compute specified SHA or MD5 using software */
-CK_RV compute_sha(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
+CK_RV compute_sha(STDLL_TokData_t *tokdata, const CK_BYTE *data, CK_ULONG len,
                   CK_BYTE *hash, CK_ULONG mech)
 {
     const EVP_MD *md;
@@ -707,7 +708,7 @@ CK_RV compute_sha(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
 }
 
 /* Compute SHA1 using software implementation */
-CK_RV compute_sha1(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
+CK_RV compute_sha1(STDLL_TokData_t *tokdata, const CK_BYTE *data, CK_ULONG len,
                    CK_BYTE *hash)
 {
     CK_RV rc;
@@ -724,7 +725,7 @@ CK_RV compute_sha1(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
     return rc;
 }
 
-CK_RV compute_md5(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
+CK_RV compute_md5(STDLL_TokData_t *tokdata, const CK_BYTE *data, CK_ULONG len,
                   CK_BYTE *hash)
 {
     CK_RV rc;
@@ -742,8 +743,8 @@ CK_RV compute_md5(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
 }
 
 CK_RV compute_PKCS5_PBKDF2_HMAC(STDLL_TokData_t *tokdata,
-                                CK_CHAR *pPin, CK_ULONG ulPinLen,
-                                CK_BYTE *salt, CK_ULONG salt_len,
+                                const CK_CHAR *pPin, CK_ULONG ulPinLen,
+                                const CK_BYTE *salt, CK_ULONG salt_len,
                                 CK_ULONG it_count, const EVP_MD *digest,
                                 CK_ULONG key_len, CK_BYTE *key)
 {
@@ -820,7 +821,7 @@ CK_RV get_keytype(STDLL_TokData_t *tokdata, CK_OBJECT_HANDLE hkey,
     return rc;
 }
 
-CK_RV pkcs_get_keytype(CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
+CK_RV pkcs_get_keytype(const CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
                        CK_MECHANISM_PTR mech, CK_ULONG *type, CK_ULONG *class)
 {
     CK_RV rc;
@@ -896,7 +897,7 @@ CK_RV pkcs_get_keytype(CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
 }
 
 void copy_token_contents_sensibly(CK_TOKEN_INFO_PTR pInfo,
-                                  TOKEN_DATA *nv_token_data)
+                                  const TOKEN_DATA *nv_token_data)
 {
     memcpy(pInfo, &nv_token_data->token_info, sizeof(CK_TOKEN_INFO_32));
     pInfo->flags = nv_token_data->token_info.flags;

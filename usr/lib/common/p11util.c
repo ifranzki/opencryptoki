@@ -367,7 +367,7 @@ const char *p11_get_ckm(const struct mechtable_funcs *f, CK_ULONG mechanism)
 // Allocates memory on *dst and puts hex dump from ptr
 // with len bytes.
 // *dst must be freed by the caller
-char *p11_ahex_dump(char **dst, CK_BYTE_PTR ptr, CK_ULONG len)
+char *p11_ahex_dump(char **dst, const CK_BYTE *ptr, CK_ULONG len)
 {
     CK_ULONG i;
 

@@ -90,7 +90,7 @@ struct shm_context {
 /*
  * Obtain the context pointer based on a data address.
  */
-static inline struct shm_context *get_shm_context(void *addr)
+static inline struct shm_context *get_shm_context(const void *addr)
 {
     struct shm_context *ctx;
 
@@ -412,7 +412,7 @@ int sm_destroy(const char *name)
 /*
  * Force sync for a shared memory region.
  */
-int sm_sync(void *addr)
+int sm_sync(const void *addr)
 {
     struct shm_context *ctx = get_shm_context(addr);
 
@@ -429,7 +429,7 @@ int sm_sync(void *addr)
  * Get the name of the shared memory indicated by `addr` and copy it to the
  * given `buffer`.
  */
-int sm_copy_name(void *addr, char *buffer, size_t len)
+int sm_copy_name(const void *addr, char *buffer, size_t len)
 {
     size_t name_len;
     struct shm_context *ctx = get_shm_context(addr);
@@ -452,7 +452,7 @@ int sm_copy_name(void *addr, char *buffer, size_t len)
 /*
  * Return the reference count for the given shared memory.
  */
-int sm_get_count(void *addr)
+int sm_get_count(const void *addr)
 {
     struct shm_context *ctx = get_shm_context(addr);
 

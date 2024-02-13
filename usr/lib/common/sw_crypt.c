@@ -26,11 +26,12 @@
 #include "trace.h"
 #include "sw_crypt.h"
 
-CK_RV sw_des3_cbc(CK_BYTE *in_data,
+CK_RV sw_des3_cbc(const CK_BYTE *in_data,
                   CK_ULONG in_data_len,
                   CK_BYTE *out_data,
                   CK_ULONG *out_data_len,
-                  CK_BYTE *init_v, CK_BYTE *key_value, CK_BYTE encrypt)
+                  const CK_BYTE *init_v,
+                  const CK_BYTE *key_value, CK_BYTE encrypt)
 {
     CK_RV rc;
     int outlen;
@@ -66,11 +67,12 @@ done:
     return rc;
 }
 
-CK_RV sw_aes_cbc(CK_BYTE *in_data,
+CK_RV sw_aes_cbc(const CK_BYTE *in_data,
                  CK_ULONG in_data_len,
                  CK_BYTE *out_data,
                  CK_ULONG *out_data_len,
-                 CK_BYTE *init_v, CK_BYTE *key_value, CK_ULONG keylen,
+                 const CK_BYTE *init_v,
+                 const CK_BYTE *key_value, CK_ULONG keylen,
                  CK_BYTE encrypt)
 {
     CK_RV rc;

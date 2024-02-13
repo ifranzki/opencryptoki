@@ -33,10 +33,10 @@ int sm_close(void *addr, int destroy, int ignore_ref_count);
 
 int sm_destroy(const char *name);
 
-int sm_sync(void *addr);
+int sm_sync(const void *addr);
 
-int sm_copy_name(void *addr, char *buffer, size_t len);
+int sm_copy_name(const void *addr, char *buffer, size_t len);
 
-int sm_get_count(void *addr);
+int sm_get_count(const void *addr);
 
 #endif

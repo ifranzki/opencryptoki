@@ -449,20 +449,20 @@ CK_RV init_data_store(STDLL_TokData_t *tokdata, char *directory,
 void final_data_store(STDLL_TokData_t * tokdata);
 
 void copy_token_contents_sensibly(CK_TOKEN_INFO_PTR pInfo,
-                                  TOKEN_DATA *nv_token_data);
+                                  const TOKEN_DATA *nv_token_data);
 
 CK_RV init_hsm_mk_change_lock(STDLL_TokData_t *tokdata);
 
 CK_RV compute_PKCS5_PBKDF2_HMAC(STDLL_TokData_t *tokdata,
-                                CK_CHAR *pPin, CK_ULONG ulPinLen,
-                                CK_BYTE *salt, CK_ULONG salt_len,
+                                const CK_CHAR *pPin, CK_ULONG ulPinLen,
+                                const CK_BYTE *salt, CK_ULONG salt_len,
                                 CK_ULONG it_count, const EVP_MD *digest,
                                 CK_ULONG key_len, CK_BYTE *key);
-CK_RV compute_md5(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
+CK_RV compute_md5(STDLL_TokData_t *tokdata, const CK_BYTE *data, CK_ULONG len,
                   CK_BYTE *hash);
-CK_RV compute_sha1(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
+CK_RV compute_sha1(STDLL_TokData_t *tokdata, const CK_BYTE *data, CK_ULONG len,
                    CK_BYTE *hash);
-CK_RV compute_sha(STDLL_TokData_t *tokdata, CK_BYTE *data, CK_ULONG len,
+CK_RV compute_sha(STDLL_TokData_t *tokdata, const CK_BYTE *data, CK_ULONG len,
                   CK_BYTE *hash, CK_ULONG mech);
 CK_RV get_sha_size(CK_ULONG mech, CK_ULONG *hsize);
 CK_RV get_sha_block_size(CK_ULONG mech, CK_ULONG *bsize);
@@ -493,14 +493,14 @@ CK_RV build_attribute(CK_ATTRIBUTE_TYPE type,
                       const CK_BYTE *data, CK_ULONG data_len,
                       CK_ATTRIBUTE **attr);
 
-CK_RV find_bbool_attribute(CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
+CK_RV find_bbool_attribute(const CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
                            CK_ATTRIBUTE_TYPE type, CK_BBOOL *value);
 
 CK_RV add_pkcs_padding(CK_BYTE *ptr,   // where to start appending
                        CK_ULONG block_size,
                        CK_ULONG data_len, CK_ULONG total_len);
 
-CK_RV strip_pkcs_padding(CK_BYTE *ptr,
+CK_RV strip_pkcs_padding(const CK_BYTE *ptr,
                          CK_ULONG total_len, CK_ULONG *data_len);
 
 
@@ -856,7 +856,7 @@ CK_RV ckm_dh_pkcs_key_pair_gen(STDLL_TokData_t *tokdata,
 
 CK_RV digest_from_kdf(CK_EC_KDF_TYPE kdf, CK_MECHANISM_TYPE *mech);
 
-CK_RV pkcs_get_keytype(CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
+CK_RV pkcs_get_keytype(const CK_ATTRIBUTE *attrs, CK_ULONG attrs_len,
                        CK_MECHANISM_PTR mech, CK_ULONG *type, CK_ULONG *class);
 
 CK_RV ecdh_get_derived_key_size(CK_ULONG prime_len, CK_BYTE *curve_oid,
@@ -1857,7 +1857,7 @@ CK_RV XProcLock(STDLL_TokData_t *tokdata);
 CK_RV XProcUnLock(STDLL_TokData_t *tokdata);
 CK_RV XThreadLock(STDLL_TokData_t *tokdata);
 CK_RV XThreadUnLock(STDLL_TokData_t *tokdata);
-CK_RV CreateXProcLock(char *tokname, STDLL_TokData_t *tokdata);
+CK_RV CreateXProcLock(const char *tokname, STDLL_TokData_t *tokdata);
 CK_RV XProcLock_Init(STDLL_TokData_t *tokdata);
 void CloseXProcLock(STDLL_TokData_t *tokdata);
 

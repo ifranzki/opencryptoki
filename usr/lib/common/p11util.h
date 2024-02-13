@@ -45,7 +45,7 @@ CK_BBOOL is_attribute_attr_array(CK_ATTRIBUTE_TYPE type);
 // Allocates memory on *dst and puts hex dump from ptr
 // with len bytes.
 // *dst must be freed by the caller
-char *p11_ahex_dump(char **dst, CK_BYTE_PTR ptr, CK_ULONG len);
+char *p11_ahex_dump(char **dst, const CK_BYTE *ptr, CK_ULONG len);
 
 /* p11_bigint_trim() - trim a big integer. Returns pointer that is
  *        contained within 'in' + '*size' that represents

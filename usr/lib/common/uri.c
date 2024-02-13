@@ -97,7 +97,7 @@
 
 static const char HEX_CHARS_LOWER[] = "0123456789abcdef";
 
-static char *rfc7512_get_cko(CK_OBJECT_CLASS *class)
+static const char *rfc7512_get_cko(CK_OBJECT_CLASS *class)
 {
     switch (*class) {
     case CKO_CERTIFICATE:

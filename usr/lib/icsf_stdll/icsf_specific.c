@@ -1689,7 +1689,8 @@ done:
     return rc;
 }
 
-static CK_RV check_session_permissions(SESSION * sess, CK_ATTRIBUTE * attrs,
+static CK_RV check_session_permissions(SESSION * sess,
+                                       const CK_ATTRIBUTE * attrs,
                                        CK_ULONG attrs_len)
 {
     CK_RV rc = CKR_OK;
