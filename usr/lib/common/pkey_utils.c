@@ -302,7 +302,7 @@ static inline void s390_flip_endian_64(void *dest, const void *src)
  * Return true if the given template indicates an EC public key,
  * false otherwise.
  */
-CK_BBOOL pkey_is_ec_public_key(TEMPLATE *tmpl)
+CK_BBOOL pkey_is_ec_public_key(const TEMPLATE *tmpl)
 {
     const  CK_ATTRIBUTE *attr = NULL;
     CK_ULONG class;
@@ -386,7 +386,7 @@ done:
  * Returns true if the elliptic curve implied by the given key_obj
  * is supported by CPACF, false otherwise.
  */
-CK_BBOOL pkey_op_ec_curve_supported_by_cpacf(TEMPLATE *tmpl)
+CK_BBOOL pkey_op_ec_curve_supported_by_cpacf(const TEMPLATE *tmpl)
 {
     const CK_ATTRIBUTE *attr = NULL;
     const CK_BYTE *ec_params;
@@ -420,7 +420,7 @@ CK_BBOOL pkey_op_ec_curve_supported_by_cpacf(TEMPLATE *tmpl)
  * is supported by CPACF, false otherwise.
  */
 CK_BBOOL pkey_op_supported_by_cpacf(int msa_level, CK_MECHANISM_TYPE type,
-                                    TEMPLATE *tmpl)
+                                    const TEMPLATE *tmpl)
 {
     switch (type) {
     case CKM_AES_ECB:
@@ -486,7 +486,7 @@ unsigned long get_function_code(CK_ULONG clear_keylen, CK_BYTE encrypt)
  * via the KM-encrypted-AES instruction. The protected key must be
  * available in the key template as CKA_IBM_OPAQUE_PKEY.
  */
-CK_RV pkey_aes_ecb(OBJECT *key_obj, CK_BYTE *in_data,
+CK_RV pkey_aes_ecb(const OBJECT *key_obj, const CK_BYTE *in_data,
                    CK_ULONG in_data_len, CK_BYTE *out_data,
                    CK_ULONG_PTR p_output_data_len, CK_BYTE encrypt)
 {
@@ -557,9 +557,10 @@ done:
 /**
  * Performs an AES-CBC operation via CPACF using a protected key.
  */
-CK_RV pkey_aes_cbc(OBJECT *key_obj, CK_BYTE *iv,
-                   CK_BYTE *in_data, CK_ULONG in_data_len, CK_BYTE *out_data,
-                   CK_ULONG_PTR p_output_data_len, CK_BYTE encrypt)
+CK_RV pkey_aes_cbc(const OBJECT *key_obj, CK_BYTE *iv,
+                   const CK_BYTE *in_data, CK_ULONG in_data_len,
+                   CK_BYTE *out_data, CK_ULONG_PTR p_output_data_len,
+                   CK_BYTE encrypt)
 {
     CK_RV ret;
     unsigned long fc;
@@ -656,7 +657,7 @@ static inline void parm_block_lookup_init(struct parm_block_lookup *lookup,
 /**
  * Calculates an AES-CMAC via CPACF using a protected key.
  */
-CK_RV pkey_aes_cmac(OBJECT *key_obj, CK_BYTE *message,
+CK_RV pkey_aes_cmac(const OBJECT *key_obj, const CK_BYTE *message,
                     CK_ULONG message_len, CK_BYTE *cmac, CK_BYTE *iv)
 {
     CK_RV ret;
@@ -810,7 +811,7 @@ struct aes_xts_param {
     unsigned int keylen;
 };
 
-static CK_RV pkey_aes_xts_iv_from_tweak(CK_BYTE *tweak, CK_BYTE* iv,
+static CK_RV pkey_aes_xts_iv_from_tweak(const CK_BYTE *tweak, CK_BYTE* iv,
                                         void *cb_data)
 {
     struct aes_xts_param *param = cb_data;
@@ -831,8 +832,9 @@ static CK_RV pkey_aes_xts_iv_from_tweak(CK_BYTE *tweak, CK_BYTE* iv,
     return CKR_OK;
 }
 
-static CK_RV pkey_aes_xts_cipher_blocks(CK_BYTE *in, CK_BYTE *out, CK_ULONG len,
-                                        CK_BYTE *iv, void *cb_data)
+static CK_RV pkey_aes_xts_cipher_blocks(const CK_BYTE *in, CK_BYTE *out,
+                                        CK_ULONG len, CK_BYTE *iv,
+                                        void *cb_data)
 {
     struct aes_xts_param *param = cb_data;
     int rc;
@@ -853,10 +855,11 @@ static CK_RV pkey_aes_xts_cipher_blocks(CK_BYTE *in, CK_BYTE *out, CK_ULONG len,
 /**
  * Performs an AES-XTS operation via CPACF using a protected key.
  */
-CK_RV pkey_aes_xts(OBJECT *key_obj, CK_BYTE *tweak,
-                   CK_BYTE *in_data, CK_ULONG in_data_len, CK_BYTE *out_data,
-                   CK_ULONG_PTR p_output_data_len, CK_BYTE encrypt,
-                   CK_BBOOL initial, CK_BBOOL final, CK_BYTE *iv)
+CK_RV pkey_aes_xts(const OBJECT *key_obj, const CK_BYTE *tweak,
+                   const CK_BYTE *in_data, CK_ULONG in_data_len,
+                   CK_BYTE *out_data, CK_ULONG_PTR p_output_data_len,
+                   CK_BYTE encrypt, CK_BBOOL initial, CK_BBOOL final,
+                   CK_BYTE *iv)
 {
     CK_RV ret = CKR_OK;
     const CK_ATTRIBUTE *pkey_attr = NULL;
@@ -911,10 +914,10 @@ CK_RV pkey_aes_xts(OBJECT *key_obj, CK_BYTE *tweak,
     param.keylen = keylen;
 
     ret = aes_xts_cipher(in_data, in_data_len, out_data, p_output_data_len,
-                        tweak, encrypt, initial, final, iv,
-                        pkey_aes_xts_iv_from_tweak,
-                        pkey_aes_xts_cipher_blocks,
-                        &param);
+                         tweak, encrypt, initial, final, iv,
+                         pkey_aes_xts_iv_from_tweak,
+                         pkey_aes_xts_cipher_blocks,
+                         &param);
 
     return ret;
 }
@@ -922,7 +925,7 @@ CK_RV pkey_aes_xts(OBJECT *key_obj, CK_BYTE *tweak,
 /**
  * Determine the CPACF curve type from given template.
  */
-cpacf_curve_type_t get_cpacf_curve_type(TEMPLATE *tmpl)
+cpacf_curve_type_t get_cpacf_curve_type(const TEMPLATE *tmpl)
 {
     const CK_BYTE *ec_params;
     const CK_ATTRIBUTE *attr = NULL;
@@ -963,7 +966,8 @@ done:
 /**
  * Sign the given hash via CPACF using the given protected private key.
  */
-CK_RV pkey_ec_sign(OBJECT *privkey, CK_BYTE *hash, CK_ULONG hash_len,
+CK_RV pkey_ec_sign(const OBJECT *privkey,
+                   const CK_BYTE *hash, CK_ULONG hash_len,
                    CK_BYTE *sig, CK_ULONG *sig_len,
                    void (*rng_cb)(unsigned char *, size_t))
 {
@@ -1139,7 +1143,8 @@ done:
  * Note: The original input message is passed to CPACF without being
  * pre-hashed. Hashing is done internally in CPACF.
  */
-CK_RV pkey_ibm_ed_sign(OBJECT *privkey, CK_BYTE *msg, CK_ULONG msg_len,
+CK_RV pkey_ibm_ed_sign(const OBJECT *privkey,
+                       const CK_BYTE *msg, CK_ULONG msg_len,
                        CK_BYTE *sig, CK_ULONG *sig_len)
 {
 #define DEF_EDPARAM(curve, size)      \
@@ -1261,8 +1266,9 @@ done:
 /**
  * Verify the given signature via CPACF using the given public key.
  */
-CK_RV pkey_ec_verify(OBJECT *pubkey, CK_BYTE *hash, CK_ULONG hash_len,
-                     CK_BYTE *sig, CK_ULONG sig_len)
+CK_RV pkey_ec_verify(const OBJECT *pubkey,
+                     const CK_BYTE *hash, CK_ULONG hash_len,
+                     const CK_BYTE *sig, CK_ULONG sig_len)
 {
 #define DEF_PARAM(curve, size)    \
 struct {                          \
@@ -1382,8 +1388,9 @@ done:
  * Note: The original input message is passed to CPACF without being
  * pre-hashed. Hashing is done internally in CPACF.
  */
-CK_RV pkey_ibm_ed_verify(OBJECT *pubkey, CK_BYTE *msg, CK_ULONG msg_len,
-                         CK_BYTE *sig, CK_ULONG sig_len)
+CK_RV pkey_ibm_ed_verify(const OBJECT *pubkey,
+                         const CK_BYTE *msg, CK_ULONG msg_len,
+                         const CK_BYTE *sig, CK_ULONG sig_len)
 {
 #define DEF_EDPARAM(curve, size)    \
 struct {                            \

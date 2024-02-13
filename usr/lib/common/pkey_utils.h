@@ -83,44 +83,49 @@ typedef enum {
 
 int get_msa_level(void);
 
-CK_BBOOL pkey_is_ec_public_key(TEMPLATE *tmpl);
+CK_BBOOL pkey_is_ec_public_key(const TEMPLATE *tmpl);
 
 CK_RV pkey_update_and_save(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                            CK_ATTRIBUTE **attr);
 
 CK_BBOOL pkey_op_supported_by_cpacf(int msa_level, CK_MECHANISM_TYPE type,
-                                    TEMPLATE *tmpl);
+                                    const TEMPLATE *tmpl);
 
-CK_BBOOL pkey_op_ec_curve_supported_by_cpacf(TEMPLATE *tmpl);
+CK_BBOOL pkey_op_ec_curve_supported_by_cpacf(const TEMPLATE *tmpl);
 
-CK_RV pkey_aes_ecb(OBJECT *key, CK_BYTE * in_data,
+CK_RV pkey_aes_ecb(const OBJECT *key, const CK_BYTE *in_data,
                    CK_ULONG in_data_len, CK_BYTE * out_data,
                    CK_ULONG_PTR p_output_data_len, CK_BYTE encrypt);
 
-CK_RV pkey_aes_cbc(OBJECT *key, CK_BYTE *iv,
-                   CK_BYTE *in_data, CK_ULONG in_data_len,
+CK_RV pkey_aes_cbc(const OBJECT *key, CK_BYTE *iv,
+                   const CK_BYTE *in_data, CK_ULONG in_data_len,
                    CK_BYTE *out_data, CK_ULONG_PTR p_output_data_len,
                    CK_BYTE encrypt);
 
-CK_RV pkey_aes_cmac(OBJECT *key_obj, CK_BYTE *message,
+CK_RV pkey_aes_cmac(const OBJECT *key_obj, const CK_BYTE *message,
                     CK_ULONG message_len, CK_BYTE *cmac, CK_BYTE *iv);
 
-CK_RV pkey_aes_xts(OBJECT *key_obj, CK_BYTE *tweak,
-                   CK_BYTE *in_data, CK_ULONG in_data_len, CK_BYTE *out_data,
-                   CK_ULONG_PTR p_output_data_len, CK_BYTE encrypt, CK_BBOOL initial,
+CK_RV pkey_aes_xts(const OBJECT *key_obj, const CK_BYTE *tweak,
+                   const CK_BYTE *in_data, CK_ULONG in_data_len,
+                   CK_BYTE *out_data, CK_ULONG_PTR p_output_data_len,
+                   CK_BYTE encrypt, CK_BBOOL initial,
                    CK_BBOOL final, CK_BYTE *iv);
 
-CK_RV pkey_ec_sign(OBJECT *privkey, CK_BYTE *hash, CK_ULONG hashlen,
+CK_RV pkey_ec_sign(const OBJECT *privkey,
+                   const CK_BYTE *hash, CK_ULONG hashlen,
                    CK_BYTE *sig, CK_ULONG *sig_len,
                    void (*rng_cb)(unsigned char *, size_t));
 
-CK_RV pkey_ibm_ed_sign(OBJECT *privkey, CK_BYTE *msg, CK_ULONG msg_len,
+CK_RV pkey_ibm_ed_sign(const OBJECT *privkey,
+                       const CK_BYTE *msg, CK_ULONG msg_len,
                        CK_BYTE *sig, CK_ULONG *sig_len);
 
-CK_RV pkey_ec_verify(OBJECT *pubkey, CK_BYTE *hash, CK_ULONG hashlen,
-                     CK_BYTE *sig, CK_ULONG sig_len);
+CK_RV pkey_ec_verify(const OBJECT *pubkey,
+                     const CK_BYTE *hash, CK_ULONG hashlen,
+                     const CK_BYTE *sig, CK_ULONG sig_len);
 
-CK_RV pkey_ibm_ed_verify(OBJECT *pubkey, CK_BYTE *msg, CK_ULONG msg_len,
-                         CK_BYTE *sig, CK_ULONG sig_len);
+CK_RV pkey_ibm_ed_verify(const OBJECT *pubkey,
+                         const CK_BYTE *msg, CK_ULONG msg_len,
+                         const CK_BYTE *sig, CK_ULONG sig_len);
 
 #endif

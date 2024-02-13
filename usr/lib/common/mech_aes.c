@@ -4198,13 +4198,13 @@ CK_RV ckm_aes_xts_crypt(STDLL_TokData_t *tokdata, SESSION *sess,
     return rc;
 }
 
-CK_RV aes_xts_cipher(CK_BYTE *in_data, CK_ULONG in_data_len,
+CK_RV aes_xts_cipher(const CK_BYTE *in_data, CK_ULONG in_data_len,
                      CK_BYTE *out_data, CK_ULONG *out_data_len,
-                     CK_BYTE *tweak, CK_BOOL encrypt, CK_BBOOL initial,
+                     const CK_BYTE *tweak, CK_BOOL encrypt, CK_BBOOL initial,
                      CK_BBOOL final, CK_BYTE* iv,
-                     CK_RV (*iv_from_tweak)(CK_BYTE *tweak, CK_BYTE* iv,
+                     CK_RV (*iv_from_tweak)(const CK_BYTE *tweak, CK_BYTE* iv,
                                             void * cb_data),
-                     CK_RV (*cipher_blocks)(CK_BYTE *in, CK_BYTE *out,
+                     CK_RV (*cipher_blocks)(const CK_BYTE *in, CK_BYTE *out,
                                             CK_ULONG len, CK_BYTE *iv,
                                             void * cb_data),
                      void *cb_data)

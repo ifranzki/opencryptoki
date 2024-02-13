@@ -4340,7 +4340,8 @@ struct aes_xts_cb_data {
     EVP_CIPHER_CTX *cipher_ctx;
 };
 
-static CK_RV aes_xts_iv_from_tweak(CK_BYTE *tweak, CK_BYTE* iv, void * cb_data)
+static CK_RV aes_xts_iv_from_tweak(const CK_BYTE *tweak, CK_BYTE* iv,
+                                   void *cb_data)
 {
     struct aes_xts_cb_data *data = cb_data;
 
@@ -4352,8 +4353,8 @@ static CK_RV aes_xts_iv_from_tweak(CK_BYTE *tweak, CK_BYTE* iv, void * cb_data)
     return CKR_OK;
 }
 
-static CK_RV aes_xts_cipher_blocks(CK_BYTE *in, CK_BYTE *out, CK_ULONG len,
-                                   CK_BYTE *iv, void * cb_data)
+static CK_RV aes_xts_cipher_blocks(const CK_BYTE *in, CK_BYTE *out,
+                                   CK_ULONG len, CK_BYTE *iv, void *cb_data)
 {
     struct aes_xts_cb_data *data = cb_data;
     CK_BYTE buf[AES_INIT_VECTOR_SIZE];
