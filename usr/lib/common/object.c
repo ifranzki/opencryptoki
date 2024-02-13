@@ -142,7 +142,7 @@ CK_RV object_create(STDLL_TokData_t * tokdata,
 //
 CK_RV object_copy(STDLL_TokData_t * tokdata, SESSION *sess,
                   CK_ATTRIBUTE * pTemplate,
-                  CK_ULONG ulCount, OBJECT * old_obj, OBJECT ** new_obj)
+                  CK_ULONG ulCount, const OBJECT * old_obj, OBJECT ** new_obj)
 {
     TEMPLATE *tmpl, *new_tmpl;
     OBJECT *o = NULL;
@@ -275,7 +275,7 @@ error:
 
 // object_flatten() - this is still used when saving token objects
 //
-CK_RV object_flatten(OBJECT * obj, CK_BYTE ** data, CK_ULONG * len)
+CK_RV object_flatten(const OBJECT * obj, CK_BYTE ** data, CK_ULONG * len)
 {
     CK_BYTE *buf = NULL;
     CK_ULONG tmpl_len, total_len;
@@ -358,7 +358,7 @@ void call_object_free(void *ptr)
         object_free((OBJECT *) ptr);
 }
 
-CK_BBOOL object_is_modifiable(OBJECT * obj)
+CK_BBOOL object_is_modifiable(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -371,7 +371,7 @@ CK_BBOOL object_is_modifiable(OBJECT * obj)
 
 }
 
-CK_BBOOL object_is_copyable(OBJECT * obj)
+CK_BBOOL object_is_copyable(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -383,7 +383,7 @@ CK_BBOOL object_is_copyable(OBJECT * obj)
     return val;
 }
 
-CK_BBOOL object_is_destroyable(OBJECT * obj)
+CK_BBOOL object_is_destroyable(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -399,7 +399,7 @@ CK_BBOOL object_is_destroyable(OBJECT * obj)
 //
 // an is_private member should probably be added to OBJECT
 //
-CK_BBOOL object_is_private(OBJECT * obj)
+CK_BBOOL object_is_private(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -414,7 +414,7 @@ CK_BBOOL object_is_private(OBJECT * obj)
 
 // object_is_public()
 //
-CK_BBOOL object_is_public(OBJECT * obj)
+CK_BBOOL object_is_public(const OBJECT * obj)
 {
     CK_BBOOL rc;
 
@@ -429,7 +429,7 @@ CK_BBOOL object_is_public(OBJECT * obj)
 
 // object_is_token_object()
 //
-CK_BBOOL object_is_token_object(OBJECT * obj)
+CK_BBOOL object_is_token_object(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -444,7 +444,7 @@ CK_BBOOL object_is_token_object(OBJECT * obj)
 
 // object_is_session_object()
 //
-CK_BBOOL object_is_session_object(OBJECT * obj)
+CK_BBOOL object_is_session_object(const OBJECT * obj)
 {
     CK_BBOOL rc;
 
@@ -458,7 +458,7 @@ CK_BBOOL object_is_session_object(OBJECT * obj)
 
 // object_is_extractable()
 //
-CK_BBOOL object_is_extractable(OBJECT * obj)
+CK_BBOOL object_is_extractable(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -472,7 +472,7 @@ CK_BBOOL object_is_extractable(OBJECT * obj)
 
 // object_is_pkey_extractable()
 //
-CK_BBOOL object_is_pkey_extractable(OBJECT * obj)
+CK_BBOOL object_is_pkey_extractable(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -486,7 +486,7 @@ CK_BBOOL object_is_pkey_extractable(OBJECT * obj)
 
 // object_is_attr_bound()
 //
-CK_BBOOL object_is_attr_bound(OBJECT * obj)
+CK_BBOOL object_is_attr_bound(const OBJECT * obj)
 {
     CK_BBOOL val;
     CK_RV rc;
@@ -500,7 +500,7 @@ CK_BBOOL object_is_attr_bound(OBJECT * obj)
 
 // object_get_size()
 //
-CK_ULONG object_get_size(OBJECT * obj)
+CK_ULONG object_get_size(const OBJECT * obj)
 {
     CK_ULONG size;
 
@@ -569,7 +569,7 @@ static CK_RV object_get_attribute_array(const CK_ATTRIBUTE *array_attr,
 
 //
 //
-CK_RV object_get_attribute_values(OBJECT * obj,
+CK_RV object_get_attribute_values(const OBJECT * obj,
                                   CK_ATTRIBUTE * pTemplate, CK_ULONG ulCount)
 {
     TEMPLATE *obj_tmpl = NULL;
@@ -633,7 +633,8 @@ CK_RV object_get_attribute_values(OBJECT * obj,
 //
 CK_RV object_set_attribute_values(STDLL_TokData_t * tokdata, SESSION *sess,
                                   OBJECT * obj,
-                                  CK_ATTRIBUTE * pTemplate, CK_ULONG ulCount)
+                                  const CK_ATTRIBUTE * pTemplate,
+                                  CK_ULONG ulCount)
 {
     TEMPLATE *new_tmpl = NULL;
     CK_BBOOL found;
@@ -714,7 +715,7 @@ error:
 //Modified object_restore to prevent buffer overflow
 //If data_size=-1, won't do bounds checking
 CK_RV object_restore_withSize(struct policy *policy,
-                              CK_BYTE * data, OBJECT ** new_obj,
+                              const CK_BYTE * data, OBJECT ** new_obj,
                               CK_BBOOL replace, int data_size,
                               const char *fname)
 {
@@ -829,7 +830,7 @@ error:
 //
 //
 CK_RV object_create_skel(STDLL_TokData_t * tokdata,
-                         CK_ATTRIBUTE * pTemplate,
+                         const CK_ATTRIBUTE * pTemplate,
                          CK_ULONG ulCount,
                          CK_ULONG mode,
                          CK_ULONG class, CK_ULONG subclass, OBJECT ** obj)

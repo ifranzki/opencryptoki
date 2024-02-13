@@ -45,15 +45,16 @@
 
 extern void set_perm(int);
 
-CK_RV restore_private_token_object_old(STDLL_TokData_t *tokdata, CK_BYTE *data,
+CK_RV restore_private_token_object_old(STDLL_TokData_t *tokdata,
+                                       const CK_BYTE *data,
                                        CK_ULONG len, OBJECT *pObj,
                                        const char *fname);
 CK_RV reload_token_object_old(STDLL_TokData_t *tokdata, OBJECT *obj);
-CK_RV save_public_token_object_old(STDLL_TokData_t *tokdata, OBJECT *obj);
+CK_RV save_public_token_object_old(STDLL_TokData_t *tokdata, const OBJECT *obj);
 CK_RV load_public_token_objects_old(STDLL_TokData_t *tokdata);
 
 static int get_token_object_path(char *buf, size_t buflen,
-                                 STDLL_TokData_t *tokdata, char *path)
+                                 STDLL_TokData_t *tokdata, const char *path)
 {
     if (ock_snprintf(buf, buflen, "%s/" PK_LITE_OBJ_DIR "/%s",
                      tokdata->data_store, path) != 0) {
@@ -64,8 +65,8 @@ static int get_token_object_path(char *buf, size_t buflen,
 }
 
 static FILE *open_token_object_path(char *buf, size_t buflen,
-                                    STDLL_TokData_t *tokdata, char *path,
-                                    char *mode)
+                                    STDLL_TokData_t *tokdata, const char *path,
+                                    const char *mode)
 {
     if (get_token_object_path(buf, buflen, tokdata, path) < 0)
         return NULL;
@@ -73,7 +74,7 @@ static FILE *open_token_object_path(char *buf, size_t buflen,
 }
 
 static int get_token_data_store_path(char *buf, size_t buflen,
-                                     STDLL_TokData_t *tokdata, char *path)
+                                     STDLL_TokData_t *tokdata, const char *path)
 {
     if (ock_snprintf(buf, buflen, "%s/%s", tokdata->data_store, path)) {
         TRACE_ERROR("buffer overflow for path %s", path);
@@ -83,8 +84,8 @@ static int get_token_data_store_path(char *buf, size_t buflen,
 }
 
 static FILE *open_token_data_store_path(char *buf, size_t buflen,
-                                        STDLL_TokData_t *tokdata, char *path,
-                                        char *mode)
+                                        STDLL_TokData_t *tokdata,
+                                        const char *path, const char *mode)
 {
     if (get_token_data_store_path(buf, buflen, tokdata, path) < 0)
         return NULL;
@@ -92,13 +93,13 @@ static FILE *open_token_data_store_path(char *buf, size_t buflen,
 }
 
 static FILE *open_token_object_index(char *buf, size_t buflen,
-                                     STDLL_TokData_t *tokdata, char *mode)
+                                     STDLL_TokData_t *tokdata, const char *mode)
 {
     return open_token_object_path(buf, buflen, tokdata, PK_LITE_OBJ_IDX, mode);
 }
 
 static FILE *open_token_nvdat(char *buf, size_t buflen,
-                              STDLL_TokData_t *tokdata, char *mode)
+                              STDLL_TokData_t *tokdata, const char *mode)
 {
     if (ock_snprintf(buf, buflen, "%s/" PK_LITE_NV, tokdata->data_store)) {
         TRACE_ERROR("NVDAT.TOK file name buffer overflow\n");
@@ -153,7 +154,7 @@ error:
 // Note: The token lock (XProcLock) must be held when calling this function.
 // The object must hold the READ lock when this function is called.
 //
-CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
+CK_RV save_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj)
 {
     FILE *fp = NULL;
     char line[256];
@@ -201,7 +202,7 @@ CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
 //
 // Note: The token lock (XProcLock) must be held when calling this function.
 //
-CK_RV delete_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
+CK_RV delete_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj)
 {
     FILE *fp1, *fp2;
     char objidx[PATH_MAX], idxtmp[PATH_MAX], fname[PATH_MAX], line[256];
@@ -292,7 +293,7 @@ done:
     return rc;
 }
 
-CK_RV init_data_store(STDLL_TokData_t *tokdata, char *directory,
+CK_RV init_data_store(STDLL_TokData_t *tokdata, const char *directory,
                       char *data_store, size_t len)
 {
     char *pkdir;
@@ -392,9 +393,10 @@ done:
 }
 
 static CK_RV encrypt_data_with_clear_key(STDLL_TokData_t *tokdata,
-                                         CK_BYTE *key, CK_ULONG keylen,
+                                         const CK_BYTE *key, CK_ULONG keylen,
                                          const CK_BYTE *iv,
-                                         CK_BYTE *clear, CK_ULONG clear_len,
+                                         const CK_BYTE *clear,
+                                         CK_ULONG clear_len,
                                          CK_BYTE *cipher,
                                          CK_ULONG *p_cipher_len,
                                          CK_BBOOL mk_crypt)
@@ -449,9 +451,10 @@ static CK_RV encrypt_data_with_clear_key(STDLL_TokData_t *tokdata,
 }
 
 static CK_RV decrypt_data_with_clear_key(STDLL_TokData_t *tokdata,
-                                         CK_BYTE *key, CK_ULONG keylen,
+                                         const CK_BYTE *key, CK_ULONG keylen,
                                          const CK_BYTE *iv,
-                                         CK_BYTE *cipher, CK_ULONG cipher_len,
+                                         const CK_BYTE *cipher,
+                                         CK_ULONG cipher_len,
                                          CK_BYTE *clear,
                                          CK_ULONG *p_clear_len,
                                          CK_BBOOL mk_crypt)
@@ -640,7 +643,8 @@ out_nolock:
 //
 // Note: The token lock (XProcLock) must be held when calling this function.
 //
-static CK_RV save_private_token_object_old(STDLL_TokData_t *tokdata, OBJECT *obj)
+static CK_RV save_private_token_object_old(STDLL_TokData_t *tokdata,
+                                           const OBJECT *obj)
 {
     FILE *fp = NULL;
     CK_BYTE *obj_data = NULL;
@@ -1356,7 +1360,8 @@ CK_RV generate_master_key_old(STDLL_TokData_t *tokdata, CK_BYTE *key)
     return CKR_OK;
 }
 
-CK_RV restore_private_token_object_old(STDLL_TokData_t *tokdata, CK_BYTE *data,
+CK_RV restore_private_token_object_old(STDLL_TokData_t *tokdata,
+                                       const CK_BYTE *data,
                                        CK_ULONG len, OBJECT *pObj,
                                        const char *fname)
 {
@@ -1551,7 +1556,7 @@ done:
 // clear
 // Note: The token lock (XProcLock) must be held when calling this function.
 //
-CK_RV save_public_token_object_old(STDLL_TokData_t *tokdata, OBJECT * obj)
+CK_RV save_public_token_object_old(STDLL_TokData_t *tokdata, const OBJECT *obj)
 {
     FILE *fp = NULL;
     CK_BYTE *clear = NULL;
@@ -2319,7 +2324,7 @@ static inline int inc32(unsigned char ctr[4])
 //
 // Note: The token lock (XProcLock) must be held when calling this function.
 //
-CK_RV save_private_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
+CK_RV save_private_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj)
 {
     FILE *fp = NULL;
     CK_BYTE *obj_data = NULL;
@@ -2575,9 +2580,9 @@ error:
 //
 //
 CK_RV restore_private_token_object(STDLL_TokData_t *tokdata,
-                                   CK_BYTE *header,
-                                   CK_BYTE *data, CK_ULONG len,
-                                   CK_BYTE *footer,
+                                   const CK_BYTE *header,
+                                   const CK_BYTE *data, CK_ULONG len,
+                                   const CK_BYTE *footer,
                                    OBJECT *pObj,
                                    const char *fname)
 {
@@ -2739,7 +2744,7 @@ done:
 //
 // Note: The token lock (XProcLock) must be held when calling this function.
 //
-CK_RV save_public_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
+CK_RV save_public_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj)
 {
     FILE *fp = NULL;
     CK_BYTE *clear = NULL;

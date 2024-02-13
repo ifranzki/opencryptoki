@@ -412,9 +412,9 @@ CK_RV dp_x9dh_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dp_x9dh_validate_attribute(const TEMPLATE *tmpl,
                                  const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
-CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj);
-CK_RV save_private_token_object(STDLL_TokData_t *tokdata, OBJECT *obj);
-CK_RV save_public_token_object(STDLL_TokData_t *tokdata, OBJECT *obj);
+CK_RV save_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj);
+CK_RV save_private_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj);
+CK_RV save_public_token_object(STDLL_TokData_t *tokdata, const OBJECT *obj);
 
 CK_RV load_public_token_objects(STDLL_TokData_t *tokdata);
 CK_RV load_private_token_objects(STDLL_TokData_t *tokdata);
@@ -422,13 +422,13 @@ CK_RV load_private_token_objects(STDLL_TokData_t *tokdata);
 CK_RV reload_token_object(STDLL_TokData_t *tokdata, OBJECT *obj);
 
 CK_RV restore_private_token_object(STDLL_TokData_t *tokdata,
-                                   CK_BYTE *header,
-                                   CK_BYTE *data, CK_ULONG len,
-                                   CK_BYTE *footer,
+                                   const CK_BYTE *header,
+                                   const CK_BYTE *data, CK_ULONG len,
+                                   const CK_BYTE *footer,
                                    OBJECT *pObj,
                                    const char *fname);
 
-CK_RV delete_token_object(STDLL_TokData_t *tokdata, OBJECT *ptr);
+CK_RV delete_token_object(STDLL_TokData_t *tokdata, const OBJECT *ptr);
 CK_RV delete_token_data(STDLL_TokData_t *tokdata);
 
 char *get_pk_dir(STDLL_TokData_t *tokdata, char *, size_t);
@@ -444,7 +444,7 @@ CK_RV save_masterkey_user(STDLL_TokData_t *tokdata);
 
 CK_RV generate_master_key(STDLL_TokData_t *tokdata, CK_BYTE *key);
 
-CK_RV init_data_store(STDLL_TokData_t *tokdata, char *directory,
+CK_RV init_data_store(STDLL_TokData_t *tokdata, const char *directory,
                       char *data_store, size_t len);
 void final_data_store(STDLL_TokData_t * tokdata);
 
@@ -2351,44 +2351,45 @@ CK_RV object_create(STDLL_TokData_t *tokdata,
                     CK_ATTRIBUTE *pTemplate, CK_ULONG ulCount, OBJECT **obj);
 
 CK_RV object_create_skel(STDLL_TokData_t *tokdata,
-                         CK_ATTRIBUTE *pTemplate,
+                         const CK_ATTRIBUTE *pTemplate,
                          CK_ULONG ulCount,
                          CK_ULONG mode,
                          CK_ULONG class, CK_ULONG subclass, OBJECT **key);
 
 CK_RV object_copy(STDLL_TokData_t *tokdata, SESSION *sess,
                   CK_ATTRIBUTE *pTemplate,
-                  CK_ULONG ulCount, OBJECT *old_obj, OBJECT **new_obj);
+                  CK_ULONG ulCount, const OBJECT *old_obj, OBJECT **new_obj);
 
-CK_RV object_flatten(OBJECT *obj, CK_BYTE **data, CK_ULONG *len);
+CK_RV object_flatten(const OBJECT *obj, CK_BYTE **data, CK_ULONG *len);
 
 void object_free(OBJECT *obj);
 
 void call_object_free(void *ptr);
 
-CK_RV object_get_attribute_values(OBJECT *obj,
+CK_RV object_get_attribute_values(const OBJECT *obj,
                                   CK_ATTRIBUTE *pTemplate, CK_ULONG count);
 
-CK_ULONG object_get_size(OBJECT *obj);
+CK_ULONG object_get_size(const OBJECT *obj);
 
-CK_RV object_restore_withSize(struct policy *policy, CK_BYTE *data,
+CK_RV object_restore_withSize(struct policy *policy, const CK_BYTE *data,
                               OBJECT **obj, CK_BBOOL replace, int data_size,
                               const char *fname);
 
 CK_RV object_set_attribute_values(STDLL_TokData_t *tokdata, SESSION *sess,
                                   OBJECT *obj,
-                                  CK_ATTRIBUTE *pTemplate, CK_ULONG ulCount);
+                                  const CK_ATTRIBUTE *pTemplate,
+                                  CK_ULONG ulCount);
 
-CK_BBOOL object_is_modifiable(OBJECT *obj);
-CK_BBOOL object_is_copyable(OBJECT *obj);
-CK_BBOOL object_is_destroyable(OBJECT *obj);
-CK_BBOOL object_is_private(OBJECT *obj);
-CK_BBOOL object_is_public(OBJECT *obj);
-CK_BBOOL object_is_token_object(OBJECT *obj);
-CK_BBOOL object_is_session_object(OBJECT *obj);
-CK_BBOOL object_is_extractable(OBJECT *obj);
-CK_BBOOL object_is_pkey_extractable(OBJECT *obj);
-CK_BBOOL object_is_attr_bound(OBJECT *obj);
+CK_BBOOL object_is_modifiable(const OBJECT *obj);
+CK_BBOOL object_is_copyable(const OBJECT *obj);
+CK_BBOOL object_is_destroyable(const OBJECT *obj);
+CK_BBOOL object_is_private(const OBJECT *obj);
+CK_BBOOL object_is_public(const OBJECT *obj);
+CK_BBOOL object_is_token_object(const OBJECT *obj);
+CK_BBOOL object_is_session_object(const OBJECT *obj);
+CK_BBOOL object_is_extractable(const OBJECT *obj);
+CK_BBOOL object_is_pkey_extractable(const OBJECT *obj);
+CK_BBOOL object_is_attr_bound(const OBJECT *obj);
 
 CK_RV object_init_lock(OBJECT *obj);
 CK_RV object_destroy_lock(OBJECT *obj);
