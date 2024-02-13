@@ -215,46 +215,49 @@ struct token_specific_struct {
     CK_RV(*t_aes_xts_key_gen) (STDLL_TokData_t *, TEMPLATE *, CK_BYTE **,
                                CK_ULONG *, CK_ULONG, CK_BBOOL *);
 
-    CK_RV(*t_aes_ecb) (STDLL_TokData_t *tokdata, SESSION *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_aes_ecb) (STDLL_TokData_t *tokdata, SESSION *,
+                       const CK_BYTE *, CK_ULONG,
                        CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE);
 
-    CK_RV(*t_aes_cbc) (STDLL_TokData_t *tokdata, SESSION *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_aes_cbc) (STDLL_TokData_t *tokdata, SESSION *,
+                       const CK_BYTE *, CK_ULONG,
                        CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE *, CK_BYTE);
 
-    CK_RV(*t_aes_ctr) (STDLL_TokData_t *tokdata, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_aes_ctr) (STDLL_TokData_t *tokdata, const CK_BYTE *, CK_ULONG,
                        CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE *, CK_ULONG,
                        CK_BYTE);
 
     CK_RV(*t_aes_gcm_init) (STDLL_TokData_t *, SESSION *,
-                            ENCR_DECR_CONTEXT *, CK_MECHANISM *,
+                            ENCR_DECR_CONTEXT *, const CK_MECHANISM *,
                             CK_OBJECT_HANDLE, CK_BYTE);
 
     CK_RV(*t_aes_gcm) (STDLL_TokData_t *, SESSION *, ENCR_DECR_CONTEXT *,
-                       CK_BYTE *, CK_ULONG, CK_BYTE *, CK_ULONG *, CK_BYTE);
+                       const CK_BYTE *, CK_ULONG, CK_BYTE *, CK_ULONG *,
+                       CK_BYTE);
 
     CK_RV(*t_aes_gcm_update) (STDLL_TokData_t *, SESSION *,
-                              ENCR_DECR_CONTEXT *, CK_BYTE *,
+                              ENCR_DECR_CONTEXT *, const CK_BYTE *,
                               CK_ULONG, CK_BYTE *, CK_ULONG *, CK_BYTE);
 
     CK_RV(*t_aes_gcm_final) (STDLL_TokData_t *, SESSION *,
                              ENCR_DECR_CONTEXT *, CK_BYTE *,
                              CK_ULONG *, CK_BYTE);
 
-    CK_RV(*t_aes_ofb) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG, CK_BYTE *,
+    CK_RV(*t_aes_ofb) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG, CK_BYTE *,
                        OBJECT *, CK_BYTE *, uint_32);
 
-    CK_RV(*t_aes_cfb) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG, CK_BYTE *,
+    CK_RV(*t_aes_cfb) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG, CK_BYTE *,
                        OBJECT *, CK_BYTE *, uint_32, uint_32);
 
-    CK_RV(*t_aes_mac) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG, OBJECT *,
+    CK_RV(*t_aes_mac) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG, OBJECT *,
                        CK_BYTE *);
 
-    CK_RV(*t_aes_cmac) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG, OBJECT *,
+    CK_RV(*t_aes_cmac) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG, OBJECT *,
                         CK_BYTE *, CK_BBOOL, CK_BBOOL, CK_VOID_PTR *);
 
-    CK_RV(*t_aes_xts) (STDLL_TokData_t *tokdata, SESSION *, CK_BYTE *, CK_ULONG,
-                       CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE *, CK_BBOOL,
-                       CK_BBOOL, CK_BBOOL, CK_BYTE*);
+    CK_RV(*t_aes_xts) (STDLL_TokData_t *tokdata, SESSION *, const CK_BYTE *,
+                       CK_ULONG, CK_BYTE *, CK_ULONG *, OBJECT *,
+                       const CK_BYTE *, CK_BBOOL, CK_BBOOL, CK_BBOOL, CK_BYTE*);
 
     // Token Specific DSA functions
     CK_RV(*t_dsa_generate_keypair) (STDLL_TokData_t *, TEMPLATE *, TEMPLATE *);

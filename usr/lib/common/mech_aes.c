@@ -31,7 +31,7 @@ CK_RV aes_ecb_encrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -83,7 +83,7 @@ CK_RV aes_ecb_decrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -138,7 +138,7 @@ CK_RV aes_cbc_encrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -192,7 +192,7 @@ CK_RV aes_cbc_decrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -246,7 +246,7 @@ CK_RV aes_cbc_pad_encrypt(STDLL_TokData_t *tokdata,
                           SESSION *sess,
                           CK_BBOOL length_only,
                           ENCR_DECR_CONTEXT *ctx,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -315,7 +315,7 @@ CK_RV aes_cbc_pad_decrypt(STDLL_TokData_t *tokdata,
                           SESSION *sess,
                           CK_BBOOL length_only,
                           ENCR_DECR_CONTEXT *ctx,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -386,7 +386,7 @@ CK_RV aes_ctr_encrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -440,7 +440,7 @@ CK_RV aes_ctr_decrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -493,7 +493,7 @@ static CK_RV aes_xts_crypt(STDLL_TokData_t *tokdata,
                            CK_BBOOL length_only,
                            CK_BBOOL encrypt,
                            ENCR_DECR_CONTEXT *ctx,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -547,7 +547,7 @@ CK_RV aes_xts_encrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -559,7 +559,7 @@ CK_RV aes_xts_decrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -573,7 +573,7 @@ CK_RV aes_ecb_encrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -657,7 +657,7 @@ CK_RV aes_ecb_decrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -740,7 +740,7 @@ CK_RV aes_cbc_encrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -831,7 +831,7 @@ CK_RV aes_cbc_decrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -924,7 +924,7 @@ CK_RV aes_cbc_pad_encrypt_update(STDLL_TokData_t *tokdata,
                                  SESSION *sess,
                                  CK_BBOOL length_only,
                                  ENCR_DECR_CONTEXT *ctx,
-                                 CK_BYTE *in_data,
+                                 const CK_BYTE *in_data,
                                  CK_ULONG in_data_len,
                                  CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1025,7 +1025,7 @@ CK_RV aes_cbc_pad_decrypt_update(STDLL_TokData_t *tokdata,
                                  SESSION *sess,
                                  CK_BBOOL length_only,
                                  ENCR_DECR_CONTEXT *ctx,
-                                 CK_BYTE *in_data,
+                                 const CK_BYTE *in_data,
                                  CK_ULONG in_data_len,
                                  CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1124,7 +1124,7 @@ CK_RV aes_ctr_encrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1200,7 +1200,7 @@ CK_RV aes_ctr_decrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1275,7 +1275,7 @@ static CK_RV aes_xts_crypt_update(STDLL_TokData_t *tokdata,
                                   CK_BBOOL length_only,
                                   CK_BBOOL encrypt,
                                   ENCR_DECR_CONTEXT *ctx,
-                                  CK_BYTE *in_data,
+                                  const CK_BYTE *in_data,
                                   CK_ULONG in_data_len,
                                   CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1379,7 +1379,7 @@ CK_RV aes_xts_encrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1391,7 +1391,7 @@ CK_RV aes_xts_decrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1817,7 +1817,7 @@ CK_RV aes_ofb_encrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1861,7 +1861,7 @@ CK_RV aes_ofb_encrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1999,7 +1999,7 @@ CK_RV aes_ofb_decrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -2043,7 +2043,7 @@ CK_RV aes_ofb_decrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -2182,7 +2182,7 @@ CK_RV aes_cfb_encrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data,
                       CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -2227,7 +2227,7 @@ CK_RV aes_cfb_encrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data,
                              CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -2368,7 +2368,7 @@ CK_RV aes_cfb_decrypt(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       CK_BBOOL length_only,
                       ENCR_DECR_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
                       CK_BYTE *out_data,
                       CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -2413,7 +2413,7 @@ CK_RV aes_cfb_decrypt_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              CK_BBOOL length_only,
                              ENCR_DECR_CONTEXT *ctx,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data,
                              CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -2555,7 +2555,7 @@ CK_RV aes_mac_sign(STDLL_TokData_t *tokdata,
                    SESSION *sess,
                    CK_BBOOL length_only,
                    SIGN_VERIFY_CONTEXT *ctx,
-                   CK_BYTE *in_data,
+                   const CK_BYTE *in_data,
                    CK_ULONG in_data_len,
                    CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -2622,7 +2622,7 @@ CK_RV aes_mac_sign(STDLL_TokData_t *tokdata,
 CK_RV aes_mac_sign_update(STDLL_TokData_t *tokdata,
                           SESSION *sess,
                           SIGN_VERIFY_CONTEXT *ctx,
-                          CK_BYTE *in_data, CK_ULONG in_data_len)
+                          const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2761,9 +2761,9 @@ CK_RV aes_mac_sign_final(STDLL_TokData_t *tokdata,
 CK_RV aes_mac_verify(STDLL_TokData_t *tokdata,
                      SESSION *sess,
                      SIGN_VERIFY_CONTEXT *ctx,
-                     CK_BYTE *in_data,
+                     const CK_BYTE *in_data,
                      CK_ULONG in_data_len,
-                     CK_BYTE *out_data, CK_ULONG out_data_len)
+                     const CK_BYTE *out_data, CK_ULONG out_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2827,7 +2827,7 @@ CK_RV aes_mac_verify(STDLL_TokData_t *tokdata,
 CK_RV aes_mac_verify_update(STDLL_TokData_t *tokdata,
                             SESSION *sess,
                             SIGN_VERIFY_CONTEXT *ctx,
-                            CK_BYTE *in_data, CK_ULONG in_data_len)
+                            const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2894,7 +2894,7 @@ done:
 CK_RV aes_mac_verify_final(STDLL_TokData_t *tokdata,
                            SESSION *sess,
                            SIGN_VERIFY_CONTEXT *ctx,
-                           CK_BYTE *signature, CK_ULONG signature_len)
+                           const CK_BYTE *signature, CK_ULONG signature_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2979,7 +2979,7 @@ CK_RV aes_cmac_sign(STDLL_TokData_t *tokdata,
                     SESSION *sess,
                     CK_BBOOL length_only,
                     SIGN_VERIFY_CONTEXT *ctx,
-                    CK_BYTE *in_data,
+                    const CK_BYTE *in_data,
                     CK_ULONG in_data_len,
                     CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -3044,7 +3044,7 @@ done:
 CK_RV aes_cmac_sign_update(STDLL_TokData_t *tokdata,
                            SESSION *sess,
                            SIGN_VERIFY_CONTEXT *ctx,
-                           CK_BYTE *in_data, CK_ULONG in_data_len)
+                           const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -3189,9 +3189,9 @@ done:
 CK_RV aes_cmac_verify(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       SIGN_VERIFY_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
-                      CK_BYTE *out_data, CK_ULONG out_data_len)
+                      const CK_BYTE *out_data, CK_ULONG out_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -3252,7 +3252,7 @@ CK_RV aes_cmac_verify(STDLL_TokData_t *tokdata,
 CK_RV aes_cmac_verify_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              SIGN_VERIFY_CONTEXT *ctx,
-                             CK_BYTE *in_data, CK_ULONG in_data_len)
+                             const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -3330,7 +3330,7 @@ done:
 CK_RV aes_cmac_verify_final(STDLL_TokData_t *tokdata,
                             SESSION *sess,
                             SIGN_VERIFY_CONTEXT *ctx,
-                            CK_BYTE *signature, CK_ULONG signature_len)
+                            const CK_BYTE *signature, CK_ULONG signature_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -3390,7 +3390,7 @@ CK_RV aes_cmac_verify_final(STDLL_TokData_t *tokdata,
 
 
 CK_RV aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                   ENCR_DECR_CONTEXT *ctx, CK_MECHANISM *mech,
+                   ENCR_DECR_CONTEXT *ctx, const CK_MECHANISM *mech,
                    CK_OBJECT_HANDLE key, CK_BYTE direction)
 {
     if (token_specific.t_aes_gcm_init == NULL) {
@@ -3404,7 +3404,7 @@ CK_RV aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
 
 CK_RV aes_gcm_encrypt(STDLL_TokData_t *tokdata, SESSION *sess,
                       CK_BBOOL length_only,
-                      ENCR_DECR_CONTEXT *ctx, CK_BYTE *in_data,
+                      ENCR_DECR_CONTEXT *ctx, const CK_BYTE *in_data,
                       CK_ULONG in_data_len, CK_BYTE *out_data,
                       CK_ULONG *out_data_len)
 {
@@ -3448,7 +3448,7 @@ CK_RV aes_gcm_encrypt(STDLL_TokData_t *tokdata, SESSION *sess,
 
 CK_RV aes_gcm_encrypt_update(STDLL_TokData_t *tokdata, SESSION *sess,
                              CK_BBOOL length_only,
-                             ENCR_DECR_CONTEXT *ctx, CK_BYTE *in_data,
+                             ENCR_DECR_CONTEXT *ctx, const CK_BYTE *in_data,
                              CK_ULONG in_data_len, CK_BYTE *out_data,
                              CK_ULONG *out_data_len)
 {
@@ -3541,7 +3541,7 @@ CK_RV aes_gcm_encrypt_final(STDLL_TokData_t *tokdata, SESSION *sess,
 
 CK_RV aes_gcm_decrypt(STDLL_TokData_t *tokdata, SESSION *sess,
                       CK_BBOOL length_only,
-                      ENCR_DECR_CONTEXT *ctx, CK_BYTE *in_data,
+                      ENCR_DECR_CONTEXT *ctx, const CK_BYTE *in_data,
                       CK_ULONG in_data_len, CK_BYTE *out_data,
                       CK_ULONG *out_data_len)
 {
@@ -3583,7 +3583,7 @@ CK_RV aes_gcm_decrypt(STDLL_TokData_t *tokdata, SESSION *sess,
 
 CK_RV aes_gcm_decrypt_update(STDLL_TokData_t *tokdata, SESSION *sess,
                              CK_BBOOL length_only,
-                             ENCR_DECR_CONTEXT *ctx, CK_BYTE *in_data,
+                             ENCR_DECR_CONTEXT *ctx, const CK_BYTE *in_data,
                              CK_ULONG in_data_len, CK_BYTE *out_data,
                              CK_ULONG *out_data_len)
 {
@@ -3674,7 +3674,7 @@ CK_RV aes_gcm_decrypt_final(STDLL_TokData_t *tokdata, SESSION *sess,
     return rc;
 }
 
-CK_RV aes_gcm_dup_param(CK_GCM_PARAMS *from, CK_GCM_PARAMS *to)
+CK_RV aes_gcm_dup_param(const CK_GCM_PARAMS *from, CK_GCM_PARAMS *to)
 {
     if (from == NULL || to == NULL)
         return CKR_ARGUMENTS_BAD;
@@ -3899,7 +3899,7 @@ err:
 //
 CK_RV ckm_aes_ecb_encrypt(STDLL_TokData_t *tokdata,
                           SESSION *sess,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data,
                           CK_ULONG *out_data_len, OBJECT *key)
@@ -3933,7 +3933,7 @@ CK_RV ckm_aes_ecb_encrypt(STDLL_TokData_t *tokdata,
 //
 CK_RV ckm_aes_ecb_decrypt(STDLL_TokData_t *tokdata,
                           SESSION *sess,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data,
                           CK_ULONG *out_data_len, OBJECT *key)
@@ -3969,7 +3969,7 @@ CK_RV ckm_aes_ecb_decrypt(STDLL_TokData_t *tokdata,
 //
 CK_RV ckm_aes_cbc_encrypt(STDLL_TokData_t *tokdata,
                           SESSION *sess,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data,
                           CK_ULONG *out_data_len,
@@ -4006,7 +4006,7 @@ CK_RV ckm_aes_cbc_encrypt(STDLL_TokData_t *tokdata,
 //
 CK_RV ckm_aes_cbc_decrypt(STDLL_TokData_t *tokdata,
                           SESSION *sess,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data,
                           CK_ULONG *out_data_len,
@@ -4040,7 +4040,7 @@ CK_RV ckm_aes_cbc_decrypt(STDLL_TokData_t *tokdata,
 //
 //
 CK_RV ckm_aes_ctr_encrypt(STDLL_TokData_t *tokdata,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data,
                           CK_ULONG *out_data_len,
@@ -4079,7 +4079,7 @@ CK_RV ckm_aes_ctr_encrypt(STDLL_TokData_t *tokdata,
 //
 //
 CK_RV ckm_aes_ctr_decrypt(STDLL_TokData_t *tokdata,
-                          CK_BYTE *in_data,
+                          const CK_BYTE *in_data,
                           CK_ULONG in_data_len,
                           CK_BYTE *out_data,
                           CK_ULONG *out_data_len,
@@ -4163,11 +4163,11 @@ CK_RV ckm_aes_wrap_format(STDLL_TokData_t *tokdata,
 }
 
 CK_RV ckm_aes_xts_crypt(STDLL_TokData_t *tokdata, SESSION *sess,
-                        CK_BYTE *in_data,
+                        const CK_BYTE *in_data,
                         CK_ULONG in_data_len,
                         CK_BYTE *out_data,
                         CK_ULONG *out_data_len,
-                        CK_BYTE *tweak, OBJECT *key,
+                        const CK_BYTE *tweak, OBJECT *key,
                         CK_BBOOL initial, CK_BBOOL final,
                         CK_BYTE *iv, CK_BBOOL encrypt)
 {

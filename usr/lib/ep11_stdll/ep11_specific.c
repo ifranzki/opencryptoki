@@ -5909,7 +5909,7 @@ CK_RV token_specific_reencrypt_single(STDLL_TokData_t *tokdata,
  */
 CK_RV token_specific_aes_ecb(STDLL_TokData_t *tokdata,
                              SESSION *sess,
-                             CK_BYTE *in_data, CK_ULONG in_data_len,
+                             const CK_BYTE *in_data, CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len,
                              OBJECT *key_obj, CK_BYTE encrypt)
 {
@@ -5927,7 +5927,7 @@ CK_RV token_specific_aes_ecb(STDLL_TokData_t *tokdata,
  */
 CK_RV token_specific_aes_cbc(STDLL_TokData_t *tokdata,
                              SESSION *sess,
-                             CK_BYTE *in_data, CK_ULONG in_data_len,
+                             const CK_BYTE *in_data, CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len,
                              OBJECT *key_obj, CK_BYTE *init_v,
                              CK_BYTE encrypt)
@@ -5945,7 +5945,7 @@ CK_RV token_specific_aes_cbc(STDLL_TokData_t *tokdata,
  * fallback here.
  */
 CK_RV token_specific_aes_cmac(STDLL_TokData_t *tokdata,
-                              CK_BYTE *message, CK_ULONG message_len,
+                              const CK_BYTE *message, CK_ULONG message_len,
                               OBJECT *key_obj, CK_BYTE *iv,
                               CK_BBOOL first, CK_BBOOL last,
                               CK_VOID_PTR *context)
@@ -5971,9 +5971,9 @@ CK_RV token_specific_aes_cmac(STDLL_TokData_t *tokdata,
  * fallback here.
  */
 CK_RV token_specific_aes_xts(STDLL_TokData_t *tokdata, SESSION *session,
-                             CK_BYTE *in_data, CK_ULONG in_data_len,
+                             const CK_BYTE *in_data, CK_ULONG in_data_len,
                              CK_BYTE *out_data, CK_ULONG *out_data_len,
-                             OBJECT *key_obj, CK_BYTE *init_v,
+                             OBJECT *key_obj, const CK_BYTE *init_v,
                              CK_BBOOL encrypt, CK_BBOOL initial,
                              CK_BBOOL final, CK_BYTE *iv)
 {
