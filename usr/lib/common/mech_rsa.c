@@ -63,7 +63,7 @@ CK_RV rsa_get_key_info(OBJECT *key_obj, CK_ULONG *mod_bytes,
                        CK_OBJECT_CLASS *keyclass)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
 
     rc = template_attribute_get_non_empty(key_obj->template, CKA_MODULUS,
                                           &attr);

@@ -43,7 +43,7 @@
 #include "attributes.h"
 #include "trace.h"
 
-static CK_ULONG attribute_get_compressed_size(CK_ATTRIBUTE_PTR attr);
+static CK_ULONG attribute_get_compressed_size(const CK_ATTRIBUTE* attr);
 
 /* Random 32 byte string is unique with overwhelming probability. */
 #define UNIQUE_ID_LEN 32
@@ -67,7 +67,7 @@ static CK_RV get_unique_id_str(char unique_id_str[2 * UNIQUE_ID_LEN + 1])
  * blindly add the given attributes to the template. do no sanity checking
  * at this point. sanity checking will occur later.
  */
-CK_RV template_add_attributes(TEMPLATE *tmpl, CK_ATTRIBUTE *pTemplate,
+CK_RV template_add_attributes(TEMPLATE *tmpl, const CK_ATTRIBUTE *pTemplate,
                               CK_ULONG ulCount)
 {
     CK_ATTRIBUTE *attr = NULL;
@@ -134,7 +134,7 @@ CK_RV template_add_attributes(TEMPLATE *tmpl, CK_ATTRIBUTE *pTemplate,
  * Add default attributes to '*tmpl'.
  * '*basetmpl' may be used to derive values to the default attributes
  */
-CK_RV template_add_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
+CK_RV template_add_default_attributes(TEMPLATE *tmpl, const TEMPLATE *basetmpl,
                                       CK_ULONG class, CK_ULONG subclass,
                                       CK_ULONG mode)
 {
@@ -252,11 +252,11 @@ CK_RV template_add_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
  *
  * find the attribute in the list and return its value
  */
-CK_BBOOL template_attribute_find(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
-                                 CK_ATTRIBUTE **attr)
+CK_BBOOL template_attribute_find(const TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
+                                 const CK_ATTRIBUTE **attr)
 {
-    DL_NODE *node = NULL;
-    CK_ATTRIBUTE *a = NULL;
+    const DL_NODE *node = NULL;
+    const CK_ATTRIBUTE *a = NULL;
 
     if (!tmpl || !attr)
         return FALSE;
@@ -286,10 +286,10 @@ CK_BBOOL template_attribute_find(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
  * Returns CKR_ATTRIBUTE_VALUE_INVALID if the attribute value is empty or of
  * invalid size.
  */
-CK_RV template_attribute_get_ulong(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
-                                      CK_ULONG *value)
+CK_RV template_attribute_get_ulong(const TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
+                                   CK_ULONG *value)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BBOOL found;
 
     found = template_attribute_find(tmpl, type, &attr);
@@ -312,10 +312,10 @@ CK_RV template_attribute_get_ulong(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
  * Returns CKR_ATTRIBUTE_VALUE_INVALID if the attribute value is empty or of
  * invalid size.
  */
-CK_RV template_attribute_get_bool(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
+CK_RV template_attribute_get_bool(const TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
                                   CK_BBOOL *value)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BBOOL found;
 
     found = template_attribute_find(tmpl, type, &attr);
@@ -338,8 +338,9 @@ CK_RV template_attribute_get_bool(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
  * Returns CKR_ATTRIBUTE_VALUE_INVALID if the attribute value is empty or of
  * invalid size.
  */
-CK_RV template_attribute_get_non_empty(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
-                                       CK_ATTRIBUTE **attr)
+CK_RV template_attribute_get_non_empty(const TEMPLATE *tmpl,
+                                       CK_ATTRIBUTE_TYPE type,
+                                       const CK_ATTRIBUTE **attr)
 {
     CK_BBOOL found;
 
@@ -362,11 +363,11 @@ CK_RV template_attribute_get_non_empty(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
  *
  * find the attributes in the list and return their values
  */
-void template_attribute_find_multiple(TEMPLATE *tmpl,
+void template_attribute_find_multiple(const TEMPLATE *tmpl,
                                       ATTRIBUTE_PARSE_LIST *parselist,
                                       CK_ULONG plcount)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG i;
     CK_RV rc;
 
@@ -397,7 +398,7 @@ void template_attribute_find_multiple(TEMPLATE *tmpl,
 
 
 /* template_check_required_attributes() */
-CK_RV template_check_required_attributes(TEMPLATE *tmpl, CK_ULONG class,
+CK_RV template_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG class,
                                          CK_ULONG subclass, CK_ULONG mode)
 {
     if (class == CKO_DATA) {
@@ -506,7 +507,8 @@ CK_RV template_check_required_attributes(TEMPLATE *tmpl, CK_ULONG class,
  * present.  does not check to see if the attribute makes sense
  * for the particular object (that is done in the 'validate' routines)
  */
-CK_RV template_check_required_base_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV template_check_required_base_attributes(const TEMPLATE *tmpl,
+                                              CK_ULONG mode)
 {
     CK_ULONG val;
     CK_RV rc;
@@ -519,10 +521,11 @@ CK_RV template_check_required_base_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 }
 
 /* template_compare() */
-CK_BBOOL template_compare(CK_ATTRIBUTE *t1, CK_ULONG ulCount, TEMPLATE *t2)
+CK_BBOOL template_compare(const CK_ATTRIBUTE *t1, CK_ULONG ulCount,
+                          const TEMPLATE *t2)
 {
-    CK_ATTRIBUTE *attr1 = NULL;
-    CK_ATTRIBUTE *attr2 = NULL;
+    const CK_ATTRIBUTE *attr1 = NULL;
+    const CK_ATTRIBUTE *attr2 = NULL;
     CK_ULONG i;
     CK_RV rc;
 
@@ -555,10 +558,11 @@ CK_BBOOL template_compare(CK_ATTRIBUTE *t1, CK_ULONG ulCount, TEMPLATE *t2)
  * be used to copy a list (of unique attributes) but is slower because for
  * each attribute, it must search through the list.
  */
-CK_RV template_copy(TEMPLATE *dest, TEMPLATE *src)
+CK_RV template_copy(TEMPLATE *dest, const TEMPLATE *src)
 {
     char unique_id_str[2 * UNIQUE_ID_LEN + 1];
-    DL_NODE *node, *list;
+    const DL_NODE *node;
+    DL_NODE *list;
     CK_RV rc;
 
     if (!dest || !src) {
@@ -568,7 +572,7 @@ CK_RV template_copy(TEMPLATE *dest, TEMPLATE *src)
     node = src->attribute_list;
 
     while (node) {
-        CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
+        const CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
         CK_ATTRIBUTE *new_attr = NULL;
         CK_ULONG len;
 
@@ -662,7 +666,7 @@ static CK_BBOOL flatten_ulong_attribute_as_ulong32(CK_ATTRIBUTE_TYPE type)
     }
 }
 
-static CK_RV attribute_array_flatten(CK_ATTRIBUTE_PTR array_attr,
+static CK_RV attribute_array_flatten(const CK_ATTRIBUTE *array_attr,
                                      CK_BYTE **dest)
 {
     CK_ULONG_32 long_len = sizeof(CK_ULONG);
@@ -670,7 +674,7 @@ static CK_RV attribute_array_flatten(CK_ATTRIBUTE_PTR array_attr,
     CK_ULONG_32 Val_32;
     CK_ATTRIBUTE attr;
     CK_BYTE *ptr = *dest;
-    CK_ATTRIBUTE_PTR attrs;
+    const CK_ATTRIBUTE *attrs;
     CK_ULONG num_attrs, i;
     CK_RV rc;
 
@@ -754,9 +758,9 @@ static CK_RV attribute_array_flatten(CK_ATTRIBUTE_PTR array_attr,
 /* template_flatten()
  * this still gets used when saving token objects to disk
  */
-CK_RV template_flatten(TEMPLATE *tmpl, CK_BYTE *dest)
+CK_RV template_flatten(const TEMPLATE *tmpl, CK_BYTE *dest)
 {
-    DL_NODE *node = NULL;
+    const DL_NODE *node = NULL;
     CK_BYTE *ptr = NULL;
     CK_ULONG_32 long_len = sizeof(CK_ULONG);
     CK_ATTRIBUTE_32 attr_32;
@@ -770,7 +774,7 @@ CK_RV template_flatten(TEMPLATE *tmpl, CK_BYTE *dest)
     ptr = dest;
     node = tmpl->attribute_list;
     while (node) {
-        CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
+        const CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
 
         if (is_attribute_attr_array(attr->type)) {
             rc = attribute_array_flatten(attr, &ptr);
@@ -817,13 +821,13 @@ CK_RV template_flatten(TEMPLATE *tmpl, CK_BYTE *dest)
     return CKR_OK;
 }
 
-static CK_RV attribute_array_unflatten(CK_BYTE **buf, CK_ATTRIBUTE_PTR *attrs,
+static CK_RV attribute_array_unflatten(const CK_BYTE **buf, CK_ATTRIBUTE_PTR *attrs,
                                        CK_ULONG *num_attrs)
 {
     CK_ULONG_32 long_len = sizeof(CK_ULONG);
-    CK_ATTRIBUTE *a1 = NULL, *a2 = NULL;
+    const CK_ATTRIBUTE *a1 = NULL, *a2 = NULL;
     CK_ATTRIBUTE_32 a1_32, a2_32;
-    CK_BYTE *ptr = *buf;
+    const CK_BYTE *ptr = *buf;
     CK_ULONG ofs = 0, num_elements = 0;
     CK_ATTRIBUTE_PTR elements = NULL;
     CK_ULONG_32 attr_ulong_32;
@@ -942,7 +946,8 @@ error:
     return rc;
 }
 
-CK_RV template_unflatten(TEMPLATE **new_tmpl, CK_BYTE *buf, CK_ULONG count)
+CK_RV template_unflatten(TEMPLATE **new_tmpl, const CK_BYTE *buf,
+                         CK_ULONG count)
 {
     return template_unflatten_withSize(new_tmpl, buf, count, -1);
 }
@@ -951,18 +956,18 @@ CK_RV template_unflatten(TEMPLATE **new_tmpl, CK_BYTE *buf, CK_ULONG count)
  * that buf isn't overread.  buf_size=-1 turns off checking
  * (for backwards compatability)
  */
-CK_RV template_unflatten_withSize(TEMPLATE **new_tmpl, CK_BYTE *buf,
+CK_RV template_unflatten_withSize(TEMPLATE **new_tmpl, const CK_BYTE *buf,
                                   CK_ULONG count, int buf_size)
 {
     TEMPLATE *tmpl = NULL;
     CK_ATTRIBUTE *a2 = NULL;
-    CK_BYTE *ptr = NULL;
+    const CK_BYTE *ptr = NULL;
     CK_ULONG i, len;
     CK_RV rc;
     CK_ULONG_32 long_len = sizeof(CK_ULONG);
     CK_ULONG_32 attr_ulong_32;
     CK_ULONG attr_ulong;
-    CK_ATTRIBUTE *a1 = NULL;
+    const CK_ATTRIBUTE *a1 = NULL;
     CK_ATTRIBUTE_32 a1_32;
     CK_ATTRIBUTE_PTR attrs = NULL;
     CK_ULONG num_attrs = 0;
@@ -1197,10 +1202,10 @@ CK_RV template_free(TEMPLATE *tmpl)
 }
 
 /* template_get_class */
-CK_BBOOL template_get_class(TEMPLATE *tmpl, CK_ULONG *class,
+CK_BBOOL template_get_class(const TEMPLATE *tmpl, CK_ULONG *class,
                             CK_ULONG *subclass)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     CK_BBOOL found = FALSE;
 
     if (!tmpl || !class || !subclass)
@@ -1210,7 +1215,7 @@ CK_BBOOL template_get_class(TEMPLATE *tmpl, CK_ULONG *class,
 
     /* have to iterate through all attributes. no early exits */
     while (node) {
-        CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
+        const CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
 
         if (attr->type == CKA_CLASS &&
             attr->ulValueLen == sizeof(CK_OBJECT_CLASS) &&
@@ -1243,7 +1248,7 @@ CK_BBOOL template_get_class(TEMPLATE *tmpl, CK_ULONG *class,
     return found;
 }
 
-CK_ULONG template_get_count(TEMPLATE *tmpl)
+CK_ULONG template_get_count(const TEMPLATE *tmpl)
 {
     if (tmpl == NULL)
         return 0;
@@ -1251,9 +1256,9 @@ CK_ULONG template_get_count(TEMPLATE *tmpl)
     return dlist_length(tmpl->attribute_list);
 }
 
-CK_ULONG template_get_size(TEMPLATE *tmpl)
+CK_ULONG template_get_size(const TEMPLATE *tmpl)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     CK_ULONG size = 0, i, num_attrs;
     CK_ATTRIBUTE_PTR attrs;
 
@@ -1279,7 +1284,7 @@ CK_ULONG template_get_size(TEMPLATE *tmpl)
     return size;
 }
 
-static CK_ULONG attribute_get_compressed_size(CK_ATTRIBUTE_PTR attr)
+static CK_ULONG attribute_get_compressed_size(const CK_ATTRIBUTE *attr)
 {
     CK_ULONG size = 0, i, num_attrs;
     CK_ATTRIBUTE_PTR attrs;
@@ -1300,16 +1305,16 @@ static CK_ULONG attribute_get_compressed_size(CK_ATTRIBUTE_PTR attr)
     return size;
 }
 
-CK_ULONG template_get_compressed_size(TEMPLATE *tmpl)
+CK_ULONG template_get_compressed_size(const TEMPLATE *tmpl)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     CK_ULONG size = 0;
 
     if (tmpl == NULL)
         return 0;
     node = tmpl->attribute_list;
     while (node) {
-        CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
+        const CK_ATTRIBUTE *attr = (CK_ATTRIBUTE *) node->data;
 
         size += attribute_get_compressed_size(attr);
 
@@ -1329,7 +1334,8 @@ CK_ULONG template_get_compressed_size(TEMPLATE *tmpl)
  * this routine is called by C_GetAttributeValue which exports the attributes
  * in the clear.  this routine is NOT called when wrapping a key.
  */
-CK_BBOOL template_check_exportability(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type)
+CK_BBOOL template_check_exportability(const TEMPLATE *tmpl,
+                                      CK_ATTRIBUTE_TYPE type)
 {
     CK_ULONG class = 0;
     CK_ULONG subclass = 0;
@@ -1781,7 +1787,7 @@ CK_RV template_validate_attributes(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                                    CK_ULONG class, CK_ULONG subclass,
                                    CK_ULONG mode)
 {
-    DL_NODE *node;
+    const DL_NODE *node;
     CK_RV rc = CKR_OK;
 
     node = tmpl->attribute_list;
@@ -1803,7 +1809,8 @@ CK_RV template_validate_attributes(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 
 
 /* template_validate_base_attribute() */
-CK_RV template_validate_base_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV template_validate_base_attribute(const TEMPLATE *tmpl,
+                                       const CK_ATTRIBUTE *attr,
                                        CK_ULONG mode)
 {
     if (!tmpl || !attr) {
@@ -1906,10 +1913,10 @@ CK_RV template_validate_base_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
 
 #ifdef DEBUG
 /* Debug function: dump list of attribues from a template */
-void dump_template(TEMPLATE *tmpl)
+void dump_template(const TEMPLATE *tmpl)
 {
-    DL_NODE *node = NULL;
-    CK_ATTRIBUTE *a = NULL;
+    const DL_NODE *node = NULL;
+    const CK_ATTRIBUTE *a = NULL;
 
     node = tmpl->attribute_list;
     while (node) {

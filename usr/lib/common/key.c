@@ -90,7 +90,7 @@
 //
 // Check required common attributes for key objects
 //
-CK_RV key_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV key_object_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     CK_ULONG val;
     CK_RV rc;
@@ -254,7 +254,8 @@ error:
 
 // key_object_validate_attribute()
 //
-CK_RV key_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV key_object_validate_attribute(const TEMPLATE *tmpl,
+                                    const CK_ATTRIBUTE *attr,
                                     CK_ULONG mode)
 {
     switch (attr->type) {
@@ -349,7 +350,7 @@ CK_RV key_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
  */
 CK_BBOOL key_object_is_mechanism_allowed(TEMPLATE *tmpl, CK_MECHANISM_TYPE mech)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_MECHANISM_TYPE *mechs;
     CK_ULONG num_mechs, i;
 
@@ -376,7 +377,7 @@ CK_BBOOL key_object_is_mechanism_allowed(TEMPLATE *tmpl, CK_MECHANISM_TYPE mech)
  */
 CK_BBOOL key_object_wrap_template_matches(TEMPLATE *wrap_tmpl, TEMPLATE *tmpl)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!template_attribute_find(wrap_tmpl, CKA_WRAP_TEMPLATE, &attr))
         return TRUE;
@@ -395,7 +396,7 @@ CK_RV key_object_apply_template_attr(TEMPLATE *unwrap_tmpl,
                                      CK_ATTRIBUTE_PTR *new_attrs,
                                      CK_ULONG *new_attrs_count)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     const CK_ATTRIBUTE *attr2 = NULL;
     CK_ATTRIBUTE_PTR apply_attrs;
     CK_ULONG num_apply_attrs, i;
@@ -446,7 +447,7 @@ CK_RV key_object_apply_template_attr(TEMPLATE *unwrap_tmpl,
 
 // publ_key_check_required_attributes()
 //
-CK_RV publ_key_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV publ_key_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     // CKO_PUBLIC_KEY has no required attributes
     //
@@ -630,8 +631,9 @@ error:
 
 // publ_key_validate_attribute
 //
-CK_RV publ_key_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                  CK_ATTRIBUTE *attr, CK_ULONG mode)
+CK_RV publ_key_validate_attribute(STDLL_TokData_t *tokdata,
+                                  const TEMPLATE *tmpl,
+                                  const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     CK_RV rc;
 
@@ -733,7 +735,7 @@ CK_RV publ_key_get_spki(TEMPLATE *tmpl, CK_ULONG keytype, CK_BBOOL length_only,
 
 // priv_key_check_required_attributes()
 //
-CK_RV priv_key_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV priv_key_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     // CKO_PRIVATE_KEY has no required attributes
     //
@@ -1183,7 +1185,7 @@ cleanup:
 // priv_key_validate_attribute()
 //
 CK_RV priv_key_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                  CK_ATTRIBUTE *attr, CK_ULONG mode)
+                                  const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     CK_RV rc;
 
@@ -1319,7 +1321,7 @@ CK_RV priv_key_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 
 // secret_key_check_required_attributes()
 //
-CK_RV secret_key_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV secret_key_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     return key_object_check_required_attributes(tmpl, mode);
 }
@@ -1759,7 +1761,7 @@ cleanup:
 // secret_key_validate_attribute()
 //
 CK_RV secret_key_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                    CK_ATTRIBUTE *attr, CK_ULONG mode)
+                                    const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     CK_RV rc;
 
@@ -1911,9 +1913,9 @@ CK_BBOOL secret_key_check_exportability(CK_ATTRIBUTE_TYPE type)
 
 // rsa_publ_check_required_attributes()
 //
-CK_RV rsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV rsa_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG val;
     CK_RV rc;
 
@@ -1957,14 +1959,14 @@ CK_RV rsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 
 //  rsa_publ_set_default_attributes()
 //
-CK_RV rsa_publ_set_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
+CK_RV rsa_publ_set_default_attributes(TEMPLATE *tmpl, const TEMPLATE *basetmpl,
                                       CK_ULONG mode)
 {
     CK_ATTRIBUTE *type_attr = NULL;
     CK_ATTRIBUTE *modulus_attr = NULL;
     CK_ATTRIBUTE *modulus_bits_attr = NULL;
     CK_ATTRIBUTE *public_exp_attr = NULL;
-    CK_ATTRIBUTE *tmpattr = NULL;
+    const CK_ATTRIBUTE *tmpattr = NULL;
     CK_ULONG bits = 0L;
     CK_BYTE pubExp[3] = { 0x01, 0x00, 0x01 };
     CK_RV rc;
@@ -2054,7 +2056,8 @@ error:
 
 // rsa_publ_validate_attributes()
 //
-CK_RV rsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
+CK_RV rsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                  const TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     switch (attr->type) {
@@ -2106,8 +2109,8 @@ CK_RV rsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 CK_RV rsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *modulus = NULL;
-    CK_ATTRIBUTE *publ_exp = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *publ_exp = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
@@ -2132,9 +2135,9 @@ CK_RV rsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
 
 // rsa_priv_check_required_attributes()
 //
-CK_RV rsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV rsa_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE &&
@@ -2399,11 +2402,11 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
                              CK_BBOOL length_only,
                              CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *modulus = NULL;
-    CK_ATTRIBUTE *publ_exp = NULL, *priv_exp = NULL;
-    CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
-    CK_ATTRIBUTE *exponent1 = NULL, *exponent2 = NULL;
-    CK_ATTRIBUTE *coeff = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *publ_exp = NULL, *priv_exp = NULL;
+    const CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
+    const CK_ATTRIBUTE *exponent1 = NULL, *exponent2 = NULL;
+    const CK_ATTRIBUTE *coeff = NULL;
     CK_RV rc;
     CK_BBOOL is_crt = FALSE;
 
@@ -2669,31 +2672,36 @@ CK_RV rsa_priv_check_and_swap_pq(TEMPLATE *tmpl)
     CK_ULONG len;
     CK_BYTE *buf = NULL;
 
-    if (template_attribute_find(tmpl, CKA_PRIME_1, &prime1) == FALSE ||
+    if (template_attribute_find(tmpl, CKA_PRIME_1,
+                                (const CK_ATTRIBUTE **)&prime1) == FALSE ||
         prime1->ulValueLen == 0 || prime1->pValue == NULL) {
         TRACE_DEVEL("Could not find CKA_PRIME_1 for the key, not CRT format.\n");
         return CKR_OK;
     }
 
-    if (template_attribute_find(tmpl, CKA_PRIME_2, &prime2) == FALSE ||
+    if (template_attribute_find(tmpl, CKA_PRIME_2,
+                                (const CK_ATTRIBUTE **)&prime2) == FALSE ||
         prime2->ulValueLen == 0 || prime2->pValue == NULL) {
         TRACE_DEVEL("Could not find CKA_PRIME_2 for the key, not CRT format.\n");
         return CKR_OK;
     }
 
-    if (template_attribute_find(tmpl, CKA_EXPONENT_1, &exponent1) == FALSE ||
+    if (template_attribute_find(tmpl, CKA_EXPONENT_1,
+                                (const CK_ATTRIBUTE **)&exponent1) == FALSE ||
         exponent1->ulValueLen == 0 || exponent1->pValue == NULL) {
         TRACE_DEVEL("Could not find CKA_EXPONENT_1 for the key, not CRT format.\n");
         return CKR_OK;
     }
 
-    if (template_attribute_find(tmpl, CKA_EXPONENT_2, &exponent2) == FALSE ||
+    if (template_attribute_find(tmpl, CKA_EXPONENT_2,
+                                (const CK_ATTRIBUTE **)&exponent2) == FALSE ||
         exponent2->ulValueLen == 0 || exponent2->pValue == NULL) {
         TRACE_DEVEL("Could not find CKA_EXPONENT_2 for the key, not CRT format.\n");
         return CKR_OK;
     }
 
-    if (template_attribute_find(tmpl, CKA_COEFFICIENT, &coeff) == FALSE ||
+    if (template_attribute_find(tmpl, CKA_COEFFICIENT,
+                                (const CK_ATTRIBUTE **)&coeff) == FALSE ||
         coeff->ulValueLen == 0 || coeff->pValue == NULL) {
         TRACE_DEVEL("Could not find CKA_COEFFICIENT for the key, not CRT format.\n");
         return CKR_OK;
@@ -2811,7 +2819,7 @@ static CK_RV ibm_pqc_keyform_mode_attrs_by_mech(CK_MECHANISM_TYPE mech,
 const struct pqc_oid *ibm_pqc_get_keyform_mode(TEMPLATE *tmpl,
                                                CK_MECHANISM_TYPE mech)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     const struct pqc_oid *oids = NULL, *oid;
     CK_ATTRIBUTE_TYPE keyform_attr = 0;
     CK_ATTRIBUTE_TYPE mode_attr = 0;
@@ -2901,8 +2909,8 @@ error:
 CK_RV ibm_dilithium_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                                   CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *rho = NULL;
-    CK_ATTRIBUTE *t1 = NULL;
+    const CK_ATTRIBUTE *rho = NULL;
+    const CK_ATTRIBUTE *t1 = NULL;
     const struct pqc_oid *oid;
     CK_RV rc;
 
@@ -2937,9 +2945,9 @@ CK_RV ibm_dilithium_priv_wrap_get_data(TEMPLATE *tmpl,
                                        CK_BBOOL length_only,
                                        CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *rho = NULL, *seed = NULL;
-    CK_ATTRIBUTE *tr = NULL, *s1 = NULL, *s2 = NULL;
-    CK_ATTRIBUTE *t0 = NULL, *t1 = NULL;
+    const CK_ATTRIBUTE *rho = NULL, *seed = NULL;
+    const CK_ATTRIBUTE *tr = NULL, *s1 = NULL, *s2 = NULL;
+    const CK_ATTRIBUTE *t0 = NULL, *t1 = NULL;
     const struct pqc_oid *oid;
     CK_RV rc;
 
@@ -3166,7 +3174,7 @@ error:
 CK_RV ibm_kyber_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                               CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *pk = NULL;
+    const CK_ATTRIBUTE *pk = NULL;
     const struct pqc_oid *oid;
     CK_RV rc;
 
@@ -3195,7 +3203,7 @@ CK_RV ibm_kyber_priv_wrap_get_data(TEMPLATE *tmpl,
                                    CK_BBOOL length_only,
                                    CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *sk = NULL, *pk = NULL;
+    const CK_ATTRIBUTE *sk = NULL, *pk = NULL;
     const struct pqc_oid *oid;
     CK_RV rc;
 
@@ -3396,9 +3404,9 @@ CK_RV ibm_pqc_priv_unwrap_get_data(TEMPLATE *tmpl, CK_KEY_TYPE keytype,
 
 // dsa_publ_check_required_attributes()
 //
-CK_RV dsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dsa_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_PRIME, &attr);
@@ -3536,7 +3544,8 @@ error:
 
 // dsa_publ_validate_attributes()
 //
-CK_RV dsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
+CK_RV dsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                  const TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     switch (attr->type) {
@@ -3596,10 +3605,10 @@ CK_RV dsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 CK_RV dsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *prime = NULL;
-    CK_ATTRIBUTE *subprime = NULL;
-    CK_ATTRIBUTE *base = NULL;
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *prime = NULL;
+    const CK_ATTRIBUTE *subprime = NULL;
+    const CK_ATTRIBUTE *base = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_PRIME, &prime);
@@ -3635,9 +3644,9 @@ CK_RV dsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
 
 // dsa_priv_check_required_attributes()
 //
-CK_RV dsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dsa_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_PRIME, &attr);
@@ -3867,10 +3876,10 @@ CK_RV dsa_priv_wrap_get_data(TEMPLATE *tmpl,
                              CK_BBOOL length_only,
                              CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *prime = NULL;
-    CK_ATTRIBUTE *subprime = NULL;
-    CK_ATTRIBUTE *base = NULL;
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *prime = NULL;
+    const CK_ATTRIBUTE *subprime = NULL;
+    const CK_ATTRIBUTE *base = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_RV rc;
 
     // compute the total length of the BER-encoded data
@@ -4031,9 +4040,9 @@ error:
 
 // ecdsa_publ_check_required_attributes()
 //
-CK_RV ecdsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV ecdsa_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE &&
@@ -4136,8 +4145,9 @@ error:
 
 // ecdsa_publ_validate_attributes()
 //
-CK_RV ecdsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                    CK_ATTRIBUTE *attr, CK_ULONG mode)
+CK_RV ecdsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                    const TEMPLATE *tmpl,
+                                    const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     switch (attr->type) {
     case CKA_ECDSA_PARAMS:
@@ -4163,9 +4173,9 @@ CK_RV ecdsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 CK_RV ec_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                        CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *ec_parms = NULL;
-    CK_ATTRIBUTE *ec_point = NULL;
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *ec_parms = NULL;
+    const CK_ATTRIBUTE *ec_point = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_BYTE *buf = NULL;
     CK_ULONG buf_len = 0;
     CK_ATTRIBUTE point = { .type = CKA_EC_POINT,
@@ -4234,9 +4244,9 @@ out:
 
 // ecdsa_priv_check_required_attributes()
 //
-CK_RV ecdsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV ecdsa_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE &&
@@ -4412,9 +4422,9 @@ CK_RV ecdsa_priv_wrap_get_data(TEMPLATE *tmpl,
                                CK_BBOOL length_only,
                                CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *params = NULL;
-    CK_ATTRIBUTE *point = NULL;
-    CK_ATTRIBUTE *pubkey = NULL;
+    const CK_ATTRIBUTE *params = NULL;
+    const CK_ATTRIBUTE *point = NULL;
+    const CK_ATTRIBUTE *pubkey = NULL;
     CK_RV rc;
 
     // compute the total length of the BER-encoded data
@@ -4536,9 +4546,9 @@ error:
 
 // dh_publ_check_required_attributes()
 //
-CK_RV dh_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dh_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
 
@@ -4656,7 +4666,8 @@ error:
 
 // dh_publ_validate_attribute()
 //
-CK_RV dh_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
+CK_RV dh_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                 const TEMPLATE *tmpl,
                                  CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     switch (attr->type) {
@@ -4686,9 +4697,9 @@ CK_RV dh_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 CK_RV dh_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                        CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *prime = NULL;
-    CK_ATTRIBUTE *base = NULL;
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *prime = NULL;
+    const CK_ATTRIBUTE *base = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_PRIME, &prime);
@@ -4719,9 +4730,9 @@ CK_RV dh_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
 
 // dh_priv_check_required_attributes()
 //
-CK_RV dh_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dh_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG val;
     CK_RV rc;
 
@@ -5071,9 +5082,9 @@ CK_RV dh_priv_wrap_get_data(TEMPLATE *tmpl,
                             CK_BBOOL length_only,
                             CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *prime = NULL;
-    CK_ATTRIBUTE *base = NULL;
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *prime = NULL;
+    const CK_ATTRIBUTE *base = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_RV rc;
 
     // compute the total length of the BER-encoded data
@@ -5477,14 +5488,14 @@ error:
     return rc;
 }
 
-static CK_RV ibm_pqc_check_attributes(TEMPLATE *tmpl, CK_ULONG mode,
+static CK_RV ibm_pqc_check_attributes(const TEMPLATE *tmpl, CK_ULONG mode,
                                       CK_MECHANISM_TYPE mech,
-                                      CK_ULONG *req_attrs,
+                                      const CK_ULONG *req_attrs,
                                       CK_ULONG num_req_attrs)
 {
     CK_ATTRIBUTE_TYPE keyform_attr;
     CK_ATTRIBUTE_TYPE mode_attr;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BBOOL keyform_present = FALSE;
     CK_BBOOL mode_present = FALSE;
     const struct pqc_oid *oids, *oid;
@@ -5571,9 +5582,10 @@ static CK_RV ibm_pqc_check_attributes(TEMPLATE *tmpl, CK_ULONG mode,
 
 // ibm_dilithium_publ_check_required_attributes()
 //
-CK_RV ibm_dilithium_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV ibm_dilithium_publ_check_required_attributes(const TEMPLATE *tmpl,
+                                                   CK_ULONG mode)
 {
-    static CK_ULONG req_attrs[] = {
+    static CK_ULONG const req_attrs[] = {
         CKA_IBM_DILITHIUM_RHO,
         CKA_IBM_DILITHIUM_T1,
     };
@@ -5590,9 +5602,10 @@ CK_RV ibm_dilithium_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode
 
 // ibm_dilithium_priv_check_required_attributes()
 //
-CK_RV ibm_dilithium_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV ibm_dilithium_priv_check_required_attributes(const TEMPLATE *tmpl,
+                                                   CK_ULONG mode)
 {
-    static CK_ULONG req_attrs[] = {
+    static const CK_ULONG req_attrs[] = {
         CKA_IBM_DILITHIUM_RHO,
         CKA_IBM_DILITHIUM_SEED,
         CKA_IBM_DILITHIUM_TR,
@@ -5614,9 +5627,10 @@ CK_RV ibm_dilithium_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode
 
 // ibm_kyber_publ_check_required_attributes()
 //
-CK_RV ibm_kyber_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV ibm_kyber_publ_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode)
 {
-    static CK_ULONG req_attrs[] = {
+    static const CK_ULONG req_attrs[] = {
         CKA_IBM_KYBER_PK,
     };
     CK_RV rc;
@@ -5632,9 +5646,10 @@ CK_RV ibm_kyber_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 
 // ibm_kyber_priv_check_required_attributes()
 //
-CK_RV ibm_kyber_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV ibm_kyber_priv_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode)
 {
-    static CK_ULONG req_attrs[] = {
+    static CK_ULONG const req_attrs[] = {
         CKA_IBM_KYBER_SK,
         CKA_IBM_KYBER_PK,
     };
@@ -5649,7 +5664,8 @@ CK_RV ibm_kyber_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     return priv_key_check_required_attributes(tmpl, mode);
 }
 
-static CK_RV ibm_pqc_validate_keyform_mode(CK_ATTRIBUTE *attr, CK_ULONG mode,
+static CK_RV ibm_pqc_validate_keyform_mode(const CK_ATTRIBUTE *attr,
+                                           CK_ULONG mode,
                                            CK_MECHANISM_TYPE mech)
 {
     CK_ATTRIBUTE_TYPE keyform_attr;
@@ -5699,7 +5715,8 @@ static CK_RV ibm_pqc_validate_keyform_mode(CK_ATTRIBUTE *attr, CK_ULONG mode,
 // ibm_dilithium_publ_validate_attribute()
 //
 CK_RV ibm_dilithium_publ_validate_attribute(STDLL_TokData_t *tokdata,
-                                            TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                            const TEMPLATE *tmpl,
+                                            const CK_ATTRIBUTE *attr,
                                             CK_ULONG mode)
 {
     CK_RV rc;
@@ -5726,7 +5743,8 @@ CK_RV ibm_dilithium_publ_validate_attribute(STDLL_TokData_t *tokdata,
 // ibm_dilithium_priv_validate_attribute()
 //
 CK_RV ibm_dilithium_priv_validate_attribute(STDLL_TokData_t *tokdata,
-                                            TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                            TEMPLATE *tmpl,
+                                            const CK_ATTRIBUTE *attr,
                                             CK_ULONG mode)
 {
     CK_RV rc;
@@ -5758,7 +5776,8 @@ CK_RV ibm_dilithium_priv_validate_attribute(STDLL_TokData_t *tokdata,
 // ibm_kyber_publ_validate_attribute()
 //
 CK_RV ibm_kyber_publ_validate_attribute(STDLL_TokData_t *tokdata,
-                                        TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                        const TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
                                         CK_ULONG mode)
 {
     CK_RV rc;
@@ -5784,7 +5803,8 @@ CK_RV ibm_kyber_publ_validate_attribute(STDLL_TokData_t *tokdata,
 // ibm_kyber_priv_validate_attribute()
 //
 CK_RV ibm_kyber_priv_validate_attribute(STDLL_TokData_t *tokdata,
-                                        TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                        TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
                                         CK_ULONG mode)
 {
     CK_RV rc;
@@ -5810,9 +5830,10 @@ CK_RV ibm_kyber_priv_validate_attribute(STDLL_TokData_t *tokdata,
 
 // generic_secret_check_required_attributes()
 //
-CK_RV generic_secret_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV generic_secret_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG val;
     CK_RV rc;
 
@@ -6206,7 +6227,8 @@ error:
 // generic_secret_validate_attribute()
 //
 CK_RV generic_secret_validate_attribute(STDLL_TokData_t *tokdata,
-                                        TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                        TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
                                         CK_ULONG mode)
 {
     switch (attr->type) {
@@ -6260,7 +6282,7 @@ CK_RV generic_secret_wrap_get_data(TEMPLATE *tmpl,
                                    CK_BBOOL length_only,
                                    CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ptr = NULL;
     CK_RV rc;
 
@@ -6373,9 +6395,9 @@ error:
 
 //
 //
-CK_RV des_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV des_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE &&
@@ -6535,7 +6557,7 @@ CK_RV des_unwrap(STDLL_TokData_t *tokdata,
 // des_validate_attribute()
 //
 CK_RV des_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                             CK_ATTRIBUTE *attr, CK_ULONG mode)
+                             const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     CK_BYTE *ptr = NULL;
     CK_ULONG i;
@@ -6601,7 +6623,7 @@ CK_RV des_wrap_get_data(TEMPLATE *tmpl,
                         CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ptr = NULL;
     CK_RV rc;
 
@@ -6635,9 +6657,9 @@ CK_RV des_wrap_get_data(TEMPLATE *tmpl,
 
 // des2_check_required_attributes()
 //
-CK_RV des2_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV des2_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_VALUE, &attr);
@@ -6709,7 +6731,7 @@ error:
 // des2_validate_attribute()
 //
 CK_RV des2_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                              CK_ATTRIBUTE *attr, CK_ULONG mode)
+                              const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     CK_BYTE *ptr = NULL;
     CK_ULONG i;
@@ -6771,9 +6793,9 @@ CK_RV des2_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 
 // des3_check_required_attributes()
 //
-CK_RV des3_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV des3_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE &&
@@ -6908,7 +6930,7 @@ CK_RV des3_unwrap(STDLL_TokData_t *tokdata,
 //
 //
 CK_RV des3_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                              CK_ATTRIBUTE *attr, CK_ULONG mode)
+                              const CK_ATTRIBUTE *attr, CK_ULONG mode)
 {
     CK_BYTE *ptr = NULL;
     CK_ULONG i;
@@ -6969,7 +6991,7 @@ CK_RV des3_wrap_get_data(TEMPLATE *tmpl,
                          CK_BBOOL length_only,
                          CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ptr = NULL;
     CK_RV rc;
 
@@ -7002,7 +7024,7 @@ CK_RV des3_wrap_get_data(TEMPLATE *tmpl,
 
 //  aes_set_default_attributes()
 //
-CK_RV aes_set_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
+CK_RV aes_set_default_attributes(TEMPLATE *tmpl, const TEMPLATE *basetmpl,
                                  CK_ULONG mode, CK_BBOOL xts)
 {
     CK_ATTRIBUTE *value_attr = NULL;
@@ -7046,8 +7068,10 @@ CK_RV aes_set_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
     value_attr = NULL;
 
     /* If CKA_VALUE specified in base tmpl, add CKA_VALUE_LEN to tmpl. */
-    if (template_attribute_find(basetmpl, CKA_VALUE, &value_attr) &&
-        !template_attribute_find(basetmpl, CKA_VALUE_LEN, &len_attr)) {
+    if (template_attribute_find(basetmpl, CKA_VALUE,
+                                (const  CK_ATTRIBUTE **)&value_attr) &&
+        !template_attribute_find(basetmpl, CKA_VALUE_LEN,
+                                 (const  CK_ATTRIBUTE **)&len_attr)) {
         keysize = value_attr->ulValueLen;
         rc = build_attribute(CKA_VALUE_LEN, (CK_BYTE *)&keysize, sizeof(CK_ULONG), &len_attr);
         if (rc != CKR_OK) {
@@ -7075,9 +7099,9 @@ error:
 
 // aes_check_required_attributes()
 //
-CK_RV aes_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV aes_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE &&
@@ -7104,7 +7128,8 @@ CK_RV aes_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 //
 //
 CK_RV aes_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                             CK_ATTRIBUTE *attr, CK_ULONG mode, CK_BBOOL xts)
+                             const CK_ATTRIBUTE *attr, CK_ULONG mode,
+                             CK_BBOOL xts)
 {
     CK_ULONG val;
 
@@ -7157,7 +7182,7 @@ CK_RV aes_wrap_get_data(TEMPLATE *tmpl,
                         CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ptr = NULL;
     CK_RV rc;
 

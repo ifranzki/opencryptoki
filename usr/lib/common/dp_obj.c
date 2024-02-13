@@ -30,7 +30,7 @@
 //
 // Check required common attributes for domain parameter objects
 //
-CK_RV dp_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dp_object_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     CK_ULONG val;
     CK_RV rc;
@@ -46,9 +46,9 @@ CK_RV dp_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     return template_check_required_base_attributes(tmpl, mode);
 }
 
-CK_RV dp_dsa_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dp_dsa_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG val;
     CK_RV rc;
 
@@ -81,9 +81,9 @@ CK_RV dp_dsa_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     return dp_object_check_required_attributes(tmpl, mode);
 }
 
-CK_RV dp_dh_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dp_dh_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG val;
     CK_RV rc;
 
@@ -110,9 +110,9 @@ CK_RV dp_dh_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     return dp_object_check_required_attributes(tmpl, mode);
 }
 
-CK_RV dp_x9dh_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV dp_x9dh_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG val;
     CK_RV rc;
 
@@ -186,7 +186,8 @@ CK_RV dp_object_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 
 // dp_object_validate_attribute()
 //
-CK_RV dp_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV dp_object_validate_attribute(const TEMPLATE *tmpl,
+                                   const CK_ATTRIBUTE *attr,
                                    CK_ULONG mode)
 {
     switch (attr->type) {
@@ -218,7 +219,7 @@ CK_RV dp_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
 
 //
 //
-CK_RV dp_dsa_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV dp_dsa_validate_attribute(const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                                 CK_ULONG mode)
 {
     switch (attr->type) {
@@ -257,7 +258,7 @@ CK_RV dp_dsa_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
 
 //
 //
-CK_RV dp_dh_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV dp_dh_validate_attribute(const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                                CK_ULONG mode)
 {
     switch (attr->type) {
@@ -290,7 +291,7 @@ CK_RV dp_dh_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
 
 //
 //
-CK_RV dp_x9dh_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV dp_x9dh_validate_attribute(const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                                  CK_ULONG mode)
 {
     switch (attr->type) {

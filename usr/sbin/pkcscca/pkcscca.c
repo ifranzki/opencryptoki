@@ -155,7 +155,7 @@ int cca_decrypt(unsigned char *in_data, unsigned long in_data_len,
 int adjust_secret_key_attributes(OBJECT *obj, CK_ULONG key_type)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *ibm_opaque_attr = NULL;
     CK_ULONG key_size;
@@ -171,7 +171,8 @@ int adjust_secret_key_attributes(OBJECT *obj, CK_ULONG key_type)
     if (template_attribute_find(obj->template, CKA_IBM_OPAQUE, &attr))
         return CKR_IBM_NOT_TOUCHED;
 
-    if (!template_attribute_find(obj->template, CKA_VALUE, &value_attr)) {
+    if (!template_attribute_find(obj->template, CKA_VALUE,
+                                 (const CK_ATTRIBUTE **)&value_attr)) {
         fprintf(stderr, "No CKA_VALUE attribute found\n");
         return CKR_TEMPLATE_INCOMPLETE;
     }

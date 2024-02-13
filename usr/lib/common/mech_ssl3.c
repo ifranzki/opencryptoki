@@ -64,7 +64,7 @@ CK_RV ssl3_mac_sign(STDLL_TokData_t *tokdata,
                     CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE hash[SHA1_HASH_SIZE];
     CK_BYTE *key_data = NULL;
     CK_BYTE inner[48], outer[48];
@@ -216,7 +216,7 @@ CK_RV ssl3_mac_sign_update(STDLL_TokData_t *tokdata,
                            CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *key_data = NULL;
     SSL3_MAC_CONTEXT *context = NULL;
 
@@ -317,7 +317,7 @@ CK_RV ssl3_mac_sign_final(STDLL_TokData_t *tokdata,
                           CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *key_data = NULL;
     CK_BYTE hash[SHA1_HASH_SIZE];
     SSL3_MAC_CONTEXT *context = NULL;
@@ -502,7 +502,7 @@ CK_RV ssl3_mac_verify_update(STDLL_TokData_t *tokdata,
                              CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *key_data = NULL;
     SSL3_MAC_CONTEXT *context = NULL;
 
@@ -602,7 +602,7 @@ CK_RV ssl3_mac_verify_final(STDLL_TokData_t *tokdata,
                             CK_BYTE *signature, CK_ULONG sig_len)
 {
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *key_data = NULL;
     SSL3_MAC_CONTEXT *context = NULL;
     CK_BYTE hash[SHA1_HASH_SIZE];
@@ -1019,7 +1019,7 @@ CK_RV ssl3_master_key_derive(STDLL_TokData_t *tokdata,
                              CK_ULONG ulCount, CK_OBJECT_HANDLE *handle)
 {
     OBJECT *derived_key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *value_len_attr = NULL;
     CK_ATTRIBUTE *always_sens_attr = NULL;
@@ -1293,7 +1293,7 @@ CK_RV ssl3_key_and_mac_derive(STDLL_TokData_t *tokdata,
                               OBJECT *base_key_obj,
                               CK_ATTRIBUTE *pTemplate, CK_ULONG ulCount)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     CK_BYTE *client_MAC_key_value = NULL;
     CK_BYTE *server_MAC_key_value = NULL;

@@ -30,7 +30,7 @@
 //
 // Check required common attributes for hardware feature objects
 //
-CK_RV hwf_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV hwf_object_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     CK_ULONG val;
     CK_RV rc;
@@ -46,9 +46,9 @@ CK_RV hwf_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     return template_check_required_base_attributes(tmpl, mode);
 }
 
-CK_RV clock_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV clock_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (mode == MODE_CREATE) {
@@ -62,9 +62,9 @@ CK_RV clock_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     return hwf_object_check_required_attributes(tmpl, mode);
 }
 
-CK_RV counter_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV counter_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BBOOL val;
     CK_RV rc;
 
@@ -130,7 +130,7 @@ CK_RV hwf_object_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 
 // hwf_object_validate_attribute()
 //
-CK_RV hwf_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV hwf_validate_attribute(const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                              CK_ULONG mode)
 {
     switch (attr->type) {
@@ -155,7 +155,7 @@ CK_RV hwf_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
 
 //
 //
-CK_RV clock_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV clock_validate_attribute(const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                                CK_ULONG mode)
 {
     UNUSED(mode);
@@ -170,7 +170,7 @@ CK_RV clock_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
 
 //
 //
-CK_RV counter_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV counter_validate_attribute(const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                                  CK_ULONG mode)
 {
     switch (attr->type) {

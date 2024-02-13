@@ -39,7 +39,7 @@
 //
 //    CKA_CERTIFICATE_TYPE : must be present on MODE_CREATE.
 //
-CK_RV cert_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV cert_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     CK_ULONG val;
     CK_RV rc;
@@ -185,7 +185,7 @@ error:
 // cert_validate_attribute()
 //
 CK_RV cert_validate_attribute(STDLL_TokData_t *tokdata,
-                              TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                              const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                               CK_ULONG mode)
 {
     CK_CERTIFICATE_TYPE type;
@@ -250,9 +250,9 @@ CK_RV cert_validate_attribute(STDLL_TokData_t *tokdata,
 
 // cert_x509_check_required_attributes()
 //
-CK_RV cert_x509_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV cert_x509_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_SUBJECT, &attr);
@@ -450,7 +450,8 @@ error:
 // cert_x509_validate_attributes()
 //
 CK_RV cert_x509_validate_attribute(STDLL_TokData_t *tokdata,
-                                   TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                   const TEMPLATE *tmpl,
+                                   const CK_ATTRIBUTE *attr,
                                    CK_ULONG mode)
 {
     CK_JAVA_MIDP_SECURITY_DOMAIN sec_domain;
@@ -530,7 +531,7 @@ CK_RV cert_x509_validate_attribute(STDLL_TokData_t *tokdata,
 
 // cert_vendor_check_required_attributes()
 //
-CK_RV cert_vendor_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV cert_vendor_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     // CKC_VENDOR has no required attributes
     //
@@ -541,7 +542,8 @@ CK_RV cert_vendor_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
 // cert_vendor_validate_attribute()
 //
 CK_RV cert_vendor_validate_attribute(STDLL_TokData_t *tokdata,
-                                     TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                     const TEMPLATE *tmpl,
+                                     const CK_ATTRIBUTE *attr,
                                      CK_ULONG mode)
 {
     // cryptoki specifies no attributes for CKC_VENDOR certificates

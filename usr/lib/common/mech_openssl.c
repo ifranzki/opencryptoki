@@ -134,7 +134,7 @@ static CK_BBOOL openssl_need_wr_lock(OBJECT *obj, void *ex_data,
 
 CK_RV openssl_specific_rsa_keygen(TEMPLATE *publ_tmpl, TEMPLATE *priv_tmpl)
 {
-    CK_ATTRIBUTE *publ_exp = NULL;
+    const CK_ATTRIBUTE *publ_exp = NULL;
     CK_ATTRIBUTE *attr = NULL;
     CK_ULONG mod_bits;
     CK_BBOOL flag;
@@ -651,8 +651,8 @@ done:
 static EVP_PKEY *rsa_convert_public_key(OBJECT *key_obj)
 {
     CK_BBOOL rc;
-    CK_ATTRIBUTE *modulus = NULL;
-    CK_ATTRIBUTE *pub_exp = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *pub_exp = NULL;
     EVP_PKEY *pkey = NULL;
     BIGNUM *bn_mod, *bn_exp;
 #if OPENSSL_VERSION_PREREQ(3, 0)
@@ -750,14 +750,14 @@ out:
 
 static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 {
-    CK_ATTRIBUTE *modulus = NULL;
-    CK_ATTRIBUTE *pub_exp = NULL;
-    CK_ATTRIBUTE *priv_exp = NULL;
-    CK_ATTRIBUTE *prime1 = NULL;
-    CK_ATTRIBUTE *prime2 = NULL;
-    CK_ATTRIBUTE *exp_1 = NULL;
-    CK_ATTRIBUTE *exp_2 = NULL;
-    CK_ATTRIBUTE *coeff = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *pub_exp = NULL;
+    const CK_ATTRIBUTE *priv_exp = NULL;
+    const CK_ATTRIBUTE *prime1 = NULL;
+    const CK_ATTRIBUTE *prime2 = NULL;
+    const CK_ATTRIBUTE *exp_1 = NULL;
+    const CK_ATTRIBUTE *exp_2 = NULL;
+    const CK_ATTRIBUTE *coeff = NULL;
     EVP_PKEY *pkey = NULL;
 #if OPENSSL_VERSION_PREREQ(3, 0)
     EVP_PKEY_CTX *pctx = NULL;
@@ -1113,7 +1113,7 @@ CK_RV openssl_specific_rsa_pkcs_encrypt(STDLL_TokData_t *tokdata,
     CK_RV rc;
     CK_ULONG modulus_bytes;
     CK_BYTE clear[MAX_RSA_KEYLEN], cipher[MAX_RSA_KEYLEN];
-    CK_ATTRIBUTE *attr = NULL;
+    const  CK_ATTRIBUTE *attr = NULL;
 
     /* format the data */
     rc = template_attribute_get_non_empty(key_obj->template, CKA_MODULUS,
@@ -1190,7 +1190,7 @@ CK_RV openssl_specific_rsa_pkcs_sign(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_BYTE data[MAX_RSA_KEYLEN], sig[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     UNUSED(sess);
 
@@ -1227,7 +1227,7 @@ CK_RV openssl_specific_rsa_pkcs_verify(STDLL_TokData_t *tokdata, SESSION *sess,
                                        OBJECT *key_obj,
                                        t_rsa_encrypt rsa_encrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN], out_data[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes, out_data_len;
     CK_RV rc;
@@ -1294,7 +1294,7 @@ CK_RV openssl_specific_rsa_pkcs_verify_recover(STDLL_TokData_t *tokdata,
                                                OBJECT *key_obj,
                                                t_rsa_encrypt rsa_encrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
@@ -1348,7 +1348,7 @@ CK_RV openssl_specific_rsa_pss_sign(STDLL_TokData_t *tokdata, SESSION *sess,
 {
     CK_RV rc;
     CK_ULONG modbytes;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     OBJECT *key_obj = NULL;
     CK_BYTE *emdata = NULL;
     CK_RSA_PKCS_PSS_PARAMS *pssParms = NULL;
@@ -1423,7 +1423,7 @@ CK_RV openssl_specific_rsa_pss_verify(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_RV rc;
     CK_ULONG modbytes;
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN];
     CK_RSA_PKCS_PSS_PARAMS *pssParms = NULL;
 
@@ -1493,7 +1493,7 @@ CK_RV openssl_specific_rsa_x509_encrypt(STDLL_TokData_t *tokdata,
                                         CK_ULONG *out_data_len, OBJECT *key_obj,
                                         t_rsa_encrypt rsa_encrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE clear[MAX_RSA_KEYLEN], cipher[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
@@ -1531,7 +1531,7 @@ CK_RV openssl_specific_rsa_x509_decrypt(STDLL_TokData_t *tokdata,
                                         CK_ULONG *out_data_len, OBJECT *key_obj,
                                         t_rsa_decrypt rsa_decrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
@@ -1566,7 +1566,7 @@ CK_RV openssl_specific_rsa_x509_sign(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
                                      CK_ULONG *sig_len, OBJECT *key_obj,
                                      t_rsa_decrypt rsa_decrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE data[MAX_RSA_KEYLEN], sig[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
@@ -1613,7 +1613,7 @@ CK_RV openssl_specific_rsa_x509_verify(STDLL_TokData_t *tokdata,
                                        OBJECT *key_obj,
                                        t_rsa_encrypt rsa_encrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
@@ -1682,7 +1682,7 @@ CK_RV openssl_specific_rsa_x509_verify_recover(STDLL_TokData_t *tokdata,
                                                OBJECT *key_obj,
                                                t_rsa_encrypt rsa_encrypt_func)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE out[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
     CK_RV rc;
@@ -1720,7 +1720,7 @@ CK_RV openssl_specific_rsa_oaep_encrypt(STDLL_TokData_t *tokdata,
     CK_RV rc;
     CK_BYTE cipher[MAX_RSA_KEYLEN];
     CK_ULONG modulus_bytes;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *em_data = NULL;
     OBJECT *key_obj = NULL;
     CK_RSA_PKCS_OAEP_PARAMS_PTR oaepParms = NULL;
@@ -1793,7 +1793,7 @@ CK_RV openssl_specific_rsa_oaep_decrypt(STDLL_TokData_t *tokdata,
     CK_RV rc;
     CK_BYTE *decr_data = NULL;
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RSA_PKCS_OAEP_PARAMS_PTR oaepParms = NULL;
 
     if (!in_data || !out_data || !hash) {
@@ -2223,7 +2223,7 @@ out:
 
 CK_RV openssl_make_ec_key_from_template(TEMPLATE *template, EVP_PKEY **pkey)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_OBJECT_CLASS keyclass;
     EVP_PKEY *ec_pkey = NULL;
     int nid;
@@ -2353,7 +2353,8 @@ CK_RV openssl_specific_ec_generate_keypair(STDLL_TokData_t *tokdata,
                                            TEMPLATE *priv_tmpl)
 {
 
-    CK_ATTRIBUTE *attr = NULL, *ec_point_attr, *value_attr, *parms_attr;
+    const CK_ATTRIBUTE *attr = NULL;
+    CK_ATTRIBUTE *ec_point_attr, *value_attr, *parms_attr;
 #if !OPENSSL_VERSION_PREREQ(3, 0)
     const EC_KEY *ec_key = NULL;
     BN_CTX *bnctx = NULL;
@@ -3465,7 +3466,7 @@ static CK_RV openssl_cipher_perform(OBJECT *key, CK_MECHANISM_TYPE mech,
                                     CK_BYTE encrypt)
 {
     const EVP_CIPHER *cipher = NULL;
-    CK_ATTRIBUTE *key_attr = NULL;
+    const CK_ATTRIBUTE *key_attr = NULL;
     EVP_CIPHER_CTX *ctx = NULL;
     CK_KEY_TYPE keytype = 0;
     int blocksize, outlen;
@@ -3545,7 +3546,7 @@ CK_RV openssl_cmac_perform(CK_MECHANISM_TYPE mech, CK_BYTE *message,
     int rc;
     size_t maclen;
     CK_RV rv = CKR_OK;
-    CK_ATTRIBUTE *key_attr = NULL;
+    const CK_ATTRIBUTE *key_attr = NULL;
     const EVP_CIPHER *cipher;
     CK_KEY_TYPE keytype = 0;
     struct cmac_ctx {
@@ -3871,7 +3872,7 @@ CK_RV openssl_specific_aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
     AES_GCM_CONTEXT *context = NULL;
     OBJECT *key = NULL;
     EVP_CIPHER_CTX *gcm_ctx = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     unsigned char akey[32];
     const EVP_CIPHER *cipher = NULL;
     CK_ULONG keylen, tag_len;
@@ -4385,7 +4386,7 @@ CK_RV openssl_specific_aes_xts(STDLL_TokData_t *tokdata,
                                CK_BBOOL final, CK_BYTE* iv)
 {
     struct aes_xts_cb_data data = { 0 };
-    CK_ATTRIBUTE *key_attr;
+    const CK_ATTRIBUTE *key_attr;
     CK_RV rc;
 
     UNUSED(tokdata);
@@ -4591,7 +4592,7 @@ CK_RV openssl_specific_hmac_init(STDLL_TokData_t *tokdata,
 {
     int rc;
     OBJECT *key = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     EVP_MD_CTX *mdctx = NULL;
     EVP_PKEY *pkey = NULL;
 
@@ -4999,8 +5000,8 @@ done:
 static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                CK_BYTE *priv_exp, CK_ULONG priv_exp_len)
 {
-    CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
-    CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
+    const CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
+    const CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
     BN_CTX *bn_ctx;
     BIGNUM *n, *e, *p, *q, *d;
     CK_RV rc;
@@ -5119,7 +5120,7 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                       const CK_BYTE *in, CK_ULONG inlen,
                                       CK_BYTE *kdk, CK_ULONG kdklen)
 {
-    CK_ATTRIBUTE *priv_exp_attr = NULL, *modulus = NULL;
+    const CK_ATTRIBUTE *priv_exp_attr = NULL, *modulus = NULL;
     CK_BYTE *priv_exp = NULL, *buf = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_MD_CTX *mdctx = NULL;

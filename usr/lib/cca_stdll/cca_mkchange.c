@@ -329,7 +329,7 @@ CK_RV cca_reencipher_created_key(STDLL_TokData_t *tokdata,
     CK_BYTE reenc_sec_key[CCA_KEY_TOKEN_SIZE] = { 0 };
     CK_RV rc, rc2;
     CK_ULONG retries = 0;
-    CK_ATTRIBUTE *reenc_attr = NULL;
+    const CK_ATTRIBUTE *reenc_attr = NULL;
     CK_BYTE reenc_buf[CCA_KEY_TOKEN_SIZE * 2] = { 0 };
 
     if (sec_key_len > sizeof(reenc_sec_key)) {
@@ -1592,7 +1592,7 @@ static CK_BBOOL cca_reencipher_filter_cb(STDLL_TokData_t *tokdata,
                                          OBJECT *obj, void *filter_data)
 {
     struct cca_mk_change_op *mk_change_op  = filter_data;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     enum cca_token_type keytype;
     unsigned int keybitsize;
     const CK_BYTE *mkvp = NULL;
@@ -1627,7 +1627,7 @@ static CK_BBOOL cca_reencipher_filter_cb(STDLL_TokData_t *tokdata,
 static CK_BBOOL cca_reencipher_cancel_filter_cb(STDLL_TokData_t *tokdata,
                                                 OBJECT *obj, void *filter_data)
 {
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
 
     if (template_attribute_find(obj->template, CKA_IBM_OPAQUE_REENC,
                                 &attr) == FALSE)
@@ -1702,7 +1702,7 @@ static CK_RV cca_finalize_sessions_cb(STDLL_TokData_t *tokdata,
                                       void *private)
 {
     struct cca_mk_change_op *mk_change_op  = private;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     OBJECT *key_obj = NULL;
     CK_OBJECT_CLASS class;
     enum cca_token_type keytype;

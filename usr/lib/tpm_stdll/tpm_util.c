@@ -136,7 +136,7 @@ int util_set_file_mode(char *filename, mode_t mode)
 CK_ULONG util_check_public_exponent(TEMPLATE * tmpl)
 {
     CK_RV rv;
-    CK_ATTRIBUTE *publ_exp_attr;
+    const CK_ATTRIBUTE *publ_exp_attr;
     CK_BYTE pubexp_bytes[] = { 1, 0, 1 };
     CK_ULONG publ_exp, rc = 1;
 

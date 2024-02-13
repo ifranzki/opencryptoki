@@ -38,7 +38,7 @@ CK_RV verify_mgr_init(STDLL_TokData_t *tokdata,
                       CK_BBOOL checkpolicy)
 {
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ptr = NULL;
     CK_KEY_TYPE keytype;
     CK_OBJECT_CLASS class;

@@ -18,7 +18,8 @@
 #include "h_extern.h"
 #include "trace.h"
 
-CK_RV profile_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV profile_object_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode)
 {
     /* CKO_PROFILE has no required attributes */
     return template_check_required_base_attributes(tmpl, mode);
@@ -76,7 +77,8 @@ error:
     return rc;
 }
 
-CK_RV profile_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV profile_object_validate_attribute(const TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
                                         CK_ULONG mode)
 {
     if (!attr) {

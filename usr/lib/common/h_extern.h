@@ -388,29 +388,29 @@ CK_RV C_CancelFunction(CK_SESSION_HANDLE hSession);
 // internal routines are below this point
 //
 CK_RV clock_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV clock_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV clock_validate_attribute(TEMPLATE *tmpl,
-                               CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV clock_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV clock_validate_attribute(const TEMPLATE *tmpl,
+                               const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
 CK_RV counter_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV counter_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV counter_validate_attribute(TEMPLATE *tmpl,
-                                 CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV counter_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV counter_validate_attribute(const TEMPLATE *tmpl,
+                                 const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
-CK_RV dp_dsa_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dp_dsa_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dp_dsa_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV dp_dsa_validate_attribute(TEMPLATE *tmpl,
-                                CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV dp_dsa_validate_attribute(const TEMPLATE *tmpl,
+                                const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
-CK_RV dp_dh_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dp_dh_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dp_dh_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV dp_dh_validate_attribute(TEMPLATE *tmpl,
-                               CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV dp_dh_validate_attribute(const TEMPLATE *tmpl,
+                               const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
-CK_RV dp_x9dh_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dp_x9dh_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dp_x9dh_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV dp_x9dh_validate_attribute(TEMPLATE *tmpl,
-                                 CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV dp_x9dh_validate_attribute(const TEMPLATE *tmpl,
+                                 const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
 CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj);
 CK_RV save_private_token_object(STDLL_TokData_t *tokdata, OBJECT *obj);
@@ -2404,51 +2404,56 @@ CK_RV object_ex_data_unlock(OBJECT *obj);
 //
 
 CK_RV template_add_attributes(TEMPLATE *tmpl,
-                              CK_ATTRIBUTE *attr, CK_ULONG ulCount);
+                              const CK_ATTRIBUTE *attr, CK_ULONG ulCount);
 
 CK_RV template_add_default_attributes(TEMPLATE *tmpl,
-                                      TEMPLATE *basetmpl,
+                                      const TEMPLATE *basetmpl,
                                       CK_ULONG class,
                                       CK_ULONG subclass, CK_ULONG mode);
 
-CK_BBOOL template_attribute_find(TEMPLATE *tmpl,
-                                 CK_ATTRIBUTE_TYPE type, CK_ATTRIBUTE **attr);
+CK_BBOOL template_attribute_find(const TEMPLATE *tmpl,
+                                 CK_ATTRIBUTE_TYPE type,
+                                 const CK_ATTRIBUTE **attr);
 
-CK_RV template_attribute_get_ulong(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
-                                      CK_ULONG *value);
-CK_RV template_attribute_get_bool(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
+CK_RV template_attribute_get_ulong(const TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
+                                   CK_ULONG *value);
+CK_RV template_attribute_get_bool(const TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
                                   CK_BBOOL *value);
-CK_RV template_attribute_get_non_empty(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type,
-                                       CK_ATTRIBUTE **attr);
+CK_RV template_attribute_get_non_empty(const TEMPLATE *tmpl,
+                                       CK_ATTRIBUTE_TYPE type,
+                                       const CK_ATTRIBUTE **attr);
 
-void template_attribute_find_multiple(TEMPLATE *tmpl,
+void template_attribute_find_multiple(const TEMPLATE *tmpl,
                                       ATTRIBUTE_PARSE_LIST *parselist,
                                       CK_ULONG plcount);
 
-CK_BBOOL template_check_exportability(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type);
+CK_BBOOL template_check_exportability(const TEMPLATE *tmpl,
+                                      CK_ATTRIBUTE_TYPE type);
 
-CK_RV template_check_required_attributes(TEMPLATE *tmpl,
+CK_RV template_check_required_attributes(const TEMPLATE *tmpl,
                                          CK_ULONG class,
                                          CK_ULONG subclass, CK_ULONG mode);
 
-CK_RV template_check_required_base_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV template_check_required_base_attributes(const TEMPLATE *tmpl,
+                                              CK_ULONG mode);
 
-CK_BBOOL template_compare(CK_ATTRIBUTE *t1, CK_ULONG ulCount, TEMPLATE *t2);
+CK_BBOOL template_compare(const CK_ATTRIBUTE *t1, CK_ULONG ulCount,
+                          const TEMPLATE *t2);
 
-CK_RV template_copy(TEMPLATE *dest, TEMPLATE *src);
+CK_RV template_copy(TEMPLATE *dest, const TEMPLATE *src);
 
-CK_RV template_flatten(TEMPLATE *tmpl, CK_BYTE *dest);
+CK_RV template_flatten(const TEMPLATE *tmpl, CK_BYTE *dest);
 
 CK_RV template_free(TEMPLATE *tmpl);
 
-CK_BBOOL template_get_class(TEMPLATE *tmpl,
+CK_BBOOL template_get_class(const TEMPLATE *tmpl,
                             CK_ULONG *class, CK_ULONG *subclass);
 
-CK_ULONG template_get_count(TEMPLATE *tmpl);
+CK_ULONG template_get_count(const TEMPLATE *tmpl);
 
-CK_ULONG template_get_size(TEMPLATE *tmpl);
+CK_ULONG template_get_size(const TEMPLATE *tmpl);
 
-CK_ULONG template_get_compressed_size(TEMPLATE *tmpl);
+CK_ULONG template_get_compressed_size(const TEMPLATE *tmpl);
 
 CK_RV template_set_default_common_attributes(TEMPLATE *tmpl);
 
@@ -2458,10 +2463,11 @@ CK_RV  template_remove_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE_TYPE type);
 
 CK_RV template_update_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr);
 
-CK_RV template_unflatten(TEMPLATE **tmpl, CK_BYTE *data, CK_ULONG count);
+CK_RV template_unflatten(TEMPLATE **tmpl, const CK_BYTE *data, CK_ULONG count);
 
 CK_RV template_unflatten_withSize(TEMPLATE **new_tmpl,
-                                  CK_BYTE *buf, CK_ULONG count, int buf_size);
+                                  const CK_BYTE *buf, CK_ULONG count,
+                                  int buf_size);
 
 CK_RV template_validate_attribute(STDLL_TokData_t *tokdata,
                                   TEMPLATE *tmpl,
@@ -2474,10 +2480,10 @@ CK_RV template_validate_attributes(STDLL_TokData_t *tokdata,
                                    CK_ULONG class,
                                    CK_ULONG subclass, CK_ULONG mode);
 
-CK_RV template_validate_base_attribute(TEMPLATE *tmpl,
-                                       CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV template_validate_base_attribute(const TEMPLATE *tmpl,
+                                       const CK_ATTRIBUTE *attr, CK_ULONG mode);
 #ifdef DEBUG
-void dump_template(TEMPLATE *tmpl);
+void dump_template(const TEMPLATE *tmpl);
 #define TRACE_DEBUG_DUMPTEMPL(x) dump_template(x)
 #else
 #define TRACE_DEBUG_DUMPTEMPL(...)
@@ -2486,42 +2492,49 @@ void dump_template(TEMPLATE *tmpl);
 
 // DATA OBJECT ROUTINES
 //
-CK_RV data_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV data_object_check_required_attributes(const TEMPLATE *tmpl,
+                                            CK_ULONG mode);
 CK_RV data_object_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV data_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV data_object_validate_attribute(const TEMPLATE *tmpl,
+                                     const CK_ATTRIBUTE *attr,
                                      CK_ULONG mode);
 
 // PROFILE OBJECT ROUTINES
-CK_RV profile_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV profile_object_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode);
 CK_RV profile_object_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV profile_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV profile_object_validate_attribute(const TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
                                         CK_ULONG mode);
 
 // CERTIFICATE ROUTINES
 //
-CK_RV cert_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV cert_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV cert_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV cert_validate_attribute(STDLL_TokData_t *tokdata,
-                              TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                              const TEMPLATE *tmpl, const CK_ATTRIBUTE *attr,
                               CK_ULONG mode);
 
-CK_RV cert_x509_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV cert_x509_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV cert_x509_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV cert_x509_validate_attribute(STDLL_TokData_t *tokdata,
-                                   TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                   const TEMPLATE *tmpl,
+                                   const CK_ATTRIBUTE *attr,
                                    CK_ULONG mode);
-CK_RV cert_vendor_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV cert_vendor_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV cert_vendor_validate_attribute(STDLL_TokData_t *tokdata,
-                                     TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                     const TEMPLATE *tmpl,
+                                     const CK_ATTRIBUTE *attr,
                                      CK_ULONG mode);
 
 //
 // KEY ROUTINES
 //
 
-CK_RV key_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV key_object_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV key_object_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV key_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV key_object_validate_attribute(const TEMPLATE *tmpl,
+                                    const CK_ATTRIBUTE *attr,
                                     CK_ULONG mode);
 CK_BBOOL key_object_is_mechanism_allowed(TEMPLATE *tmpl,
                                          CK_MECHANISM_TYPE mech);
@@ -2533,41 +2546,42 @@ CK_RV key_object_apply_template_attr(TEMPLATE *unwrap_tmpl,
                                      CK_ATTRIBUTE_PTR *new_attrs,
                                      CK_ULONG *new_attrs_count);
 
-CK_RV publ_key_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV publ_key_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV publ_key_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV publ_key_validate_attribute(STDLL_TokData_t *tokdata,
-                                  TEMPLATE *tmpl,
-                                  CK_ATTRIBUTE *attr, CK_ULONG mode);
+                                  const TEMPLATE *tmpl,
+                                  const CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV publ_key_get_spki(TEMPLATE *tmpl, CK_ULONG keytype, CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len);
 
-CK_RV priv_key_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV priv_key_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV priv_key_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV priv_key_unwrap(TEMPLATE *tmpl, CK_ULONG keytype, CK_BYTE *data,
                       CK_ULONG data_len);
 CK_RV priv_key_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                  CK_ATTRIBUTE *attr, CK_ULONG mode);
+                                  const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
 CK_BBOOL secret_key_check_exportability(CK_ATTRIBUTE_TYPE type);
-CK_RV secret_key_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV secret_key_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV secret_key_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV secret_key_unwrap(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                         CK_ULONG keytype, CK_BYTE *data, CK_ULONG data_len,
                         CK_BBOOL fromend);
 CK_RV secret_key_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                    CK_ATTRIBUTE *attr, CK_ULONG mode);
+                                    const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
 // rsa routines
 //
-CK_RV rsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV rsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
+CK_RV rsa_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV rsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                  const TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode);
-CK_RV rsa_publ_set_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
+CK_RV rsa_publ_set_default_attributes(TEMPLATE *tmpl, const TEMPLATE *basetmpl,
                                       CK_ULONG mode);
 CK_RV rsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len);
 CK_BBOOL rsa_priv_check_exportability(CK_ATTRIBUTE_TYPE type);
-CK_RV rsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV rsa_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV rsa_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV rsa_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode);
@@ -2580,14 +2594,15 @@ CK_RV rsa_priv_check_and_swap_pq(TEMPLATE *tmpl);
 
 // dsa routines
 //
-CK_RV dsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dsa_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dsa_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV dsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
+CK_RV dsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                  const TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV dsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                         CK_BYTE **data, CK_ULONG *data_len);
 CK_BBOOL dsa_priv_check_exportability(CK_ATTRIBUTE_TYPE type);
-CK_RV dsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dsa_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dsa_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dsa_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode);
@@ -2599,14 +2614,15 @@ CK_RV dsa_priv_unwrap_get_data(TEMPLATE *tmpl,
 
 // ecdsa routines
 //
-CK_RV ecdsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ecdsa_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV ecdsa_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV ecdsa_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                    CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV ecdsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                    const TEMPLATE *tmpl,
+                                    const CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV ec_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                        CK_BYTE **data, CK_ULONG *data_len);
 CK_BBOOL ecdsa_priv_check_exportability(CK_ATTRIBUTE_TYPE type);
-CK_RV ecdsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ecdsa_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV ecdsa_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV ecdsa_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                                     CK_ATTRIBUTE *attr, CK_ULONG mode);
@@ -2618,16 +2634,22 @@ CK_RV ec_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data, CK_ULONG data_len);
 
 // Dilithium routines
 //
-CK_RV ibm_dilithium_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ibm_dilithium_publ_check_required_attributes(const TEMPLATE *tmpl,
+                                                   CK_ULONG mode);
 CK_RV ibm_dilithium_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV ibm_dilithium_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                            CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV ibm_dilithium_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                            const TEMPLATE *tmpl,
+                                            const CK_ATTRIBUTE *attr,
+                                            CK_ULONG mode);
 CK_RV ibm_dilithium_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                                   CK_BYTE **data, CK_ULONG *data_len);
-CK_RV ibm_dilithium_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ibm_dilithium_priv_check_required_attributes(const TEMPLATE *tmpl,
+                                                   CK_ULONG mode);
 CK_RV ibm_dilithium_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV ibm_dilithium_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                            CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV ibm_dilithium_priv_validate_attribute(STDLL_TokData_t *tokdata,
+                                            TEMPLATE *tmpl,
+                                            const CK_ATTRIBUTE *attr,
+                                            CK_ULONG mode);
 CK_RV ibm_dilithium_priv_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only,
                                        CK_BYTE **data, CK_ULONG *data_len);
 CK_RV ibm_dilithium_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data,
@@ -2638,16 +2660,22 @@ CK_RV ibm_dilithium_priv_unwrap_get_data(TEMPLATE *tmpl,
 
 // Kyber routines
 //
-CK_RV ibm_kyber_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ibm_kyber_publ_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode);
 CK_RV ibm_kyber_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV ibm_kyber_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                        CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV ibm_kyber_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                        const TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
+                                        CK_ULONG mode);
 CK_RV ibm_kyber_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                               CK_BYTE **data, CK_ULONG *data_len);
-CK_RV ibm_kyber_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ibm_kyber_priv_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode);
 CK_RV ibm_kyber_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV ibm_kyber_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                                        CK_ATTRIBUTE *attr, CK_ULONG mode);
+CK_RV ibm_kyber_priv_validate_attribute(STDLL_TokData_t *tokdata,
+                                        TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
+                                        CK_ULONG mode);
 CK_RV ibm_kyber_priv_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only,
                                    CK_BYTE **data, CK_ULONG *data_len);
 CK_RV ibm_kyber_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data,
@@ -2676,14 +2704,15 @@ CK_RV ibm_pqc_add_keyform_mode(TEMPLATE *tmpl, const struct pqc_oid *oid,
 
 // diffie-hellman routines
 //
-CK_RV dh_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dh_publ_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dh_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV dh_publ_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
+CK_RV dh_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                 const TEMPLATE *tmpl,
                                  CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV dh_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
                        CK_BYTE **data, CK_ULONG *data_len);
 CK_BBOOL dh_priv_check_exportability(CK_ATTRIBUTE_TYPE type);
-CK_RV dh_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV dh_priv_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dh_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV dh_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                                  CK_ATTRIBUTE *attr, CK_ULONG mode);
@@ -2695,10 +2724,12 @@ CK_RV dh_priv_unwrap_get_data(TEMPLATE *tmpl,
 CK_RV dh_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data, CK_ULONG data_len);
 
 // Generic secret key routines
-CK_RV generic_secret_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV generic_secret_check_required_attributes(const TEMPLATE *tmpl,
+                                               CK_ULONG mode);
 CK_RV generic_secret_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV generic_secret_validate_attribute(STDLL_TokData_t *tokdata,
-                                        TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                        TEMPLATE *tmpl,
+                                        const CK_ATTRIBUTE *attr,
                                         CK_ULONG mode);
 CK_RV generic_secret_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only,
                                    CK_BYTE **data, CK_ULONG *data_len);
@@ -2706,40 +2737,41 @@ CK_RV generic_secret_unwrap(TEMPLATE *tmpl, CK_BYTE *data, CK_ULONG data_len,
                             CK_BBOOL fromend);
 
 // DES routines
-CK_RV des_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV des_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_BBOOL des_check_weak_key(CK_BYTE *key);
 CK_RV des_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV des_unwrap(STDLL_TokData_t *tokdata, TEMPLATE *tmpl, CK_BYTE *data,
                  CK_ULONG data_len, CK_BBOOL fromend);
 CK_RV des_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                             CK_ATTRIBUTE *attr, CK_ULONG mode);
+                             const CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV des_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only, CK_BYTE **data,
                         CK_ULONG *data_len);
 
 // DES2 routines
-CK_RV des2_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV des2_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV des2_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV des2_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                              CK_ATTRIBUTE *attr, CK_ULONG mode);
+                              const CK_ATTRIBUTE *attr, CK_ULONG mode);
 
 // DES3 routines
-CK_RV des3_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV des3_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV des3_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV des3_unwrap(STDLL_TokData_t *tokdata, TEMPLATE *tmpl, CK_BYTE *data,
                   CK_ULONG data_len, CK_BBOOL fromend);
 CK_RV des3_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                              CK_ATTRIBUTE *attr, CK_ULONG mode);
+                              const CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV des3_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only, CK_BYTE **data,
                          CK_ULONG *data_len);
 
 // AES routines
-CK_RV aes_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
-CK_RV aes_set_default_attributes(TEMPLATE *tmpl, TEMPLATE *basetmpl,
+CK_RV aes_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV aes_set_default_attributes(TEMPLATE *tmpl, const TEMPLATE *basetmpl,
                                  CK_ULONG mode, CK_BBOOL xts);
 CK_RV aes_unwrap(STDLL_TokData_t *tokdata, TEMPLATE *tmpl, CK_BYTE *data,
                  CK_ULONG data_len, CK_BBOOL fromend, CK_BBOOL xts);
 CK_RV aes_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
-                             CK_ATTRIBUTE *attr, CK_ULONG mode, CK_BBOOL xts);
+                             const CK_ATTRIBUTE *attr, CK_ULONG mode,
+                             CK_BBOOL xts);
 CK_RV aes_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only, CK_BYTE **data,
                         CK_ULONG *data_len);
 

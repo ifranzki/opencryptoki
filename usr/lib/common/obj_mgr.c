@@ -94,7 +94,8 @@ CK_RV object_mgr_add(STDLL_TokData_t *tokdata,
     CK_KEY_TYPE keytype;
     CK_BYTE *spki = NULL;
     CK_ULONG spki_len = 0;
-    CK_ATTRIBUTE *spki_attr = NULL, *value_attr = NULL, *vallen_attr = NULL;
+    const CK_ATTRIBUTE *value_attr = NULL;
+    CK_ATTRIBUTE *spki_attr = NULL, *vallen_attr = NULL;
 
     if (!sess || !pTemplate || !handle) {
         TRACE_ERROR("Invalid function arguments.\n");
@@ -134,7 +135,8 @@ CK_RV object_mgr_add(STDLL_TokData_t *tokdata,
     case CKO_PRIVATE_KEY:
         /* Skip if there is already a non-empty CKA_PUBLIC_KEY_INFO */
         if (template_attribute_get_non_empty(o->template, CKA_PUBLIC_KEY_INFO,
-                                             &spki_attr) == CKR_OK)
+                                             (const CK_ATTRIBUTE **)&spki_attr)
+                                                                == CKR_OK)
             break;
 
         rc = template_attribute_get_ulong(o->template, CKA_KEY_TYPE, &keytype);
@@ -2359,7 +2361,8 @@ CK_RV obj_mgr_reencipher_secure_key(STDLL_TokData_t *tokdata, OBJECT *obj,
                                                    void *private),
                                     void *private)
 {
-    CK_ATTRIBUTE *opaque_attr = NULL, *reenc_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
+    CK_ATTRIBUTE *reenc_attr = NULL;
     CK_KEY_TYPE key_type;
     CK_RV rc;
 
@@ -2457,8 +2460,8 @@ CK_RV obj_mgr_reencipher_secure_key_finalize(STDLL_TokData_t *tokdata,
                                                  void *cb_private),
                                              void *cb_private)
 {
-    CK_ATTRIBUTE *opaque_attr = NULL, *old_attr = NULL, *reenc_attr = NULL;
-    CK_ATTRIBUTE *new_opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL, *reenc_attr = NULL;
+    CK_ATTRIBUTE *new_opaque_attr = NULL, *old_attr = NULL;
     CK_KEY_TYPE key_type;
     CK_RV rc;
 

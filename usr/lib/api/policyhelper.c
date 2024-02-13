@@ -17,5 +17,6 @@ CK_RV policy_get_attr_from_template(void *data,
 {
     TEMPLATE *t = data;
 
-    return template_attribute_get_non_empty(t, type, attr);
+    return template_attribute_get_non_empty(t, type,
+                                            (const CK_ATTRIBUTE **)attr);
 }

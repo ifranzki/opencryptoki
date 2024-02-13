@@ -509,7 +509,7 @@ CK_ULONG object_get_size(OBJECT * obj)
     return size;
 }
 
-static CK_RV object_get_attribute_array(CK_ATTRIBUTE *array_attr,
+static CK_RV object_get_attribute_array(const CK_ATTRIBUTE *array_attr,
                                         CK_ATTRIBUTE *tmpl_attr)
 {
     CK_RV rc = CKR_OK, rc2;
@@ -573,7 +573,7 @@ CK_RV object_get_attribute_values(OBJECT * obj,
                                   CK_ATTRIBUTE * pTemplate, CK_ULONG ulCount)
 {
     TEMPLATE *obj_tmpl = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ULONG i;
     CK_BBOOL flag;
     CK_RV rc, rc2;

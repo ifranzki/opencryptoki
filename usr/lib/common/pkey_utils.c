@@ -304,7 +304,7 @@ static inline void s390_flip_endian_64(void *dest, const void *src)
  */
 CK_BBOOL pkey_is_ec_public_key(TEMPLATE *tmpl)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const  CK_ATTRIBUTE *attr = NULL;
     CK_ULONG class;
 
     if (template_attribute_get_ulong(tmpl, CKA_CLASS, &class) != CKR_OK)
@@ -388,8 +388,8 @@ done:
  */
 CK_BBOOL pkey_op_ec_curve_supported_by_cpacf(TEMPLATE *tmpl)
 {
-    CK_ATTRIBUTE *attr = NULL;
-    CK_BYTE *ec_params;
+    const CK_ATTRIBUTE *attr = NULL;
+    const CK_BYTE *ec_params;
 
     if (template_attribute_get_non_empty(tmpl, CKA_ECDSA_PARAMS, &attr) != CKR_OK) {
         TRACE_ERROR("%s: No CKA_ECDSA_PARAMS found in template, cannot determine curve\n",
@@ -492,7 +492,7 @@ CK_RV pkey_aes_ecb(OBJECT *key_obj, CK_BYTE *in_data,
 {
     CK_RV ret;
     unsigned long fc;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     CK_ULONG clear_keylen;
     struct __attribute__((packed)){
         uint8_t key[MAXPROTKEYSIZE];
@@ -563,7 +563,7 @@ CK_RV pkey_aes_cbc(OBJECT *key_obj, CK_BYTE *iv,
 {
     CK_RV ret;
     unsigned long fc;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     CK_ULONG clear_keylen;
     struct __attribute__((packed)){
         uint8_t iv[16];
@@ -666,7 +666,7 @@ CK_RV pkey_aes_cmac(OBJECT *key_obj, CK_BYTE *message,
     unsigned int length_tail;
     unsigned long length_head;
     CK_ULONG clear_keylen;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     int rc;
 
     /* Determine clear key length */
@@ -859,7 +859,7 @@ CK_RV pkey_aes_xts(OBJECT *key_obj, CK_BYTE *tweak,
                    CK_BBOOL initial, CK_BBOOL final, CK_BYTE *iv)
 {
     CK_RV ret = CKR_OK;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     struct aes_xts_param param = {0};
     CK_ULONG keylen = 0;
     unsigned long fc;
@@ -924,8 +924,8 @@ CK_RV pkey_aes_xts(OBJECT *key_obj, CK_BYTE *tweak,
  */
 cpacf_curve_type_t get_cpacf_curve_type(TEMPLATE *tmpl)
 {
-    CK_BYTE *ec_params;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_BYTE *ec_params;
+    const CK_ATTRIBUTE *attr = NULL;
     cpacf_curve_type_t curve_type;
 
     /* Determine CKA_EC_PARAMS */
@@ -989,7 +989,7 @@ CK_RV pkey_ec_sign(OBJECT *privkey, CK_BYTE *hash, CK_ULONG hash_len,
 
     CK_RV ret;
     unsigned long fc;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     int rc, off;
     cpacf_curve_type_t curve_type;
 
@@ -1162,7 +1162,7 @@ CK_RV pkey_ibm_ed_sign(OBJECT *privkey, CK_BYTE *msg, CK_ULONG msg_len,
 
     CK_RV ret;
     unsigned long fc;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     int rc;
     cpacf_curve_type_t curve_type;
 
@@ -1283,7 +1283,7 @@ struct {                          \
 
     CK_RV ret;
     unsigned long fc;
-    CK_ATTRIBUTE *pub_attr = NULL;
+    const CK_ATTRIBUTE *pub_attr = NULL;
     int rc, hash_off, key_off;
     const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;
@@ -1401,7 +1401,7 @@ struct {                            \
 
     CK_RV ret;
     unsigned long fc;
-    CK_ATTRIBUTE *pub_attr = NULL;
+    const CK_ATTRIBUTE *pub_attr = NULL;
     int rc;
     const CK_BYTE *ecpoint;
     CK_ULONG ecpoint_len, field_len;

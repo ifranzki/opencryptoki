@@ -160,7 +160,7 @@ CK_RV ckm_dh_pkcs_derive(STDLL_TokData_t *tokdata,
     CK_ULONG p_len;
     CK_BYTE x[256];
     CK_ULONG x_len;
-    CK_ATTRIBUTE *temp_attr;
+    const CK_ATTRIBUTE *temp_attr;
     CK_BYTE *p_other_pubkey;
 
     // Extract secret (x) from base_key

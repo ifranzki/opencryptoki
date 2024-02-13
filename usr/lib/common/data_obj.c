@@ -31,7 +31,7 @@
 
 // data_object_check_required_attributes()
 //
-CK_RV data_object_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
+CK_RV data_object_check_required_attributes(const TEMPLATE *tmpl, CK_ULONG mode)
 {
     // CKO_DATA has no required attributes
     //
@@ -133,7 +133,8 @@ error:
 //
 // Determine whether a CKO_DATA object's attribute are valid.
 //
-CK_RV data_object_validate_attribute(TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+CK_RV data_object_validate_attribute(const TEMPLATE *tmpl,
+                                     const CK_ATTRIBUTE *attr,
                                      CK_ULONG mode)
 {
     if (!attr) {

@@ -2252,7 +2252,7 @@ done:
  * over all APQNs.
  */
 static CK_RV ccatok_pkey_skey2pkey(STDLL_TokData_t *tokdata,
-                                   CK_ATTRIBUTE *skey_attr,
+                                   const CK_ATTRIBUTE *skey_attr,
                                    CK_ATTRIBUTE **pkey_attr, CK_BBOOL aes_xts)
 {
     CK_ATTRIBUTE *tmp_attr = NULL;
@@ -2533,7 +2533,7 @@ static CK_BBOOL ccatok_pkey_option_disabled(STDLL_TokData_t *tokdata)
 static CK_BBOOL ccatok_pkey_is_valid(STDLL_TokData_t *tokdata, OBJECT *key_obj)
 {
     struct cca_private_data *cca_data = tokdata->private_data;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     int vp_offset;
 
     if (template_attribute_get_non_empty(key_obj->template, CKA_IBM_OPAQUE_PKEY,
@@ -2559,7 +2559,7 @@ static CK_RV ccatok_pkey_update(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                 CK_BBOOL aes_xts)
 {
     struct cca_private_data *cca_data = tokdata->private_data;
-    CK_ATTRIBUTE *skey_attr = NULL;
+    const CK_ATTRIBUTE *skey_attr = NULL;
     CK_ATTRIBUTE *pkey_attr = NULL;
     CK_RV ret;
     int vp_offset;
@@ -2674,7 +2674,7 @@ static CK_RV ccatok_pkey_check(STDLL_TokData_t *tokdata, SESSION *session,
                                OBJECT *key_obj, CK_MECHANISM *mech)
 {
     struct cca_private_data *cca_data = tokdata->private_data;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     CK_RV ret = CKR_FUNCTION_NOT_SUPPORTED;
 
     /* Check if CPACF supports the operation implied by this key and mech */
@@ -2757,7 +2757,8 @@ CK_RV token_specific_set_attrs_for_new_object(STDLL_TokData_t *tokdata,
                                               CK_ULONG mode, TEMPLATE *tmpl)
 {
     struct cca_private_data *cca_data = tokdata->private_data;
-    CK_ATTRIBUTE *pkey_attr = NULL, *ecp_attr = NULL, *sensitive_attr = NULL;
+    CK_ATTRIBUTE *pkey_attr = NULL, *sensitive_attr = NULL;
+    const  CK_ATTRIBUTE *ecp_attr = NULL;
     CK_BBOOL add_pkey_extractable = CK_FALSE;
     CK_BBOOL sensitive;
     CK_BBOOL btrue = CK_TRUE;
@@ -2822,7 +2823,8 @@ CK_RV token_specific_set_attrs_for_new_object(STDLL_TokData_t *tokdata,
         }
 
         if (add_pkey_extractable) {
-            if (!template_attribute_find(tmpl, CKA_IBM_PROTKEY_EXTRACTABLE, &pkey_attr)) {
+            if (!template_attribute_find(tmpl, CKA_IBM_PROTKEY_EXTRACTABLE,
+                                         (const CK_ATTRIBUTE **)&pkey_attr)) {
                 ret = build_attribute(CKA_IBM_PROTKEY_EXTRACTABLE,
                                       (CK_BBOOL *)&btrue, sizeof(CK_BBOOL),
                                       &pkey_attr);
@@ -2939,7 +2941,7 @@ CK_RV token_specific_aes_xts_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     unsigned char point_to_array_of_zeros = 0;
     unsigned char mkvp[16] = { 0, };
     CK_BBOOL new_mk, new_mk2;
-    CK_ATTRIBUTE *reenc_attr = NULL;
+    const CK_ATTRIBUTE *reenc_attr = NULL;
 
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
         TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
@@ -3084,7 +3086,7 @@ CK_RV token_specific_aes_xts(STDLL_TokData_t *tokdata, SESSION *session,
                              CK_BBOOL encrypt, CK_BBOOL initial,
                              CK_BBOOL final, CK_BYTE *iv)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
     CK_MECHANISM mech = { CKM_AES_XTS, NULL, 0 };
 
@@ -3119,12 +3121,12 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
                                 OBJECT * object)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     enum cca_token_type token_type, token_type2;
     unsigned int token_keybitsize, token_keybitsize2;
     const CK_BYTE *mkvp, *mkvp2;
     CK_BBOOL new_mk, new_mk2;
-    CK_ATTRIBUTE *reenc_attr = NULL;
+    const CK_ATTRIBUTE *reenc_attr = NULL;
 
     if (!((struct cca_private_data *)tokdata->private_data)->pkey_wrap_supported) {
         TRACE_ERROR("%s\n", ock_err(ERR_MECHANISM_INVALID));
@@ -3262,7 +3264,7 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
         long return_code, reason_code, rule_array_count;
         unsigned char target_key_id[CCA_KEY_ID_SIZE * 2] = { 0 };
         unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0 };
-        CK_ATTRIBUTE *value_attr = NULL;
+        const CK_ATTRIBUTE *value_attr = NULL;
         CK_ULONG keylen;
 
         rc = template_attribute_get_non_empty(object->template, CKA_VALUE,
@@ -3861,7 +3863,7 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t * tokdata,
     unsigned char chaining_vector[CCA_OCV_SIZE];
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE];
     CK_BYTE *local_out = out_data;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
@@ -4225,7 +4227,7 @@ CK_RV token_specific_rsa_generate_keypair(STDLL_TokData_t * tokdata,
 
     uint16_t size_of_e;
     uint16_t mod_bits, be_mod_bits;
-    CK_ATTRIBUTE *pub_exp = NULL;
+    const CK_ATTRIBUTE *pub_exp = NULL;
     CK_RV rv;
     CK_BYTE_PTR ptr;
     CK_ULONG tmpsize, tmpexp, tmpbits;
@@ -4429,7 +4431,7 @@ CK_RV token_specific_rsa_encrypt(STDLL_TokData_t * tokdata,
 {
     long return_code, reason_code, rule_array_count, data_structure_length;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
 
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
@@ -4495,7 +4497,7 @@ CK_RV token_specific_rsa_decrypt(STDLL_TokData_t * tokdata,
 {
     long return_code, reason_code, rule_array_count, data_structure_length;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
 
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
@@ -4566,7 +4568,7 @@ CK_RV token_specific_rsa_oaep_encrypt(STDLL_TokData_t *tokdata,
     CK_RSA_PKCS_OAEP_PARAMS *oaep;
     long return_code, reason_code, rule_array_count, data_structure_length;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     OBJECT *key_obj = NULL;
     CK_RV rc;
 
@@ -4688,7 +4690,7 @@ CK_RV token_specific_rsa_oaep_decrypt(STDLL_TokData_t *tokdata,
     CK_RSA_PKCS_OAEP_PARAMS *oaep;
     long return_code, reason_code, rule_array_count, data_structure_length;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     OBJECT *key_obj = NULL;
     CK_RV rc;
 
@@ -4808,7 +4810,7 @@ CK_RV token_specific_rsa_sign(STDLL_TokData_t * tokdata,
     long return_code, reason_code, rule_array_count;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
     long signature_bit_length;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
 
     UNUSED(sess);
@@ -4873,7 +4875,7 @@ CK_RV token_specific_rsa_verify(STDLL_TokData_t * tokdata,
 {
     long return_code, reason_code, rule_array_count;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
 
     UNUSED(sess);
@@ -4952,7 +4954,7 @@ CK_RV token_specific_rsa_pss_sign(STDLL_TokData_t *tokdata,
     long return_code, reason_code, rule_array_count;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
     long signature_bit_length, message_len;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     OBJECT *key_obj = NULL;
     CK_BYTE *message = NULL;
     CK_RV rc;
@@ -5095,7 +5097,7 @@ CK_RV token_specific_rsa_pss_verify(STDLL_TokData_t *tokdata,
     CK_RSA_PKCS_PSS_PARAMS *pss;
     long return_code, reason_code, rule_array_count, message_len;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     OBJECT *key_obj = NULL;
     CK_BYTE *message = NULL;
     CK_RV rc;
@@ -5333,7 +5335,7 @@ CK_RV token_specific_aes_ecb(STDLL_TokData_t * tokdata,
          chain_vector_len = 0;
     unsigned char exit_data[1];
     CK_BYTE *local_out = out_data;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     long int key_len;
     CK_RV rc;
 #ifndef NO_PKEY
@@ -5472,7 +5474,7 @@ CK_RV token_specific_aes_cbc(STDLL_TokData_t * tokdata,
          chain_vector_len = 32;
     CK_BYTE *local_out = out_data;
     unsigned char exit_data[1];
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     long int key_len;
     CK_RV rc;
 #ifndef NO_PKEY
@@ -5706,7 +5708,7 @@ CK_BBOOL is_curve_error(long return_code, long reason_code)
 static CK_RV curve_supported(TEMPLATE *templ, uint8_t *curve_type,
                              uint16_t *curve_bitlen, int *curve_nid)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     unsigned int i;
     CK_RV rc;
 
@@ -5774,7 +5776,7 @@ CK_RV token_create_ec_keypair(TEMPLATE * publ_tmpl,
     CK_ULONG q_len;
     CK_BYTE q[CCATOK_EC_MAX_Q_LEN];
     CK_RV rv;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ecpoint = NULL;
     CK_ULONG ecpoint_len;
 
@@ -6050,7 +6052,7 @@ CK_RV token_specific_ec_sign(STDLL_TokData_t * tokdata,
     long return_code, reason_code, rule_array_count;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
     long signature_bit_length;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
 #ifndef NO_PKEY
     CK_MECHANISM mech = { CKM_ECDSA, NULL, 0 };
@@ -6140,7 +6142,7 @@ CK_RV token_specific_ec_verify(STDLL_TokData_t * tokdata,
 {
     long return_code, reason_code, rule_array_count;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
 #ifndef NO_PKEY
     CK_MECHANISM mech = { CKM_ECDSA, NULL, 0 };
@@ -6677,7 +6679,7 @@ CK_RV ccatok_hmac(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
     long return_code = 0, reason_code = 0, rule_array_count = 3;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE];
     OBJECT *key = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc = CKR_OK;
 
     if (!ctx || !ctx->context) {
@@ -6830,7 +6832,7 @@ CK_RV ccatok_hmac_update(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
     unsigned char *buffer = NULL;
     int blocksz, blocksz_mask, use_buffer = 0;
     OBJECT *key = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc = CKR_OK;
 
     if (!ctx || !ctx->context) {
@@ -7051,7 +7053,7 @@ CK_RV ccatok_hmac_final(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
     long return_code, reason_code, rule_array_count = 3;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
     OBJECT *key = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc = CKR_OK;
 
     if (!ctx || !ctx->context) {
@@ -7200,7 +7202,7 @@ CK_RV token_specific_hmac_verify_final(STDLL_TokData_t * tokdata,
 static CK_RV import_rsa_privkey(STDLL_TokData_t *tokdata, TEMPLATE * priv_tmpl)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     enum cca_token_type token_type;
     unsigned int token_keybitsize;
     const CK_BYTE *mkvp;
@@ -7304,7 +7306,7 @@ static CK_RV import_rsa_privkey(STDLL_TokData_t *tokdata, TEMPLATE * priv_tmpl)
 
         uint16_t size_of_e;
         uint16_t mod_bits, mod_bytes, bytes;
-        CK_ATTRIBUTE *pub_exp = NULL, *mod = NULL,
+        const CK_ATTRIBUTE *pub_exp = NULL, *mod = NULL,
             *p_prime = NULL, *q_prime = NULL, *dmp1 = NULL, *dmq1 = NULL, *iqmp =
             NULL, *priv_exp = NULL;
 
@@ -7544,7 +7546,7 @@ err:
 static CK_RV import_rsa_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *publ_tmpl)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
 
     rc = template_attribute_find(publ_tmpl, CKA_IBM_OPAQUE, &opaque_attr);
     if (rc == TRUE) {
@@ -7616,8 +7618,8 @@ static CK_RV import_rsa_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *publ_tmpl)
 
         uint16_t size_of_e;
         uint16_t mod_bits, mod_bytes;
-        CK_ATTRIBUTE *pub_exp = NULL;
-        CK_ATTRIBUTE *pub_mod = NULL, *attr = NULL;
+        const CK_ATTRIBUTE *pub_exp = NULL;
+        const CK_ATTRIBUTE *pub_mod = NULL, *attr = NULL;
 
         /* check that modulus and public exponent are available */
         rc = template_attribute_get_non_empty(publ_tmpl, CKA_PUBLIC_EXPONENT,
@@ -7722,7 +7724,7 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
                                   OBJECT * object, CK_ULONG keytype)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     enum cca_token_type token_type;
     unsigned int token_keybitsize;
     const CK_BYTE *mkvp;
@@ -7820,7 +7822,7 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
         long return_code, reason_code, rule_array_count;
         unsigned char target_key_id[CCA_KEY_ID_SIZE] = { 0 };
         unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0 };
-        CK_ATTRIBUTE *value_attr = NULL;
+        const CK_ATTRIBUTE *value_attr = NULL;
 
         rc = template_attribute_get_non_empty(object->template, CKA_VALUE, &value_attr);
         if (rc != CKR_OK) {
@@ -7896,8 +7898,8 @@ static CK_RV import_generic_secret_key(STDLL_TokData_t *tokdata,
                                        OBJECT * object)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
-    CK_ATTRIBUTE *value_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *value_attr = NULL;
     CK_ULONG keylen, keybitlen;
     enum cca_token_type token_type;
     unsigned int token_payloadbitsize;
@@ -8387,7 +8389,7 @@ static CK_RV check_cca_ec_type_and_add_params(uint8_t cca_ec_type,
 static CK_RV import_ec_privkey(STDLL_TokData_t *tokdata, TEMPLATE *priv_templ)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     enum cca_token_type token_type;
     unsigned int token_keybitsize;
     const CK_BYTE *mkvp;
@@ -8467,7 +8469,7 @@ static CK_RV import_ec_privkey(STDLL_TokData_t *tokdata, TEMPLATE *priv_templ)
         unsigned char *exit_data = NULL;
         unsigned char *param2=NULL;
         CK_BYTE *privkey = NULL, *pubkey = NULL;
-        CK_ATTRIBUTE *attr = NULL;
+        const CK_ATTRIBUTE *attr = NULL;
         CK_ULONG privlen = 0, publen = 0;
         uint8_t curve_type;
         uint16_t curve_bitlen;
@@ -8617,7 +8619,7 @@ static CK_RV import_ec_privkey(STDLL_TokData_t *tokdata, TEMPLATE *priv_templ)
 static CK_RV import_ec_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *pub_templ)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
 
     rc = template_attribute_find(pub_templ, CKA_IBM_OPAQUE, &opaque_attr);
     if (rc == TRUE) {
@@ -8689,7 +8691,7 @@ static CK_RV import_ec_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *pub_templ)
         int curve_nid;
         const CK_BYTE *pubkey = NULL;
         CK_ULONG publen = 0;
-        CK_ATTRIBUTE *attr = NULL;
+        const CK_ATTRIBUTE *attr = NULL;
         CK_ULONG field_len;
 
         /* Check if curve supported and determine curve type and bitlen */
@@ -8769,7 +8771,7 @@ static CK_RV import_ec_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *pub_templ)
 CK_RV token_specific_object_add(STDLL_TokData_t *tokdata, SESSION *sess, OBJECT *object)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_KEY_TYPE keytype;
     CK_OBJECT_CLASS keyclass;
 
@@ -9040,7 +9042,7 @@ static CK_RV ccatok_wrap_key_rsa_pkcs(STDLL_TokData_t *tokdata,
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0 };
     CK_BYTE buffer[900] = { 0, };
     long buffer_len = sizeof(buffer);
-    CK_ATTRIBUTE *key_opaque, *wrap_key_opaque;
+    const CK_ATTRIBUTE *key_opaque, *wrap_key_opaque;
     CK_OBJECT_CLASS key_class;
     CK_KEY_TYPE key_type;
     CK_RSA_PKCS_OAEP_PARAMS *oaep;
@@ -9207,7 +9209,8 @@ static CK_RV ccatok_unwrap_key_rsa_pkcs(STDLL_TokData_t *tokdata,
     CK_BYTE buffer[3500] = { 0, };
     CK_BYTE dummy[AES_KEY_SIZE_256] = { 0, };
     long buffer_len = sizeof(buffer);
-    CK_ATTRIBUTE *wrap_key_opaque,*key_opaque = NULL;
+    const CK_ATTRIBUTE *wrap_key_opaque;
+    CK_ATTRIBUTE *key_opaque = NULL;
     CK_ATTRIBUTE *value = NULL, *value_len = NULL;
     CK_OBJECT_CLASS key_class;
     CK_KEY_TYPE key_type, cca_key_type;
@@ -9659,7 +9662,7 @@ CK_RV token_specific_reencrypt_single(STDLL_TokData_t *tokdata,
                                       CK_BYTE *in_data, CK_ULONG in_data_len,
                                       CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
-    CK_ATTRIBUTE *decr_key_opaque, *encr_key_opaque;
+    const CK_ATTRIBUTE *decr_key_opaque, *encr_key_opaque;
     long return_code, reason_code, rule_array_count = 0;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0 };
     CK_BYTE in_iv[AES_BLOCK_SIZE] = { 0 };

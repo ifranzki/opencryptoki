@@ -789,8 +789,8 @@ CK_RV token_specific_dh_pkcs_key_pair_gen(STDLL_TokData_t *tokdata,
 {
     CK_RV rv;
     CK_BBOOL rc;
-    CK_ATTRIBUTE *prime_attr = NULL;
-    CK_ATTRIBUTE *base_attr = NULL;
+    const CK_ATTRIBUTE *prime_attr = NULL;
+    const CK_ATTRIBUTE *base_attr = NULL;
     CK_ATTRIBUTE *temp_attr = NULL;
     CK_ATTRIBUTE *value_bits_attr = NULL;
     CK_BYTE *temp_byte = NULL, *temp_byte2 = NULL;
@@ -1294,7 +1294,7 @@ CK_RV token_specific_ecdh_pkcs_derive(STDLL_TokData_t *tokdata,
 CK_RV token_specific_object_add(STDLL_TokData_t * tokdata, SESSION * sess,
                                 OBJECT * obj)
 {
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_KEY_TYPE keytype;
 #ifndef NO_EC
     EVP_PKEY *ec_key = NULL;

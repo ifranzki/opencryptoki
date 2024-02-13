@@ -330,7 +330,7 @@ static void trace_attributes(const char *func, const char *heading,
 static CK_RV cleanse_attribute(TEMPLATE *template,
                                CK_ATTRIBUTE_TYPE attr_type)
 {
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
 
     if (template_attribute_get_non_empty(template, attr_type, &attr) != CKR_OK)
         return CKR_FUNCTION_FAILED;
@@ -619,8 +619,8 @@ done:
  * CKM_IBM_CPACF_WRAP mechanism.
  */
 static CK_RV ep11tok_pkey_skey2pkey(STDLL_TokData_t *tokdata, SESSION *session,
-                                    CK_ATTRIBUTE *skey_attr,
-                                    CK_ATTRIBUTE *skey_reenc_attr,
+                                    const CK_ATTRIBUTE *skey_attr,
+                                    const CK_ATTRIBUTE *skey_reenc_attr,
                                     CK_ATTRIBUTE **pkey_attr,
                                     CK_BBOOL aes_xts)
 {
@@ -956,7 +956,7 @@ unlock:
 static CK_BBOOL ep11tok_pkey_is_valid(STDLL_TokData_t *tokdata, OBJECT *key_obj)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
-    CK_ATTRIBUTE *pkey_attr = NULL;
+    const CK_ATTRIBUTE *pkey_attr = NULL;
     int vp_offset;
 
     if (template_attribute_get_non_empty(key_obj->template, CKA_IBM_OPAQUE_PKEY,
@@ -982,8 +982,8 @@ static CK_RV ep11tok_pkey_update(STDLL_TokData_t *tokdata, SESSION *session,
                                  OBJECT *key_obj, CK_BBOOL aes_xts)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
-    CK_ATTRIBUTE *skey_attr = NULL;
-    CK_ATTRIBUTE *skey_reenc_attr = NULL;
+    const CK_ATTRIBUTE *skey_attr = NULL;
+    const CK_ATTRIBUTE *skey_reenc_attr = NULL;
     CK_ATTRIBUTE *pkey_attr = NULL;
     CK_RV ret;
     int vp_offset;
@@ -1120,7 +1120,7 @@ CK_RV ep11tok_pkey_check(STDLL_TokData_t *tokdata, SESSION *session,
                          OBJECT *key_obj, CK_MECHANISM *mech)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
-    CK_ATTRIBUTE *opaque_attr = NULL;
+    const CK_ATTRIBUTE *opaque_attr = NULL;
     CK_RV ret = CKR_FUNCTION_NOT_SUPPORTED;
 
     /* Check if CPACF supports the operation implied by this key and mech */
@@ -1254,7 +1254,8 @@ CK_RV token_specific_set_attrs_for_new_object(STDLL_TokData_t *tokdata,
                                               CK_ULONG mode, TEMPLATE *tmpl)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
-    CK_ATTRIBUTE *pkey_attr = NULL, *ecp_attr = NULL, *sensitive_attr = NULL;
+    CK_ATTRIBUTE *pkey_attr = NULL, *sensitive_attr = NULL;
+    const CK_ATTRIBUTE *ecp_attr = NULL;
     CK_BBOOL extractable, sensitive, btrue = CK_TRUE;
     CK_BBOOL add_pkey_extractable = CK_FALSE;
     CK_RV ret;
@@ -1316,7 +1317,8 @@ CK_RV token_specific_set_attrs_for_new_object(STDLL_TokData_t *tokdata,
         }
 
         if (add_pkey_extractable) {
-            if (!template_attribute_find(tmpl, CKA_IBM_PROTKEY_EXTRACTABLE, &pkey_attr)) {
+            if (!template_attribute_find(tmpl, CKA_IBM_PROTKEY_EXTRACTABLE,
+                                         (const CK_ATTRIBUTE **)&pkey_attr)) {
                 ret = build_attribute(CKA_IBM_PROTKEY_EXTRACTABLE,
                                       (CK_BBOOL *)&btrue, sizeof(CK_BBOOL),
                                       &pkey_attr);
@@ -3023,7 +3025,7 @@ make_maced_spki_end:
  */
 static int get_curve_type_from_template(TEMPLATE *tmpl)
 {
-    CK_ATTRIBUTE *ec_params;
+    const CK_ATTRIBUTE *ec_params;
     int i, curve_type = -1;
     CK_RV ret;
 
@@ -3067,7 +3069,7 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_ULONG attrs_len = 0;
     CK_ATTRIBUTE_PTR new_p_attrs = NULL;
     CK_ULONG new_attrs_len = 0;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     unsigned char *ep11_pin_blob = NULL;
     CK_ULONG ep11_pin_blob_len = 0;
     ep11_session_t *ep11_session = (ep11_session_t*) sess->private_data;
@@ -3320,8 +3322,8 @@ static CK_RV import_RSA_key(STDLL_TokData_t *tokdata, SESSION *sess,
 
         /* an imported public RSA key, we need a SPKI for it. */
 
-        CK_ATTRIBUTE *modulus;
-        CK_ATTRIBUTE *publ_exp;
+        const CK_ATTRIBUTE *modulus;
+        const CK_ATTRIBUTE *publ_exp;
 
         rc = template_attribute_get_non_empty(rsa_key_obj->template,
                                               CKA_MODULUS, &modulus);
@@ -3521,8 +3523,8 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
 
         /* an imported public EC key, we need a SPKI for it. */
 
-        CK_ATTRIBUTE *ec_params;
-        CK_ATTRIBUTE *ec_point_attr;
+        const CK_ATTRIBUTE *ec_params;
+        const CK_ATTRIBUTE *ec_point_attr;
         CK_ATTRIBUTE ec_point_uncompr;
         const CK_BYTE *ecpoint;
         CK_BYTE *ecpoint2 = NULL;
@@ -3756,10 +3758,10 @@ static CK_RV import_DSA_key(STDLL_TokData_t *tokdata, SESSION *sess,
 
         /* an imported public DSA key, we need a SPKI for it. */
 
-        CK_ATTRIBUTE *prime;
-        CK_ATTRIBUTE *subprime;
-        CK_ATTRIBUTE *base;
-        CK_ATTRIBUTE *value;
+        const CK_ATTRIBUTE *prime;
+        const CK_ATTRIBUTE *subprime;
+        const CK_ATTRIBUTE *base;
+        const CK_ATTRIBUTE *value;
 
         rc = template_attribute_get_non_empty(dsa_key_obj->template,
                                               CKA_PRIME, &prime);
@@ -3959,9 +3961,9 @@ static CK_RV import_DH_key(STDLL_TokData_t *tokdata, SESSION *sess,
 
         /* an imported public DH key, we need a SPKI for it. */
 
-        CK_ATTRIBUTE *prime;
-        CK_ATTRIBUTE *base;
-        CK_ATTRIBUTE *value;
+        const CK_ATTRIBUTE *prime;
+        const CK_ATTRIBUTE *base;
+        const CK_ATTRIBUTE *value;
 
         rc = template_attribute_get_non_empty(dh_key_obj->template, CKA_PRIME,
                                               &prime);
@@ -4013,7 +4015,7 @@ static CK_RV import_DH_key(STDLL_TokData_t *tokdata, SESSION *sess,
         *spki_size = 0; /* common code will extract SPKI from object */
 
     } else {
-        CK_ATTRIBUTE *value;
+        const CK_ATTRIBUTE *value;
         CK_ATTRIBUTE *value_bits;
         CK_ULONG num_bits;
 
@@ -4157,7 +4159,8 @@ static CK_RV import_IBM_pqc_key(STDLL_TokData_t *tokdata, SESSION *sess,
     unsigned char *ep11_pin_blob = NULL;
     CK_ULONG ep11_pin_blob_len = 0;
     ep11_session_t *ep11_session = (ep11_session_t *) sess->private_data;
-    CK_ATTRIBUTE *value_attr = NULL;
+    const CK_ATTRIBUTE *value_attr = NULL;
+    CK_ATTRIBUTE *value_attr2 = NULL;
     CK_BBOOL data_alloced = TRUE;
     const struct pqc_oid *oid;
     const char *key_type_str;
@@ -4249,21 +4252,21 @@ static CK_RV import_IBM_pqc_key(STDLL_TokData_t *tokdata, SESSION *sess,
             }
 
             /* Add SPKI as CKA_VALUE to public key (z/OS ICSF compatibility) */
-            rc = build_attribute(CKA_VALUE, data, data_len, &value_attr);
+            rc = build_attribute(CKA_VALUE, data, data_len, &value_attr2);
             if (rc != CKR_OK) {
                 TRACE_DEVEL("build_attribute failed\n");
                 goto done;
             }
 
             rc = template_update_attribute(pqc_key_obj->template,
-                                           value_attr);
+                                           value_attr2);
             if (rc != CKR_OK) {
                 TRACE_ERROR("%s template_update_attribute failed with rc=0x%lx\n",
                             __func__, rc);
-                free(value_attr);
+                free(value_attr2);
                 goto done;
             }
-            value_attr = NULL;
+            value_attr2 = NULL;
         }
 
         /* save the SPKI as blob although it is not a blob.
@@ -4550,7 +4553,8 @@ CK_RV token_specific_object_add(STDLL_TokData_t * tokdata, SESSION * sess,
     case CKK_AES:
     case CKK_GENERIC_SECRET:
         /* get key value */
-        rc = template_attribute_get_non_empty(obj->template, CKA_VALUE, &attr);
+        rc = template_attribute_get_non_empty(obj->template, CKA_VALUE,
+                                              (const CK_ATTRIBUTE **)&attr);
         if (rc != CKR_OK) {
             TRACE_ERROR("Could not find CKA_VALUE for the key.\n");
             return rc;
@@ -5085,7 +5089,7 @@ static CK_BBOOL ep11tok_ec_curve_supported2(STDLL_TokData_t *tokdata,
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     int i, status;
     const CK_VERSION ver3 = { .major = 3, .minor = 0 };
 
@@ -6105,7 +6109,7 @@ static CK_RV ep11tok_btc_mech_pre_process(STDLL_TokData_t *tokdata,
                                           CK_ATTRIBUTE **new_attrs,
                                           CK_ULONG *new_attrs_len)
 {
-    CK_ATTRIBUTE *ec_params;
+    const CK_ATTRIBUTE *ec_params;
     CK_ULONG i, privlen;
     CK_RV rc;
 
@@ -6463,7 +6467,8 @@ CK_RV ep11tok_derive_key(STDLL_TokData_t *tokdata, SESSION *session,
     size_t newblobsize = sizeof(newblob);
     CK_BYTE csum[MAX_BLOBSIZE];
     CK_ULONG cslen = sizeof(csum);
-    CK_ATTRIBUTE *opaque_attr = NULL, *chk_attr = NULL, *ec_parms_attr = NULL;
+    CK_ATTRIBUTE *opaque_attr = NULL, *chk_attr = NULL;
+    const CK_ATTRIBUTE *ec_parms_attr = NULL;
     OBJECT *base_key_obj = NULL;
     OBJECT *key_obj = NULL;
     CK_ULONG ktype;
@@ -6978,8 +6983,8 @@ static CK_RV dh_generate_keypair(STDLL_TokData_t *tokdata,
     CK_BYTE privblob[MAX_BLOBSIZE];
     CK_BYTE privblobreenc[MAX_BLOBSIZE];
     size_t privblobsize = sizeof(privblob);
-    CK_ATTRIBUTE *prime_attr = NULL;
-    CK_ATTRIBUTE *base_attr = NULL;
+    const CK_ATTRIBUTE *prime_attr = NULL;
+    const CK_ATTRIBUTE *base_attr = NULL;
     CK_ATTRIBUTE *opaque_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *attr = NULL;
@@ -7365,9 +7370,9 @@ static CK_RV dsa_generate_keypair(STDLL_TokData_t *tokdata,
     CK_BYTE privblob[MAX_BLOBSIZE];
     CK_BYTE privblobreenc[MAX_BLOBSIZE];
     size_t privblobsize = sizeof(privblob);
-    CK_ATTRIBUTE *prime_attr = NULL;
-    CK_ATTRIBUTE *sub_prime_attr = NULL;
-    CK_ATTRIBUTE *base_attr = NULL;
+    const CK_ATTRIBUTE *prime_attr = NULL;
+    const CK_ATTRIBUTE *sub_prime_attr = NULL;
+    const CK_ATTRIBUTE *base_attr = NULL;
     CK_ATTRIBUTE *opaque_attr = NULL;
     CK_ATTRIBUTE *value_attr = NULL;
     CK_ATTRIBUTE *attr = NULL;
@@ -7734,6 +7739,7 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
     ep11_private_data_t *ep11_data = tokdata->private_data;
     CK_RV rc;
     CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr2;
     CK_ATTRIBUTE *n_attr = NULL;
     CK_BYTE privkey_blob[MAX_BLOBSIZE];
     CK_BYTE privkey_blobreenc[MAX_BLOBSIZE];
@@ -8008,10 +8014,10 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
         }
 
         /* copy CKA_EC_PARAMS/CKA_ECDSA_PARAMS to private template  */
-        rc = template_attribute_get_non_empty(publ_tmpl, CKA_EC_PARAMS, &attr);
+        rc = template_attribute_get_non_empty(publ_tmpl, CKA_EC_PARAMS, &attr2);
         if (rc == CKR_OK) {
-            rc = build_attribute(attr->type, attr->pValue,
-                                 attr->ulValueLen, &n_attr);
+            rc = build_attribute(attr2->type, attr2->pValue,
+                                 attr2->ulValueLen, &n_attr);
             if (rc != CKR_OK) {
                 TRACE_ERROR("%s build_attribute failed with rc=0x%lx\n",
                             __func__, rc);
@@ -8028,10 +8034,10 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
         }
 
         rc = template_attribute_get_non_empty(publ_tmpl, CKA_ECDSA_PARAMS,
-                                              &attr);
+                                              &attr2);
         if (rc == CKR_OK) {
-            rc = build_attribute(attr->type, attr->pValue,
-                                 attr->ulValueLen, &n_attr);
+            rc = build_attribute(attr2->type, attr2->pValue,
+                                 attr2->ulValueLen, &n_attr);
             if (rc != CKR_OK) {
                 TRACE_ERROR("%s build_attribute failed with rc=0x%lx\n",
                             __func__, rc);
@@ -8445,7 +8451,7 @@ CK_RV ep11tok_generate_key_pair(STDLL_TokData_t * tokdata, SESSION * sess,
     OBJECT *private_key_obj = NULL;
     CK_ULONG priv_ktype, publ_ktype;
     CK_ULONG class;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_ATTRIBUTE *n_attr = NULL;
     CK_BYTE *spki = NULL;
     CK_ULONG spki_length = 0;
@@ -8719,7 +8725,7 @@ error:
 static CK_RV obj_opaque_2_blob(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                CK_BYTE **blob, size_t *blobsize)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     UNUSED(tokdata);
@@ -8747,7 +8753,7 @@ static CK_RV obj_opaque_2_blob(STDLL_TokData_t *tokdata, OBJECT *key_obj,
 static CK_RV obj_opaque_2_reenc_blob(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                      CK_BYTE **blob, size_t *blobsize)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_RV rc;
 
     UNUSED(tokdata);
@@ -15054,11 +15060,12 @@ static CK_RV update_ep11_attrs_from_blob(STDLL_TokData_t *tokdata,
     CK_BBOOL attrb = CK_FALSE, useasdata = CK_FALSE;
     CK_BBOOL pkeyextr = CK_FALSE, pkeyneverextr = CK_FALSE;
     CK_ULONG stdcomp1 = 0;
-    CK_ATTRIBUTE *attr, *blob_attr = NULL;
+    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *blob_attr = NULL;
     CK_RV rc = CKR_OK;
     CK_ULONG i;
     CK_BYTE *useblob, *blob;
-    size_t usebloblen;
+    size_t usebloblen, bloblen;
 
     CK_ATTRIBUTE ibm_attrs[] = {
         { CKA_IBM_RESTRICTABLE, &restr, sizeof(restr) },
@@ -15084,9 +15091,10 @@ static CK_RV update_ep11_attrs_from_blob(STDLL_TokData_t *tokdata,
     }
 
     blob = blob_attr->pValue;
+    bloblen = blob_attr->ulValueLen;
     RETRY_SESSION_SINGLE_APQN_START(rc, tokdata)
     RETRY_REENC_BLOB_START(tokdata, target_info, key_obj,
-                           blob, blob_attr->ulValueLen,
+                           blob, bloblen,
                            useblob, usebloblen, rc)
         rc = dll_m_GetAttributeValue(useblob,
                                      aes_xts ? usebloblen / 2 : usebloblen,

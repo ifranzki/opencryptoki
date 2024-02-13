@@ -340,7 +340,7 @@ CK_RV digest_mgr_digest_key(STDLL_TokData_t *tokdata,
                             SESSION *sess,
                             DIGEST_CONTEXT *ctx, CK_OBJECT_HANDLE key_handle)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     OBJECT *key_obj = NULL;
     CK_OBJECT_CLASS class;
     CK_RV rc;

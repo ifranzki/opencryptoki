@@ -614,7 +614,7 @@ CK_RV token_specific_des_ecb(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_des_available)
         return openssl_specific_des_ecb(tokdata, in_data, in_data_len,
@@ -660,7 +660,7 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_des_available)
         return openssl_specific_des_cbc(tokdata, in_data, in_data_len,
@@ -707,7 +707,7 @@ CK_RV token_specific_tdes_ecb(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_KEY_TYPE keytype;
     CK_BYTE key_value[3 * DES_KEY_SIZE];
 
@@ -770,7 +770,7 @@ CK_RV token_specific_tdes_cbc(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_KEY_TYPE keytype;
     CK_BYTE key_value[3 * DES_KEY_SIZE];
 
@@ -835,7 +835,7 @@ CK_RV token_specific_tdes_ofb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_des3_available)
         return openssl_specific_tdes_ofb(tokdata, in_data, data_len, out_data,
@@ -870,7 +870,7 @@ CK_RV token_specific_tdes_cfb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_des3_available)
         return openssl_specific_tdes_cfb(tokdata, in_data, data_len, out_data,
@@ -899,7 +899,7 @@ CK_RV token_specific_tdes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_KEY_TYPE keytype;
     CK_BYTE key_value[3 * DES_KEY_SIZE];
 
@@ -945,7 +945,7 @@ CK_RV token_specific_tdes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_KEY_TYPE keytype;
     CK_BYTE key_value[3 * DES_KEY_SIZE];
 
@@ -1802,9 +1802,10 @@ out:
 /* Creates a libICA modulus+exponent key representation using
  * PKCS#11 attributes
  */
-static ica_rsa_key_mod_expo_t *rsa_convert_mod_expo_key(CK_ATTRIBUTE *modulus,
-                                                        CK_ATTRIBUTE *mod_bits,
-                                                        CK_ATTRIBUTE *exponent)
+static ica_rsa_key_mod_expo_t *rsa_convert_mod_expo_key(
+                                        const CK_ATTRIBUTE *modulus,
+                                        const CK_ATTRIBUTE *mod_bits,
+                                        const CK_ATTRIBUTE *exponent)
 {
     CK_BYTE *ptr = NULL;
     ica_rsa_key_mod_expo_t *modexpokey = NULL;
@@ -1872,12 +1873,12 @@ err:
 /* Creates a libICA CRT key representation using
  * PKCS#11 attributes
  */
-static ica_rsa_key_crt_t *rsa_convert_crt_key(CK_ATTRIBUTE *modulus,
-                                              CK_ATTRIBUTE *prime1,
-                                              CK_ATTRIBUTE *prime2,
-                                              CK_ATTRIBUTE *exp1,
-                                              CK_ATTRIBUTE *exp2,
-                                              CK_ATTRIBUTE *coeff)
+static ica_rsa_key_crt_t *rsa_convert_crt_key(const CK_ATTRIBUTE *modulus,
+                                              const CK_ATTRIBUTE *prime1,
+                                              const CK_ATTRIBUTE *prime2,
+                                              const CK_ATTRIBUTE *exp1,
+                                              const CK_ATTRIBUTE *exp2,
+                                              const CK_ATTRIBUTE *coeff)
 {
     CK_BYTE *ptr = NULL;
     ica_rsa_key_crt_t *crtkey = NULL;
@@ -2067,7 +2068,7 @@ static CK_RV ica_specific_rsa_keygen(STDLL_TokData_t *tokdata,
                                      TEMPLATE *publ_tmpl, TEMPLATE *priv_tmpl)
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
-    CK_ATTRIBUTE *publ_exp = NULL;
+    const CK_ATTRIBUTE *publ_exp = NULL;
     CK_ATTRIBUTE *attr = NULL;
     CK_BYTE *ptr = NULL;
     CK_ULONG mod_bits;
@@ -2608,7 +2609,7 @@ static CK_RV ica_blinding_setup(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                 ica_ex_data_t *ex_data, BN_CTX *bn_ctx)
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
-    CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
+    const  CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
     CK_RV rc = CKR_OK;
     BIGNUM *n, *e;
 
@@ -2828,9 +2829,9 @@ static CK_RV ica_specific_rsa_encrypt(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     ica_ex_data_t *ex_data = NULL;
-    CK_ATTRIBUTE *modulus = NULL;
-    CK_ATTRIBUTE *pub_exp = NULL;
-    CK_ATTRIBUTE *mod_bits = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *pub_exp = NULL;
+    const CK_ATTRIBUTE *mod_bits = NULL;
     ica_rsa_key_mod_expo_t *publKey = NULL;
     CK_RV rc;
 
@@ -2906,13 +2907,13 @@ static CK_RV ica_specific_rsa_decrypt(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     ica_ex_data_t *ex_data = NULL;
-    CK_ATTRIBUTE *modulus = NULL;
-    CK_ATTRIBUTE *prime1 = NULL;
-    CK_ATTRIBUTE *prime2 = NULL;
-    CK_ATTRIBUTE *exp1 = NULL;
-    CK_ATTRIBUTE *exp2 = NULL;
-    CK_ATTRIBUTE *coeff = NULL;
-    CK_ATTRIBUTE *priv_exp = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *prime1 = NULL;
+    const CK_ATTRIBUTE *prime2 = NULL;
+    const CK_ATTRIBUTE *exp1 = NULL;
+    const CK_ATTRIBUTE *exp2 = NULL;
+    const CK_ATTRIBUTE *coeff = NULL;
+    const CK_ATTRIBUTE *priv_exp = NULL;
     ica_rsa_key_crt_t *crtKey = NULL;
     ica_rsa_key_mod_expo_t *modexpoKey = NULL;
     BN_CTX *bn_ctx = NULL;
@@ -3318,7 +3319,7 @@ CK_RV token_specific_aes_ecb(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     int rc = CKR_OK;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     UNUSED(sess);
 
@@ -3366,7 +3367,7 @@ CK_RV token_specific_aes_cbc(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     UNUSED(sess);
 
@@ -3417,7 +3418,7 @@ CK_RV token_specific_aes_ctr(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_aes_available)
         return openssl_specific_aes_ctr(tokdata, in_data, in_data_len,
@@ -3470,7 +3471,7 @@ CK_RV token_specific_aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc = CKR_OK;
     OBJECT *key_obj = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_GCM_PARAMS *aes_gcm_param = NULL;
     AES_GCM_CONTEXT *context = NULL;
     CK_BYTE *icv, *icb, *ucb, *subkey;
@@ -3535,7 +3536,7 @@ CK_RV token_specific_aes_gcm(STDLL_TokData_t *tokdata, SESSION *sess,
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
     OBJECT *key = NULL;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     CK_GCM_PARAMS *aes_gcm_param = NULL;
     CK_BYTE *counterblock;
     CK_ULONG counter_width;
@@ -3628,7 +3629,7 @@ CK_RV token_specific_aes_gcm_update(STDLL_TokData_t *tokdata, SESSION *sess,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     OBJECT *key = NULL;
     AES_GCM_CONTEXT *context = NULL;
     CK_GCM_PARAMS *aes_gcm_param = NULL;
@@ -3781,7 +3782,7 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc = CKR_OK;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     OBJECT *key = NULL;
     AES_GCM_CONTEXT *context = NULL;
     CK_GCM_PARAMS *aes_gcm_param = NULL;
@@ -3938,7 +3939,7 @@ CK_RV token_specific_aes_ofb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
 #endif
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
 #if OPENSSL_VERSION_PREREQ(3, 0) || OPENSSL_VERSION_NUMBER >= 0x101010cfL
     /*
@@ -3986,7 +3987,7 @@ CK_RV token_specific_aes_cfb(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
 #endif
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
 #if OPENSSL_VERSION_PREREQ(3, 0) || OPENSSL_VERSION_NUMBER >= 0x101010cfL
     /*
@@ -4025,7 +4026,7 @@ CK_RV token_specific_aes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_aes_available)
         return openssl_specific_aes_mac(tokdata, message, message_len,
@@ -4055,7 +4056,7 @@ CK_RV token_specific_aes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
 
     if (!ica_data->ica_aes_available)
         return openssl_specific_aes_cmac(tokdata, message, message_len,
@@ -4105,7 +4106,7 @@ CK_RV token_specific_aes_xts(STDLL_TokData_t *tokdata, SESSION *sess,
     UNUSED(sess);
 
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
-    CK_ATTRIBUTE *key_attr;
+    const CK_ATTRIBUTE *key_attr;
     CK_RV rc;
 
     UNUSED(tokdata);
@@ -5028,7 +5029,7 @@ static CK_RV ica_specific_ec_generate_keypair(STDLL_TokData_t *tokdata,
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV ret = CKR_OK;
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     ICA_EC_KEY *eckey;
     CK_BYTE q_array[1 + ICATOK_EC_MAX_Q_LEN];
     CK_BYTE d_array[ICATOK_EC_MAX_D_LEN];
@@ -5298,7 +5299,7 @@ static CK_RV ica_prepare_ec_key(OBJECT *key_obj, ICA_EC_KEY **eckey,
                                 unsigned int *privlen, int *nid)
 {
     CK_RV ret = CKR_OK;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
 
     /* Get CKA_ECDSA_PARAMS from template */
     ret = template_attribute_get_non_empty(key_obj->template, CKA_ECDSA_PARAMS,
@@ -5329,7 +5330,7 @@ static CK_RV ica_build_ec_priv_key(OBJECT *key_obj, ICA_EC_KEY **eckey,
                                    unsigned int *privlen)
 {
     CK_RV ret = CKR_OK;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     unsigned char *d = NULL;
     int rc, nid;
 
@@ -5397,7 +5398,7 @@ static CK_RV ica_build_ec_pub_key(OBJECT *key_obj, ICA_EC_KEY **eckey,
                                   unsigned int *privlen)
 {
     CK_RV ret = CKR_OK;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     unsigned char x_array[ICATOK_EC_MAX_D_LEN];
     unsigned char y_array[ICATOK_EC_MAX_D_LEN];
     int rc, nid;
@@ -5824,7 +5825,7 @@ CK_RV token_specific_object_add(STDLL_TokData_t *tokdata, SESSION *sess,
                                 OBJECT *obj)
 {
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
-    CK_ATTRIBUTE *value = NULL;
+    const CK_ATTRIBUTE *value = NULL;
     CK_OBJECT_CLASS class;
     CK_KEY_TYPE keytype;
 #ifndef NO_EC

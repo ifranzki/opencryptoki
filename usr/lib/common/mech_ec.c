@@ -34,7 +34,7 @@
 
 CK_RV get_ecsiglen(OBJECT *key_obj, CK_ULONG *size)
 {
-    CK_ATTRIBUTE *attr = NULL;
+    const CK_ATTRIBUTE *attr = NULL;
     int i;
     CK_RV rc;
 
@@ -797,7 +797,7 @@ CK_RV ckm_ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
                            CK_MECHANISM_PTR mech)
 {
     CK_RV rc;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_BYTE *oid_p;
     CK_ULONG oid_len;
     CK_ULONG class = 0, keytype = 0;

@@ -487,7 +487,8 @@ CK_RV token_wrap_key_object(STDLL_TokData_t * tokdata,
 {
     tpm_private_data_t *tpm_data = (tpm_private_data_t *)tokdata->private_data;
     CK_RV rc = CKR_OK;
-    CK_ATTRIBUTE *attr = NULL, *new_attr, *prime_attr;
+    const CK_ATTRIBUTE *attr = NULL, *prime_attr;
+    CK_ATTRIBUTE *new_attr;
     CK_ULONG class, key_type;
     OBJECT *obj = NULL;
     TSS_RESULT result;
@@ -2576,7 +2577,7 @@ CK_RV token_unwrap_auth_data(STDLL_TokData_t * tokdata,
 // returns the pointer to the local key representation
 CK_BYTE *rsa_convert_public_key(OBJECT * key_obj)
 {
-    CK_ATTRIBUTE *modulus = NULL;
+    const CK_ATTRIBUTE *modulus = NULL;
     CK_BYTE *ret;
     CK_RV rc;
 
@@ -2791,7 +2792,7 @@ CK_RV token_rsa_load_key(STDLL_TokData_t * tokdata, OBJECT * key_obj,
     TSS_HPOLICY hPolicy = NULL_HPOLICY;
     TSS_HKEY hParentKey;
     BYTE *authData = NULL;
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
     CK_RV rc;
     CK_OBJECT_HANDLE handle;
 

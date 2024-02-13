@@ -523,7 +523,7 @@ static CK_RV ep11tok_reencipher_objects_cb(STDLL_TokData_t *tokdata,
 static CK_BBOOL ep11tok_reencipher_filter_cb(STDLL_TokData_t *tokdata,
                                              OBJECT *obj, void *filter_data)
 {
-    CK_ATTRIBUTE *attr;
+    const CK_ATTRIBUTE *attr;
 
     UNUSED(tokdata);
     UNUSED(filter_data);
