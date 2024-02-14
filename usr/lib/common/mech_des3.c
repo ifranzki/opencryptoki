@@ -31,7 +31,7 @@ CK_RV des3_ecb_encrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -86,7 +86,7 @@ CK_RV des3_ecb_decrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -141,7 +141,7 @@ CK_RV des3_cbc_encrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -195,7 +195,7 @@ CK_RV des3_cbc_decrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -250,7 +250,7 @@ CK_RV des3_cbc_pad_encrypt(STDLL_TokData_t *tokdata,
                            SESSION *sess,
                            CK_BBOOL length_only,
                            ENCR_DECR_CONTEXT *ctx,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -319,7 +319,7 @@ CK_RV des3_cbc_pad_decrypt(STDLL_TokData_t *tokdata,
                            SESSION *sess,
                            CK_BBOOL length_only,
                            ENCR_DECR_CONTEXT *ctx,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -391,7 +391,7 @@ CK_RV des3_ecb_encrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -475,7 +475,7 @@ CK_RV des3_ecb_decrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -559,7 +559,7 @@ CK_RV des3_cbc_encrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -650,7 +650,7 @@ CK_RV des3_cbc_decrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -743,7 +743,7 @@ CK_RV des3_cbc_pad_encrypt_update(STDLL_TokData_t *tokdata,
                                   SESSION *sess,
                                   CK_BBOOL length_only,
                                   ENCR_DECR_CONTEXT *ctx,
-                                  CK_BYTE *in_data,
+                                  const CK_BYTE *in_data,
                                   CK_ULONG in_data_len,
                                   CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -843,7 +843,7 @@ CK_RV des3_cbc_pad_decrypt_update(STDLL_TokData_t *tokdata,
                                   SESSION *sess,
                                   CK_BBOOL length_only,
                                   ENCR_DECR_CONTEXT *ctx,
-                                  CK_BYTE *in_data,
+                                  const CK_BYTE *in_data,
                                   CK_ULONG in_data_len,
                                   CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1205,7 +1205,7 @@ CK_RV des3_ofb_encrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1248,7 +1248,7 @@ CK_RV des3_ofb_encrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1384,7 +1384,7 @@ CK_RV des3_ofb_decrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1428,7 +1428,7 @@ CK_RV des3_ofb_decrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -1566,7 +1566,7 @@ CK_RV des3_cfb_encrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data,
                        CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -1611,7 +1611,7 @@ CK_RV des3_cfb_encrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data,
                               CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -1751,7 +1751,7 @@ CK_RV des3_cfb_decrypt(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        CK_BBOOL length_only,
                        ENCR_DECR_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
                        CK_BYTE *out_data,
                        CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -1796,7 +1796,7 @@ CK_RV des3_cfb_decrypt_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               CK_BBOOL length_only,
                               ENCR_DECR_CONTEXT *ctx,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data,
                               CK_ULONG *out_data_len, CK_ULONG cfb_len)
@@ -1937,7 +1937,7 @@ CK_RV des3_mac_sign(STDLL_TokData_t *tokdata,
                     SESSION *sess,
                     CK_BBOOL length_only,
                     SIGN_VERIFY_CONTEXT *ctx,
-                    CK_BYTE *in_data,
+                    const CK_BYTE *in_data,
                     CK_ULONG in_data_len,
                     CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -2003,7 +2003,7 @@ CK_RV des3_mac_sign(STDLL_TokData_t *tokdata,
 CK_RV des3_mac_sign_update(STDLL_TokData_t *tokdata,
                            SESSION *sess,
                            SIGN_VERIFY_CONTEXT *ctx,
-                           CK_BYTE *in_data, CK_ULONG in_data_len)
+                           const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2142,9 +2142,9 @@ CK_RV des3_mac_sign_final(STDLL_TokData_t *tokdata,
 CK_RV des3_mac_verify(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       SIGN_VERIFY_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
-                      CK_BYTE *out_data, CK_ULONG out_data_len)
+                      const CK_BYTE *out_data, CK_ULONG out_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2203,7 +2203,7 @@ CK_RV des3_mac_verify(STDLL_TokData_t *tokdata,
 CK_RV des3_mac_verify_update(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              SIGN_VERIFY_CONTEXT *ctx,
-                             CK_BYTE *in_data, CK_ULONG in_data_len)
+                             const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2270,7 +2270,7 @@ done:
 CK_RV des3_mac_verify_final(STDLL_TokData_t *tokdata,
                             SESSION *sess,
                             SIGN_VERIFY_CONTEXT *ctx,
-                            CK_BYTE *signature, CK_ULONG signature_len)
+                            const CK_BYTE *signature, CK_ULONG signature_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2356,7 +2356,7 @@ CK_RV des3_cmac_sign(STDLL_TokData_t *tokdata,
                      SESSION *sess,
                      CK_BBOOL length_only,
                      SIGN_VERIFY_CONTEXT *ctx,
-                     CK_BYTE *in_data,
+                     const CK_BYTE *in_data,
                      CK_ULONG in_data_len,
                      CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
@@ -2418,7 +2418,7 @@ CK_RV des3_cmac_sign(STDLL_TokData_t *tokdata,
 CK_RV des3_cmac_sign_update(STDLL_TokData_t *tokdata,
                             SESSION *sess,
                             SIGN_VERIFY_CONTEXT *ctx,
-                            CK_BYTE *in_data, CK_ULONG in_data_len)
+                            const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2563,9 +2563,9 @@ done:
 CK_RV des3_cmac_verify(STDLL_TokData_t *tokdata,
                        SESSION *sess,
                        SIGN_VERIFY_CONTEXT *ctx,
-                       CK_BYTE *in_data,
+                       const CK_BYTE *in_data,
                        CK_ULONG in_data_len,
-                       CK_BYTE *out_data, CK_ULONG out_data_len)
+                       const CK_BYTE *out_data, CK_ULONG out_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2621,7 +2621,7 @@ CK_RV des3_cmac_verify(STDLL_TokData_t *tokdata,
 CK_RV des3_cmac_verify_update(STDLL_TokData_t *tokdata,
                               SESSION *sess,
                               SIGN_VERIFY_CONTEXT *ctx,
-                              CK_BYTE *in_data, CK_ULONG in_data_len)
+                              const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2699,7 +2699,7 @@ done:
 CK_RV des3_cmac_verify_final(STDLL_TokData_t *tokdata,
                              SESSION *sess,
                              SIGN_VERIFY_CONTEXT *ctx,
-                             CK_BYTE *signature, CK_ULONG signature_len)
+                             const CK_BYTE *signature, CK_ULONG signature_len)
 {
     CK_ULONG rc;
     OBJECT *key_obj = NULL;
@@ -2899,7 +2899,7 @@ err:
 //
 //
 CK_RV ckm_des3_ecb_encrypt(STDLL_TokData_t *tokdata,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data,
                            CK_ULONG *out_data_len, OBJECT *key)
@@ -2932,7 +2932,7 @@ CK_RV ckm_des3_ecb_encrypt(STDLL_TokData_t *tokdata,
 //
 //
 CK_RV ckm_des3_ecb_decrypt(STDLL_TokData_t *tokdata,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data,
                            CK_ULONG *out_data_len, OBJECT *key)
@@ -2966,7 +2966,7 @@ CK_RV ckm_des3_ecb_decrypt(STDLL_TokData_t *tokdata,
 //
 //
 CK_RV ckm_des3_cbc_encrypt(STDLL_TokData_t *tokdata,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data,
                            CK_ULONG *out_data_len,
@@ -3001,7 +3001,7 @@ CK_RV ckm_des3_cbc_encrypt(STDLL_TokData_t *tokdata,
 //
 //
 CK_RV ckm_des3_cbc_decrypt(STDLL_TokData_t *tokdata,
-                           CK_BYTE *in_data,
+                           const CK_BYTE *in_data,
                            CK_ULONG in_data_len,
                            CK_BYTE *out_data,
                            CK_ULONG *out_data_len,

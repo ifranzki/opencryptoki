@@ -84,26 +84,26 @@ struct token_specific_struct {
 
     CK_RV(*t_des_key_gen) (STDLL_TokData_t *, TEMPLATE *, CK_BYTE **,
                            CK_ULONG *, CK_ULONG, CK_BBOOL *);
-    CK_RV(*t_des_ecb) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_des_ecb) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG,
                        CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE);
-    CK_RV(*t_des_cbc) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_des_cbc) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG,
                        CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE *, CK_BYTE);
 
-    CK_RV(*t_tdes_ecb) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_tdes_ecb) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG,
                         CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE);
-    CK_RV(*t_tdes_cbc) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_tdes_cbc) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG,
                         CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE *, CK_BYTE);
 
-    CK_RV(*t_tdes_ofb) (STDLL_TokData_t *, CK_BYTE *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_tdes_ofb) (STDLL_TokData_t *, const CK_BYTE *, CK_BYTE *, CK_ULONG,
                         OBJECT *, CK_BYTE *, uint_32);
 
-    CK_RV(*t_tdes_cfb) (STDLL_TokData_t *, CK_BYTE *, CK_BYTE *, CK_ULONG,
+    CK_RV(*t_tdes_cfb) (STDLL_TokData_t *, const CK_BYTE *, CK_BYTE *, CK_ULONG,
                         OBJECT *, CK_BYTE *, uint_32, uint_32);
 
-    CK_RV(*t_tdes_mac) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG, OBJECT *,
+    CK_RV(*t_tdes_mac) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG, OBJECT *,
                         CK_BYTE *);
 
-    CK_RV(*t_tdes_cmac) (STDLL_TokData_t *, CK_BYTE *, CK_ULONG, OBJECT *,
+    CK_RV(*t_tdes_cmac) (STDLL_TokData_t *, const CK_BYTE *, CK_ULONG, OBJECT *,
                          CK_BYTE *,CK_BBOOL, CK_BBOOL, CK_VOID_PTR *);
 
     CK_RV(*t_rsa_decrypt) (STDLL_TokData_t *, CK_BYTE *,

@@ -2408,7 +2408,7 @@ CK_RV token_specific_des_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 }
 
 CK_RV token_specific_des_ecb(STDLL_TokData_t *tokdata,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data,
                              CK_ULONG *out_data_len,
@@ -2419,7 +2419,7 @@ CK_RV token_specific_des_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_des_cbc(STDLL_TokData_t *tokdata,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data,
                              CK_ULONG *out_data_len,
@@ -2431,7 +2431,7 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_tdes_ecb(STDLL_TokData_t *tokdata,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data,
                               CK_ULONG *out_data_len,
@@ -2442,7 +2442,7 @@ CK_RV token_specific_tdes_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_tdes_cbc(STDLL_TokData_t *tokdata,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data,
                               CK_ULONG *out_data_len,

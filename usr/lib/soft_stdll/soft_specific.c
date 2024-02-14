@@ -282,7 +282,7 @@ CK_RV token_specific_des_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 }
 
 CK_RV token_specific_des_ecb(STDLL_TokData_t *tokdata,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data,
                              CK_ULONG *out_data_len,
@@ -293,7 +293,7 @@ CK_RV token_specific_des_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_des_cbc(STDLL_TokData_t *tokdata,
-                             CK_BYTE *in_data,
+                             const CK_BYTE *in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE *out_data,
                              CK_ULONG *out_data_len,
@@ -305,7 +305,7 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_tdes_ecb(STDLL_TokData_t *tokdata,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data,
                               CK_ULONG *out_data_len,
@@ -316,7 +316,7 @@ CK_RV token_specific_tdes_ecb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_tdes_cbc(STDLL_TokData_t *tokdata,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE *out_data,
                               CK_ULONG *out_data_len,
@@ -328,7 +328,7 @@ CK_RV token_specific_tdes_cbc(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_tdes_ofb(STDLL_TokData_t *tokdata,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_BYTE *out_data,
                               CK_ULONG data_len,
                               OBJECT *key, CK_BYTE *init_v, uint_32 direction)
@@ -338,7 +338,7 @@ CK_RV token_specific_tdes_ofb(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_tdes_cfb(STDLL_TokData_t *tokdata,
-                              CK_BYTE *in_data,
+                              const CK_BYTE *in_data,
                               CK_BYTE *out_data,
                               CK_ULONG data_len,
                               OBJECT *key,
@@ -350,13 +350,13 @@ CK_RV token_specific_tdes_cfb(STDLL_TokData_t *tokdata,
                                      direction);
 }
 
-CK_RV token_specific_tdes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
+CK_RV token_specific_tdes_mac(STDLL_TokData_t *tokdata, const CK_BYTE *message,
                               CK_ULONG message_len, OBJECT *key, CK_BYTE *mac)
 {
     return openssl_specific_tdes_mac(tokdata, message, message_len, key, mac);
 }
 
-CK_RV token_specific_tdes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
+CK_RV token_specific_tdes_cmac(STDLL_TokData_t *tokdata, const CK_BYTE *message,
                                CK_ULONG message_len, OBJECT *key, CK_BYTE *mac,
                                CK_BBOOL first, CK_BBOOL last, CK_VOID_PTR *ctx)
 {

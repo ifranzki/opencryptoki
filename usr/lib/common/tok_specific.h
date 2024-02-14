@@ -53,41 +53,41 @@ CK_RV token_specific_des_key_gen(STDLL_TokData_t *, TEMPLATE *tmpl, CK_BYTE **,
                                  CK_ULONG *, CK_ULONG, CK_BBOOL *);
 
 CK_RV token_specific_des_ecb(STDLL_TokData_t *,
-                             CK_BYTE *,
+                             const CK_BYTE *,
                              CK_ULONG,
                              CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE);
 
 CK_RV token_specific_des_cbc(STDLL_TokData_t *,
-                             CK_BYTE *,
+                             const CK_BYTE *,
                              CK_ULONG,
                              CK_BYTE *,
                              CK_ULONG *, OBJECT *, CK_BYTE *, CK_BYTE);
 
 CK_RV token_specific_tdes_ecb(STDLL_TokData_t *,
-                              CK_BYTE *,
+                              const CK_BYTE *,
                               CK_ULONG,
                               CK_BYTE *, CK_ULONG *, OBJECT *, CK_BYTE);
 
 CK_RV token_specific_tdes_cbc(STDLL_TokData_t *,
-                              CK_BYTE *,
+                              const CK_BYTE *,
                               CK_ULONG,
                               CK_BYTE *,
                               CK_ULONG *, OBJECT *, CK_BYTE *, CK_BYTE);
 
 CK_RV token_specific_tdes_mac(STDLL_TokData_t *,
-                              CK_BYTE *, CK_ULONG, OBJECT *, CK_BYTE *);
+                              const CK_BYTE *, CK_ULONG, OBJECT *, CK_BYTE *);
 
 CK_RV token_specific_tdes_cmac(STDLL_TokData_t *,
-                               CK_BYTE *, CK_ULONG, OBJECT *, CK_BYTE *,
+                               const CK_BYTE *, CK_ULONG, OBJECT *, CK_BYTE *,
                                CK_BBOOL, CK_BBOOL, CK_VOID_PTR *);
 
 CK_RV token_specific_tdes_ofb(STDLL_TokData_t *,
-                              CK_BYTE *,
+                              const CK_BYTE *,
                               CK_BYTE *,
                               CK_ULONG, OBJECT *, CK_BYTE *, uint_32);
 
 CK_RV token_specific_tdes_cfb(STDLL_TokData_t *,
-                              CK_BYTE *,
+                              const CK_BYTE *,
                               CK_BYTE *,
                               CK_ULONG, OBJECT *, CK_BYTE *, uint_32, uint_32);
 

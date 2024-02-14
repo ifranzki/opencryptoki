@@ -3831,7 +3831,7 @@ CK_RV token_specific_des_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 
 
 CK_RV token_specific_des_ecb(STDLL_TokData_t * tokdata,
-                             CK_BYTE * in_data,
+                             const CK_BYTE * in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE * out_data,
                              CK_ULONG * out_data_len,
@@ -3851,7 +3851,7 @@ CK_RV token_specific_des_ecb(STDLL_TokData_t * tokdata,
 }
 
 CK_RV token_specific_des_cbc(STDLL_TokData_t * tokdata,
-                             CK_BYTE * in_data,
+                             const CK_BYTE * in_data,
                              CK_ULONG in_data_len,
                              CK_BYTE * out_data,
                              CK_ULONG * out_data_len,
@@ -3902,13 +3902,13 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t * tokdata,
     RETRY_NEW_MK_BLOB_START()
         if (encrypt) {
             dll_CSNBENC(&return_code, &reason_code, NULL, NULL, attr->pValue,
-                        &length, in_data,
+                        &length, (unsigned char *)in_data,
                         init_v,
                         &rule_array_count, rule_array, &pad_character,
                         chaining_vector, local_out);
         } else {
             dll_CSNBDEC(&return_code, &reason_code, NULL, NULL, attr->pValue,
-                        &length, in_data,
+                        &length, (unsigned char *)in_data,
                         init_v,
                         &rule_array_count, rule_array, chaining_vector, local_out);
         }
@@ -3957,7 +3957,7 @@ CK_RV token_specific_des_cbc(STDLL_TokData_t * tokdata,
 }
 
 CK_RV token_specific_tdes_ecb(STDLL_TokData_t * tokdata,
-                              CK_BYTE * in_data,
+                              const CK_BYTE * in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE * out_data,
                               CK_ULONG * out_data_len,
@@ -3977,7 +3977,7 @@ CK_RV token_specific_tdes_ecb(STDLL_TokData_t * tokdata,
 }
 
 CK_RV token_specific_tdes_cbc(STDLL_TokData_t * tokdata,
-                              CK_BYTE * in_data,
+                              const CK_BYTE * in_data,
                               CK_ULONG in_data_len,
                               CK_BYTE * out_data,
                               CK_ULONG * out_data_len,
