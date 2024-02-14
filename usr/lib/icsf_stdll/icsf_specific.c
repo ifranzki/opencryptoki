@@ -5635,13 +5635,13 @@ done:
 }
 
 CK_RV token_specific_sha_init(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                              CK_MECHANISM *mech)
+                              const CK_MECHANISM *mech)
 {
     return openssl_specific_sha_init(tokdata, ctx, mech);
 }
 
 CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                         CK_BYTE *in_data, CK_ULONG in_data_len,
+                         const CK_BYTE *in_data, CK_ULONG in_data_len,
                          CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     return openssl_specific_sha(tokdata, ctx, in_data, in_data_len,
@@ -5649,7 +5649,7 @@ CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
 }
 
 CK_RV token_specific_sha_update(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                                CK_BYTE *in_data, CK_ULONG in_data_len)
+                                const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     return openssl_specific_sha_update(tokdata, ctx, in_data, in_data_len);
 }

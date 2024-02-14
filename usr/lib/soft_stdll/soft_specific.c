@@ -1101,13 +1101,13 @@ CK_RV token_specific_get_mechanism_info(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_sha_init(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                              CK_MECHANISM *mech)
+                              const CK_MECHANISM *mech)
 {
     return openssl_specific_sha_init(tokdata, ctx, mech);
 }
 
 CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                         CK_BYTE *in_data, CK_ULONG in_data_len,
+                         const CK_BYTE *in_data, CK_ULONG in_data_len,
                          CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     return openssl_specific_sha(tokdata, ctx, in_data, in_data_len,
@@ -1115,7 +1115,7 @@ CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
 }
 
 CK_RV token_specific_sha_update(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                                CK_BYTE *in_data, CK_ULONG in_data_len)
+                                const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     return openssl_specific_sha_update(tokdata, ctx, in_data, in_data_len);
 }
@@ -1127,20 +1127,21 @@ CK_RV token_specific_sha_final(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
 }
 
 CK_RV token_specific_hmac_sign_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                                    CK_MECHANISM *mech, CK_OBJECT_HANDLE Hkey)
+                                    const CK_MECHANISM *mech,
+                                    CK_OBJECT_HANDLE Hkey)
 {
     return openssl_specific_hmac_init(tokdata, &sess->sign_ctx, mech, Hkey);
 }
 
 CK_RV token_specific_hmac_verify_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                                      CK_MECHANISM *mech,
+                                      const CK_MECHANISM *mech,
                                       CK_OBJECT_HANDLE Hkey)
 {
     return openssl_specific_hmac_init(tokdata, &sess->verify_ctx, mech, Hkey);
 }
 
 CK_RV token_specific_hmac_sign(STDLL_TokData_t *tokdata, SESSION *sess,
-                               CK_BYTE *in_data, CK_ULONG in_data_len,
+                               const CK_BYTE *in_data, CK_ULONG in_data_len,
                                CK_BYTE *signature, CK_ULONG *sig_len)
 {
     UNUSED(tokdata);
@@ -1150,17 +1151,18 @@ CK_RV token_specific_hmac_sign(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV token_specific_hmac_verify(STDLL_TokData_t *tokdata, SESSION *sess,
-                                 CK_BYTE *in_data, CK_ULONG in_data_len,
-                                 CK_BYTE *signature, CK_ULONG sig_len)
+                                 const CK_BYTE *in_data, CK_ULONG in_data_len,
+                                 const CK_BYTE *signature, CK_ULONG sig_len)
 {
     UNUSED(tokdata);
 
     return openssl_specific_hmac(&sess->verify_ctx, in_data, in_data_len,
-                                 signature, &sig_len, FALSE);
+                                 (CK_BYTE *)signature, &sig_len, FALSE);
 }
 
 CK_RV token_specific_hmac_sign_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                                      CK_BYTE *in_data, CK_ULONG in_data_len)
+                                      const CK_BYTE *in_data,
+                                      CK_ULONG in_data_len)
 {
     UNUSED(tokdata);
 
@@ -1169,7 +1171,7 @@ CK_RV token_specific_hmac_sign_update(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV token_specific_hmac_verify_update(STDLL_TokData_t *tokdata,
-                                        SESSION *sess, CK_BYTE *in_data,
+                                        SESSION *sess, const CK_BYTE *in_data,
                                         CK_ULONG in_data_len)
 {
     UNUSED(tokdata);
@@ -1188,12 +1190,13 @@ CK_RV token_specific_hmac_sign_final(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV token_specific_hmac_verify_final(STDLL_TokData_t *tokdata,
-                                       SESSION *sess, CK_BYTE *signature,
+                                       SESSION *sess, const CK_BYTE *signature,
                                        CK_ULONG sig_len)
 {
     UNUSED(tokdata);
 
-    return openssl_specific_hmac_final(&sess->verify_ctx, signature, &sig_len,
+    return openssl_specific_hmac_final(&sess->verify_ctx,
+                                       (CK_BYTE *)signature, &sig_len,
                                        FALSE);
 }
 

@@ -1630,19 +1630,20 @@ CK_RV aes_xts_decrypt(STDLL_TokData_t *tokdata,
 
 CK_RV sw_sha1_init(DIGEST_CONTEXT *ctx);
 
-CK_RV sw_sha1_hash(DIGEST_CONTEXT *ctx, CK_BYTE *in_data,
+CK_RV sw_sha1_hash(DIGEST_CONTEXT *ctx, const CK_BYTE *in_data,
                    CK_ULONG in_data_len, CK_BYTE *out_data,
                    CK_ULONG *out_data_len);
 
 CK_RV sha_init(STDLL_TokData_t *tokdata, SESSION *sess, DIGEST_CONTEXT *ctx,
-               CK_MECHANISM *mech);
+               const CK_MECHANISM *mech);
 
 CK_RV sha_hash(STDLL_TokData_t *tokdata, SESSION *sess, CK_BBOOL length_only,
-               DIGEST_CONTEXT *ctx, CK_BYTE *in_data, CK_ULONG in_data_len,
+               DIGEST_CONTEXT *ctx,
+               const CK_BYTE *in_data, CK_ULONG in_data_len,
                CK_BYTE *out_data, CK_ULONG *out_data_len);
 
 CK_RV sha_hash_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                      DIGEST_CONTEXT *ctx, CK_BYTE *in_data,
+                      DIGEST_CONTEXT *ctx, const CK_BYTE *in_data,
                       CK_ULONG in_data_len);
 
 CK_RV sha_hash_final(STDLL_TokData_t *tokdata, SESSION *sess,
@@ -1650,36 +1651,36 @@ CK_RV sha_hash_final(STDLL_TokData_t *tokdata, SESSION *sess,
                      CK_BYTE *out_data, CK_ULONG *out_data_len);
 
 CK_RV hmac_sign_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                     CK_MECHANISM *mech, CK_OBJECT_HANDLE key);
+                     const CK_MECHANISM *mech, CK_OBJECT_HANDLE key);
 
 CK_RV hmac_sign_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                       CK_BYTE *in_data, CK_ULONG in_data_len);
+                       const CK_BYTE *in_data, CK_ULONG in_data_len);
 
 CK_RV hmac_sign_final(STDLL_TokData_t *tokdata, SESSION *sess,
                       CK_BYTE *in_data, CK_ULONG *in_data_len);
 
 CK_RV hmac_verify_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                         CK_BYTE *in_data, CK_ULONG in_data_len);
+                         const CK_BYTE *in_data, CK_ULONG in_data_len);
 
 CK_RV hmac_verify_final(STDLL_TokData_t *tokdata, SESSION *sess,
-                        CK_BYTE *in_data, CK_ULONG in_data_len);
+                        const CK_BYTE *in_data, CK_ULONG in_data_len);
 
 CK_RV hmac_verify_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                       CK_MECHANISM *mech, CK_OBJECT_HANDLE key);
+                       const CK_MECHANISM *mech, CK_OBJECT_HANDLE key);
 
 CK_RV sha_hmac_sign(STDLL_TokData_t *tokdata,
                     SESSION *sess, CK_BBOOL length_only,
                     SIGN_VERIFY_CONTEXT *ctx,
-                    CK_BYTE *in_data,
+                    const CK_BYTE *in_data,
                     CK_ULONG in_data_len,
                     CK_BYTE *out_data, CK_ULONG *out_data_len);
 
 CK_RV sha_hmac_verify(STDLL_TokData_t *tokdata,
                       SESSION *sess,
                       SIGN_VERIFY_CONTEXT *ctx,
-                      CK_BYTE *in_data,
+                      const CK_BYTE *in_data,
                       CK_ULONG in_data_len,
-                      CK_BYTE *signature, CK_ULONG sig_len);
+                      const CK_BYTE *signature, CK_ULONG sig_len);
 
 //adding the hmac secret key generation here
 CK_RV ckm_generic_secret_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl);

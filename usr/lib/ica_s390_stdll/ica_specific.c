@@ -191,7 +191,7 @@ static CK_RV ecc_support_in_libica_available(void)
 #ifdef SHA512_224
 typedef unsigned int (*ica_sha512_224_t)(unsigned int message_part,
                                          unsigned int input_length,
-                                         unsigned char *input_data,
+                                         const unsigned char *input_data,
                                          sha512_context_t *sha_context,
                                          unsigned char *output_data);
 
@@ -201,7 +201,7 @@ static ica_sha512_224_t                p_ica_sha512_224;
 #ifdef SHA512_256
 typedef unsigned int (*ica_sha512_256_t)(unsigned int message_part,
                                          unsigned int input_length,
-                                         unsigned char *input_data,
+                                         const unsigned char *input_data,
                                          sha512_context_t *sha_context,
                                          unsigned char *output_data);
 
@@ -211,7 +211,7 @@ static ica_sha512_256_t                p_ica_sha512_256;
 #ifdef SHA3_224
 typedef unsigned int (*ica_sha3_224_t)(unsigned int message_part,
                                        unsigned int input_length,
-                                       unsigned char *input_data,
+                                       const unsigned char *input_data,
                                        sha3_224_context_t *sha_context,
                                        unsigned char *output_data);
 
@@ -221,7 +221,7 @@ static ica_sha3_224_t                  p_ica_sha3_224;
 #ifdef SHA3_256
 typedef unsigned int (*ica_sha3_256_t)(unsigned int message_part,
                                        unsigned int input_length,
-                                       unsigned char *input_data,
+                                       const unsigned char *input_data,
                                        sha3_256_context_t *sha_context,
                                        unsigned char *output_data);
 
@@ -231,7 +231,7 @@ static ica_sha3_256_t                  p_ica_sha3_256;
 #ifdef SHA3_384
 typedef unsigned int (*ica_sha3_384_t)(unsigned int message_part,
                                        unsigned int input_length,
-                                       unsigned char *input_data,
+                                       const unsigned char *input_data,
                                        sha3_384_context_t *sha_context,
                                        unsigned char *output_data);
 
@@ -241,7 +241,7 @@ static ica_sha3_384_t                  p_ica_sha3_384;
 #ifdef SHA3_512
 typedef unsigned int (*ica_sha3_512_t)(unsigned int message_part,
                                        unsigned int input_length,
-                                       unsigned char *input_data,
+                                       const unsigned char *input_data,
                                        sha3_512_context_t *sha_context,
                                        unsigned char *output_data);
 
@@ -1028,7 +1028,7 @@ int ica_sha_supported(STDLL_TokData_t *tokdata, CK_MECHANISM_TYPE mech)
  * Init SHA data structures
  */
 CK_RV token_specific_sha_init(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                              CK_MECHANISM *mech)
+                              const CK_MECHANISM *mech)
 {
     unsigned int ctxsize, devctxsize;
     struct oc_sha_ctx *sc;
@@ -1159,7 +1159,7 @@ CK_RV token_specific_sha_init(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
 }
 
 CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                         CK_BYTE *in_data, CK_ULONG in_data_len,
+                         const CK_BYTE *in_data, CK_ULONG in_data_len,
                          CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     int rc;
@@ -1316,7 +1316,7 @@ CK_RV token_specific_sha(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
     return rv;
 }
 
-static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
+static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, const CK_BYTE *data,
                           CK_ULONG data_len)
 {
     struct oc_sha_ctx *sc = (struct oc_sha_ctx *) ctx->context;
@@ -1495,7 +1495,7 @@ static CK_RV ica_sha_call(DIGEST_CONTEXT *ctx, CK_BYTE *data,
 }
 
 CK_RV token_specific_sha_update(STDLL_TokData_t *tokdata, DIGEST_CONTEXT *ctx,
-                                CK_BYTE *in_data, CK_ULONG in_data_len)
+                                const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     struct oc_sha_ctx *sc;
     int fill, len, rest, ret;

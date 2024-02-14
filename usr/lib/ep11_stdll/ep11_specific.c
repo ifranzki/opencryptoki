@@ -5198,7 +5198,7 @@ CK_BBOOL ep11tok_libica_mech_available(STDLL_TokData_t *tokdata,
 CK_RV ep11tok_libica_digest(STDLL_TokData_t *tokdata,
                             ep11_private_data_t *ep11_data,
                             CK_MECHANISM_TYPE mech, libica_sha_context_t *ctx,
-                            CK_BYTE *in_data, CK_ULONG in_data_len,
+                            const CK_BYTE *in_data, CK_ULONG in_data_len,
                             CK_BYTE *out_data, CK_ULONG *out_data_len,
                             unsigned int message_part)
 {
@@ -5217,48 +5217,59 @@ CK_RV ep11tok_libica_digest(STDLL_TokData_t *tokdata,
 
     switch (mech) {
     case CKM_SHA_1:
-        rc = ep11_data->libica.ica_sha1(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha1(message_part, in_data_len,
+                                        (CK_BYTE *)in_data,
                                         &ctx->ctx.sha1, out_data);
         break;
     case CKM_SHA224:
-        rc = ep11_data->libica.ica_sha224(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha224(message_part, in_data_len,
+                                          (CK_BYTE *)in_data,
                                           &ctx->ctx.sha256, out_data);
         break;
     case CKM_SHA256:
-        rc = ep11_data->libica.ica_sha256(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha256(message_part, in_data_len,
+                                          (CK_BYTE *)in_data,
                                           &ctx->ctx.sha256, out_data);
         break;
     case CKM_SHA384:
-        rc = ep11_data->libica.ica_sha384(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha384(message_part, in_data_len,
+                                          (CK_BYTE *)in_data,
                                           &ctx->ctx.sha512, out_data);
         break;
     case CKM_SHA512:
-        rc = ep11_data->libica.ica_sha512(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha512(message_part, in_data_len,
+                                          (CK_BYTE *)in_data,
                                           &ctx->ctx.sha512, out_data);
         break;
     case CKM_SHA512_224:
-        rc = ep11_data->libica.ica_sha512_224(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha512_224(message_part, in_data_len,
+                                              (CK_BYTE *)in_data,
                                               &ctx->ctx.sha512, out_data);
         break;
     case CKM_SHA512_256:
-        rc = ep11_data->libica.ica_sha512_256(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha512_256(message_part, in_data_len,
+                                              (CK_BYTE *)in_data,
                                               &ctx->ctx.sha512, out_data);
         break;
 #ifdef SHA3_224
     case CKM_IBM_SHA3_224:
-        rc = ep11_data->libica.ica_sha3_224(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha3_224(message_part, in_data_len,
+                                            (CK_BYTE *)in_data,
                                             &ctx->ctx.sha3_224, out_data);
         break;
     case CKM_IBM_SHA3_256:
-        rc = ep11_data->libica.ica_sha3_256(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha3_256(message_part, in_data_len,
+                                            (CK_BYTE *)in_data,
                                             &ctx->ctx.sha3_256, out_data);
         break;
     case CKM_IBM_SHA3_384:
-        rc = ep11_data->libica.ica_sha3_384(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha3_384(message_part, in_data_len,
+                                            (CK_BYTE *)in_data,
                                             &ctx->ctx.sha3_384, out_data);
         break;
     case CKM_IBM_SHA3_512:
-        rc = ep11_data->libica.ica_sha3_512(message_part, in_data_len, in_data,
+        rc = ep11_data->libica.ica_sha3_512(message_part, in_data_len,
+                                            (CK_BYTE *)in_data,
                                             &ctx->ctx.sha3_512, out_data);
         break;
 #endif
@@ -5287,7 +5298,7 @@ CK_RV ep11tok_libica_digest(STDLL_TokData_t *tokdata,
 }
 
 CK_RV token_specific_sha_init(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
-                              CK_MECHANISM * mech)
+                              const CK_MECHANISM * mech)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
     CK_RV rc;
@@ -5327,7 +5338,7 @@ CK_RV token_specific_sha_init(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
         RETRY_UPDATE_BLOB_START(tokdata, target_info, state, state_len,
                                 state + state_len, state_len,
                                 usestate, usestate_len)
-            rc = dll_m_DigestInit(usestate, &usestate_len, mech,
+            rc = dll_m_DigestInit(usestate, &usestate_len, (CK_MECHANISM *)mech,
                                   target_info->target);
             if (rc == CKR_OK && retry == 1) {
                 /*
@@ -5371,7 +5382,7 @@ CK_RV token_specific_sha_init(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
 
 
 CK_RV token_specific_sha(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
-                         CK_BYTE * in_data,
+                         const CK_BYTE * in_data,
                          CK_ULONG in_data_len, CK_BYTE * out_data,
                          CK_ULONG * out_data_len)
 {
@@ -5398,7 +5409,7 @@ CK_RV token_specific_sha(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
                                 c->context + (c->context_len / 2),
                                 c->context_len / 2, state, state_len)
             rc = dll_m_Digest(state, state_len,
-                              in_data, in_data_len,
+                              (CK_BYTE *)in_data, in_data_len,
                               out_data, out_data_len, target_info->target);
         RETRY_UPDATE_BLOB_END(tokdata, NULL, target_info,
                               c->context, c->context_len / 2,
@@ -5420,7 +5431,7 @@ CK_RV token_specific_sha(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
 
 
 CK_RV token_specific_sha_update(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
-                                CK_BYTE * in_data, CK_ULONG in_data_len)
+                                const CK_BYTE * in_data, CK_ULONG in_data_len)
 {
     ep11_private_data_t *ep11_data = tokdata->private_data;
     libica_sha_context_t *libica_ctx = (libica_sha_context_t *)c->context;
@@ -5490,7 +5501,8 @@ CK_RV token_specific_sha_update(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * c,
                                 c->context + (c->context_len / 2),
                                 c->context_len / 2, state, state_len)
             rc = dll_m_DigestUpdate(state, state_len,
-                                    in_data, in_data_len, target_info->target);
+                                    (CK_BYTE *)in_data, in_data_len,
+                                    target_info->target);
         RETRY_UPDATE_BLOB_END(tokdata, NULL, target_info,
                               c->context, c->context_len / 2,
                               c->context + (c->context_len / 2),

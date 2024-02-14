@@ -79,7 +79,7 @@ CK_RV sw_sha1_init(DIGEST_CONTEXT *ctx)
     return CKR_OK;
 }
 
-CK_RV sw_sha1_hash(DIGEST_CONTEXT *ctx, CK_BYTE *in_data,
+CK_RV sw_sha1_hash(DIGEST_CONTEXT *ctx, const CK_BYTE *in_data,
                    CK_ULONG in_data_len, CK_BYTE *out_data,
                    CK_ULONG *out_data_len)
 {
@@ -114,7 +114,7 @@ CK_RV sw_sha1_hash(DIGEST_CONTEXT *ctx, CK_BYTE *in_data,
     return CKR_OK;
 }
 
-static CK_RV sw_sha1_update(DIGEST_CONTEXT *ctx, CK_BYTE *in_data,
+static CK_RV sw_sha1_update(DIGEST_CONTEXT *ctx, const CK_BYTE *in_data,
                             CK_ULONG in_data_len)
 {
     if (ctx->context == NULL)
@@ -157,7 +157,7 @@ static CK_RV sw_sha1_final(DIGEST_CONTEXT *ctx, CK_BYTE *out_data,
 }
 
 CK_RV sha_init(STDLL_TokData_t *tokdata, SESSION *sess, DIGEST_CONTEXT *ctx,
-               CK_MECHANISM *mech)
+               const CK_MECHANISM *mech)
 {
     UNUSED(sess);
 
@@ -181,7 +181,8 @@ CK_RV sha_init(STDLL_TokData_t *tokdata, SESSION *sess, DIGEST_CONTEXT *ctx,
 }
 
 CK_RV sha_hash(STDLL_TokData_t *tokdata, SESSION *sess, CK_BBOOL length_only,
-               DIGEST_CONTEXT *ctx, CK_BYTE *in_data, CK_ULONG in_data_len,
+               DIGEST_CONTEXT *ctx,
+               const CK_BYTE *in_data, CK_ULONG in_data_len,
                CK_BYTE *out_data, CK_ULONG *out_data_len)
 {
     CK_ULONG hsize;
@@ -256,7 +257,7 @@ CK_RV sha_hash(STDLL_TokData_t *tokdata, SESSION *sess, CK_BBOOL length_only,
 //
 //
 CK_RV sha_hash_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                      DIGEST_CONTEXT *ctx, CK_BYTE *in_data,
+                      DIGEST_CONTEXT *ctx, const CK_BYTE *in_data,
                       CK_ULONG in_data_len)
 {
     UNUSED(sess);
@@ -365,7 +366,7 @@ CK_RV sha_hash_final(STDLL_TokData_t *tokdata, SESSION *sess,
 //
 CK_RV sha_hmac_sign(STDLL_TokData_t *tokdata,
                     SESSION *sess, CK_BBOOL length_only,
-                    SIGN_VERIFY_CONTEXT *ctx, CK_BYTE *in_data,
+                    SIGN_VERIFY_CONTEXT *ctx, const CK_BYTE *in_data,
                     CK_ULONG in_data_len, CK_BYTE *out_data,
                     CK_ULONG *out_data_len)
 {
@@ -447,8 +448,8 @@ CK_RV sha_hmac_sign(STDLL_TokData_t *tokdata,
 //
 CK_RV sha_hmac_verify(STDLL_TokData_t *tokdata, SESSION *sess,
                       SIGN_VERIFY_CONTEXT *ctx,
-                      CK_BYTE *in_data, CK_ULONG in_data_len,
-                      CK_BYTE *signature, CK_ULONG sig_len)
+                      const CK_BYTE *in_data, CK_ULONG in_data_len,
+                      const CK_BYTE *signature, CK_ULONG sig_len)
 {
     if (!sess || !ctx || !in_data || !signature) {
         TRACE_ERROR("%s received bad argument(s)\n", __func__);
@@ -459,12 +460,13 @@ CK_RV sha_hmac_verify(STDLL_TokData_t *tokdata, SESSION *sess,
         return token_specific.t_hmac_verify(tokdata, sess, in_data,
                                             in_data_len, signature, sig_len);
 
-    return openssl_specific_hmac(&sess->verify_ctx, in_data, in_data_len,
-                                 signature, &sig_len, FALSE);
+    return openssl_specific_hmac(&sess->verify_ctx,
+                                 in_data, in_data_len,
+                                 (CK_BYTE *)signature, &sig_len, FALSE);
 }
 
 CK_RV hmac_sign_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                     CK_MECHANISM *mech, CK_OBJECT_HANDLE hkey)
+                     const CK_MECHANISM *mech, CK_OBJECT_HANDLE hkey)
 {
     if (token_specific.t_hmac_sign_init != NULL)
         return token_specific.t_hmac_sign_init(tokdata, sess, mech, hkey);
@@ -473,7 +475,7 @@ CK_RV hmac_sign_init(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV hmac_sign_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                       CK_BYTE *in_data, CK_ULONG in_data_len)
+                       const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     SIGN_VERIFY_CONTEXT *ctx = &sess->sign_ctx;
 
@@ -509,7 +511,7 @@ CK_RV hmac_sign_final(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV hmac_verify_init(STDLL_TokData_t *tokdata, SESSION *sess,
-                       CK_MECHANISM *mech, CK_OBJECT_HANDLE hkey)
+                       const CK_MECHANISM *mech, CK_OBJECT_HANDLE hkey)
 {
     if (token_specific.t_hmac_verify_init != NULL)
         return token_specific.t_hmac_verify_init(tokdata, sess, mech, hkey);
@@ -518,7 +520,7 @@ CK_RV hmac_verify_init(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV hmac_verify_update(STDLL_TokData_t *tokdata, SESSION *sess,
-                         CK_BYTE *in_data, CK_ULONG in_data_len)
+                         const CK_BYTE *in_data, CK_ULONG in_data_len)
 {
     SIGN_VERIFY_CONTEXT *ctx = &sess->sign_ctx;
 
@@ -536,7 +538,7 @@ CK_RV hmac_verify_update(STDLL_TokData_t *tokdata, SESSION *sess,
 }
 
 CK_RV hmac_verify_final(STDLL_TokData_t *tokdata, SESSION *sess,
-                        CK_BYTE *signature, CK_ULONG sig_len)
+                        const CK_BYTE *signature, CK_ULONG sig_len)
 {
     SIGN_VERIFY_CONTEXT *ctx = &sess->sign_ctx;
 
@@ -549,7 +551,8 @@ CK_RV hmac_verify_final(STDLL_TokData_t *tokdata, SESSION *sess,
         return token_specific.t_hmac_verify_final(tokdata, sess,
                                                   signature, sig_len);
 
-    return openssl_specific_hmac_final(&sess->verify_ctx, signature, &sig_len,
+    return openssl_specific_hmac_final(&sess->verify_ctx,
+                                       (CK_BYTE *)signature, &sig_len,
                                        FALSE);
 }
 

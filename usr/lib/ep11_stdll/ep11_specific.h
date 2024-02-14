@@ -405,7 +405,7 @@ CK_BBOOL ep11tok_libica_digest_available(STDLL_TokData_t *tokdata,
 CK_RV ep11tok_libica_digest(STDLL_TokData_t *tokdata,
                             ep11_private_data_t *ep11_data,
                             CK_MECHANISM_TYPE mech, libica_sha_context_t *ctx,
-                            CK_BYTE *in_data, CK_ULONG in_data_len,
+                            const CK_BYTE *in_data, CK_ULONG in_data_len,
                             CK_BYTE *out_data, CK_ULONG *out_data_len,
                             unsigned int message_part);
 

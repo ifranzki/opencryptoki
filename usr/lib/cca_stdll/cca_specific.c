@@ -6226,7 +6226,7 @@ done:
 }
 
 CK_RV token_specific_sha_init(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
-                              CK_MECHANISM * mech)
+                              const CK_MECHANISM * mech)
 {
     CK_ULONG hash_size;
     struct cca_sha_ctx *cca_ctx;
@@ -6272,7 +6272,7 @@ CK_RV token_specific_sha_init(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
 }
 
 CK_RV token_specific_sha(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
-                         CK_BYTE * in_data, CK_ULONG in_data_len,
+                         const CK_BYTE * in_data, CK_ULONG in_data_len,
                          CK_BYTE * out_data, CK_ULONG * out_data_len)
 {
     struct cca_sha_ctx *cca_ctx;
@@ -6322,7 +6322,8 @@ CK_RV token_specific_sha(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
 
     USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
         dll_CSNBOWH(&return_code, &reason_code, NULL, NULL, &rule_array_count,
-                    rule_array, (long int *)&in_data_len, in_data,
+                    rule_array, (long int *)&in_data_len,
+                    (unsigned char *)in_data,
                     &cca_ctx->chain_vector_len, cca_ctx->chain_vector,
                     &cca_ctx->hash_len, cca_ctx->hash);
     USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
@@ -6341,7 +6342,7 @@ CK_RV token_specific_sha(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
 }
 
 CK_RV token_specific_sha_update(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
-                                CK_BYTE * in_data, CK_ULONG in_data_len)
+                                const CK_BYTE * in_data, CK_ULONG in_data_len)
 {
     struct cca_sha_ctx *cca_ctx;
     long return_code, reason_code, total, buffer_len, rule_array_count = 2;
@@ -6480,7 +6481,8 @@ send:
     USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
         dll_CSNBOWH(&return_code, &reason_code, NULL, NULL, &rule_array_count,
                     rule_array, use_buffer ? &buffer_len : (long *) &in_data_len,
-                    use_buffer ? buffer : in_data, &cca_ctx->chain_vector_len,
+                    use_buffer ? buffer : (unsigned char *)in_data,
+                    &cca_ctx->chain_vector_len,
                     cca_ctx->chain_vector, &cca_ctx->hash_len, cca_ctx->hash);
     USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
 
@@ -6596,7 +6598,7 @@ CK_RV token_specific_sha_final(STDLL_TokData_t * tokdata, DIGEST_CONTEXT * ctx,
     return CKR_OK;
 }
 
-static long get_mac_len(CK_MECHANISM * mech)
+static long get_mac_len(const CK_MECHANISM * mech)
 {
     switch (mech->mechanism) {
     case CKM_SHA_1_HMAC_GENERAL:
@@ -6621,7 +6623,8 @@ static long get_mac_len(CK_MECHANISM * mech)
     }
 }
 
-static CK_RV ccatok_hmac_init(SIGN_VERIFY_CONTEXT * ctx, CK_MECHANISM * mech,
+static CK_RV ccatok_hmac_init(SIGN_VERIFY_CONTEXT * ctx,
+                              const CK_MECHANISM * mech,
                               CK_OBJECT_HANDLE key)
 {
     struct cca_sha_ctx *cca_ctx;
@@ -6650,7 +6653,8 @@ static CK_RV ccatok_hmac_init(SIGN_VERIFY_CONTEXT * ctx, CK_MECHANISM * mech,
 }
 
 CK_RV token_specific_hmac_sign_init(STDLL_TokData_t * tokdata, SESSION * sess,
-                                    CK_MECHANISM * mech, CK_OBJECT_HANDLE key)
+                                    const CK_MECHANISM * mech,
+                                    CK_OBJECT_HANDLE key)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
         TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
@@ -6661,7 +6665,8 @@ CK_RV token_specific_hmac_sign_init(STDLL_TokData_t * tokdata, SESSION * sess,
 }
 
 CK_RV token_specific_hmac_verify_init(STDLL_TokData_t * tokdata, SESSION * sess,
-                                      CK_MECHANISM * mech, CK_OBJECT_HANDLE key)
+                                      const CK_MECHANISM * mech,
+                                      CK_OBJECT_HANDLE key)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
         TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
@@ -6672,8 +6677,8 @@ CK_RV token_specific_hmac_verify_init(STDLL_TokData_t * tokdata, SESSION * sess,
 }
 
 CK_RV ccatok_hmac(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
-                  CK_BYTE * in_data, CK_ULONG in_data_len, CK_BYTE * signature,
-                  CK_ULONG * sig_len, CK_BBOOL sign)
+                  const CK_BYTE * in_data, CK_ULONG in_data_len,
+                  CK_BYTE * signature, CK_ULONG * sig_len, CK_BBOOL sign)
 {
     struct cca_sha_ctx *cca_ctx;
     long return_code = 0, reason_code = 0, rule_array_count = 3;
@@ -6740,7 +6745,7 @@ CK_RV ccatok_hmac(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
             dll_CSNBHMG(&return_code, &reason_code, NULL, NULL,
                         &rule_array_count, rule_array,
                         (long int *)&attr->ulValueLen, attr->pValue,
-                        (long int *)&in_data_len, in_data,
+                        (long int *)&in_data_len, (unsigned char *)in_data,
                         &cca_ctx->chain_vector_len, cca_ctx->chain_vector,
                         &cca_ctx->hash_len, cca_ctx->hash);
         RETRY_NEW_MK_BLOB_END(tokdata, return_code, reason_code,
@@ -6767,7 +6772,8 @@ CK_RV ccatok_hmac(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
             dll_CSNBHMV(&return_code, &reason_code, NULL, NULL,
                         &rule_array_count, rule_array,
                         (long int *)&attr->ulValueLen,
-                        attr->pValue, (long int *)&in_data_len, in_data,
+                        attr->pValue, (long int *)&in_data_len,
+                        (unsigned char *)in_data,
                         &cca_ctx->chain_vector_len, cca_ctx->chain_vector,
                         &cca_ctx->hash_len, signature);
         RETRY_NEW_MK_BLOB_END(tokdata, return_code, reason_code,
@@ -6797,7 +6803,7 @@ done:
 }
 
 CK_RV token_specific_hmac_sign(STDLL_TokData_t * tokdata, SESSION * sess,
-                               CK_BYTE * in_data, CK_ULONG in_data_len,
+                               const CK_BYTE * in_data, CK_ULONG in_data_len,
                                CK_BYTE * signature, CK_ULONG * sig_len)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
@@ -6810,8 +6816,8 @@ CK_RV token_specific_hmac_sign(STDLL_TokData_t * tokdata, SESSION * sess,
 }
 
 CK_RV token_specific_hmac_verify(STDLL_TokData_t * tokdata, SESSION * sess,
-                                 CK_BYTE * in_data, CK_ULONG in_data_len,
-                                 CK_BYTE * signature, CK_ULONG sig_len)
+                                 const CK_BYTE * in_data, CK_ULONG in_data_len,
+                                 const CK_BYTE * signature, CK_ULONG sig_len)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
         TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
@@ -6819,11 +6825,12 @@ CK_RV token_specific_hmac_verify(STDLL_TokData_t * tokdata, SESSION * sess,
     }
 
     return ccatok_hmac(tokdata, &sess->verify_ctx, in_data, in_data_len,
-                       signature, &sig_len, FALSE);
+                       (CK_BYTE *)signature, &sig_len, FALSE);
 }
 
 CK_RV ccatok_hmac_update(STDLL_TokData_t * tokdata, SIGN_VERIFY_CONTEXT * ctx,
-                         CK_BYTE * in_data, CK_ULONG in_data_len, CK_BBOOL sign)
+                         const CK_BYTE * in_data, CK_ULONG in_data_len,
+                         CK_BBOOL sign)
 {
     struct cca_sha_ctx *cca_ctx;
     long return_code, reason_code, total, buffer_len;
@@ -6979,7 +6986,7 @@ send:
                         &rule_array_count, rule_array,
                         (long int *)&attr->ulValueLen, attr->pValue,
                         use_buffer ? &buffer_len : (long int *) &in_data_len,
-                        use_buffer ? buffer : in_data,
+                        use_buffer ? buffer : (unsigned char *)in_data,
                         &cca_ctx->chain_vector_len, cca_ctx->chain_vector,
                         &hsize, cca_ctx->hash);
         RETRY_NEW_MK_BLOB_END(tokdata, return_code, reason_code,
@@ -6998,7 +7005,7 @@ send:
                         &rule_array_count, rule_array,
                         (long int *)&attr->ulValueLen, attr->pValue,
                         use_buffer ? &buffer_len : (long int *) &in_data_len,
-                        use_buffer ? buffer : in_data,
+                        use_buffer ? buffer : (unsigned char *)in_data,
                         &cca_ctx->chain_vector_len, cca_ctx->chain_vector,
                         &hsize, cca_ctx->hash);
         RETRY_NEW_MK_BLOB_END(tokdata, return_code, reason_code,
@@ -7022,7 +7029,8 @@ done:
 }
 
 CK_RV token_specific_hmac_sign_update(STDLL_TokData_t * tokdata, SESSION * sess,
-                                      CK_BYTE * in_data, CK_ULONG in_data_len)
+                                      const CK_BYTE * in_data,
+                                      CK_ULONG in_data_len)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
         TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
@@ -7034,7 +7042,7 @@ CK_RV token_specific_hmac_sign_update(STDLL_TokData_t * tokdata, SESSION * sess,
 }
 
 CK_RV token_specific_hmac_verify_update(STDLL_TokData_t * tokdata,
-                                        SESSION * sess, CK_BYTE * in_data,
+                                        SESSION * sess, const CK_BYTE * in_data,
                                         CK_ULONG in_data_len)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
@@ -7187,7 +7195,8 @@ CK_RV token_specific_hmac_sign_final(STDLL_TokData_t * tokdata, SESSION * sess,
 }
 
 CK_RV token_specific_hmac_verify_final(STDLL_TokData_t * tokdata,
-                                       SESSION * sess, CK_BYTE * signature,
+                                       SESSION * sess,
+                                       const CK_BYTE * signature,
                                        CK_ULONG sig_len)
 {
     if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
@@ -7195,7 +7204,7 @@ CK_RV token_specific_hmac_verify_final(STDLL_TokData_t * tokdata,
         return CKR_DEVICE_ERROR;
     }
 
-    return ccatok_hmac_final(tokdata, &sess->verify_ctx, signature,
+    return ccatok_hmac_final(tokdata, &sess->verify_ctx, (CK_BYTE *)signature,
                              &sig_len, FALSE);
 }
 
