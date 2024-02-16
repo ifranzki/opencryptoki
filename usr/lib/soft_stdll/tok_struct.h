@@ -142,10 +142,17 @@ token_spec_t token_specific = {
     &token_specific_aes_ecb,
     &token_specific_aes_cbc,
     &token_specific_aes_ctr,
+#ifndef NOGCM
     &token_specific_aes_gcm_init,
     &token_specific_aes_gcm,
     &token_specific_aes_gcm_update,
     &token_specific_aes_gcm_final,
+#else
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+#endif
     &token_specific_aes_ofb,
     &token_specific_aes_cfb,
     &token_specific_aes_mac,

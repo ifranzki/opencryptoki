@@ -19,6 +19,9 @@
 
 ****************************************************************************/
 
+#define NO_EC 1
+#define NOGCM
+
 #include <pthread.h>
 #include <string.h>             // for memcmp() et al
 #include <stdlib.h>
@@ -198,7 +201,9 @@ static const MECH_LIST_ELEMENT soft_mech_list[] = {
     {CKM_AES_CFB8, {16, 32, CKF_ENCRYPT | CKF_DECRYPT | CKF_WRAP | CKF_UNWRAP}},
     {CKM_AES_CFB128, {16, 32, CKF_ENCRYPT | CKF_DECRYPT | CKF_WRAP | CKF_UNWRAP}},
 #endif
+#ifndef NOGCM
     {CKM_AES_GCM, {16, 32, CKF_ENCRYPT | CKF_DECRYPT}},
+#endif
     {CKM_AES_MAC, {16, 32, CKF_HW | CKF_SIGN | CKF_VERIFY}},
     {CKM_AES_MAC_GENERAL, {16, 32, CKF_HW | CKF_SIGN | CKF_VERIFY}},
     {CKM_AES_CMAC, {16, 32, CKF_SIGN | CKF_VERIFY}},
@@ -594,6 +599,7 @@ CK_RV token_specific_aes_cfb(STDLL_TokData_t *tokdata,
                                     direction);
 }
 
+#ifndef NOGCM
 CK_RV token_specific_aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
                                   ENCR_DECR_CONTEXT *ctx, CK_MECHANISM *mech,
                                   CK_OBJECT_HANDLE key, CK_BYTE encrypt)
@@ -628,6 +634,7 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
     return openssl_specific_aes_gcm_final(tokdata, sess, ctx, out_data,
                                           out_data_len, encrypt);
 }
+#endif
 
 CK_RV token_specific_aes_mac(STDLL_TokData_t *tokdata, CK_BYTE *message,
                              CK_ULONG message_len, OBJECT *key, CK_BYTE *mac)
@@ -795,7 +802,9 @@ CK_RV token_specific_dh_pkcs_key_pair_gen(STDLL_TokData_t *tokdata,
         goto done;
     }
 
-    DH_set0_pqg(dh, bn_p, NULL, bn_g);
+    //DH_set0_pqg(dh, bn_p, NULL, bn_g);
+    dh->p = bn_p;
+    dh->g = bn_g;
     /* bn_p and bn_q freed together with dh */
     bn_p = NULL;
     bn_g = NULL;
@@ -846,7 +855,7 @@ CK_RV token_specific_dh_pkcs_key_pair_gen(STDLL_TokData_t *tokdata,
         || EVP_PKEY_keygen(ctx, &pkey) != 1
 #if !OPENSSL_VERSION_PREREQ(3, 0)
         /* dh is freed together with pkey */
-        || (dh = (DH *)EVP_PKEY_get0_DH(pkey)) == NULL) {
+        || (dh = (DH *)EVP_PKEY_get1_DH(pkey)) == NULL) {
 #else
         ) {
 #endif
@@ -862,7 +871,8 @@ CK_RV token_specific_dh_pkcs_key_pair_gen(STDLL_TokData_t *tokdata,
     // pub_key
     //
 #if !OPENSSL_VERSION_PREREQ(3, 0)
-    DH_get0_key(dh, &temp_bn, NULL);
+    //DH_get0_key(dh, &temp_bn, NULL);
+    temp_bn = dh->pub_key;
 #else
     if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, &temp_bn)) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -895,7 +905,8 @@ CK_RV token_specific_dh_pkcs_key_pair_gen(STDLL_TokData_t *tokdata,
     // priv_key
     //
 #if !OPENSSL_VERSION_PREREQ(3, 0)
-    DH_get0_key(dh, NULL, &temp_bn);
+    //DH_get0_key(dh, NULL, &temp_bn);
+    temp_bn = dh->priv_key;
 #else
     if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, &temp_bn)) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
@@ -985,6 +996,8 @@ done:
         EVP_PKEY_CTX_free(ctx);
     if (params != NULL)
         EVP_PKEY_free(params);
+    if (dh != NULL)
+        DH_free(dh);
     free(temp_byte);
     free(temp_byte2);
 #if OPENSSL_VERSION_PREREQ(3, 0)

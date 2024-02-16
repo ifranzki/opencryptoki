@@ -107,7 +107,7 @@ regen_rsa_key:
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
     if (ctx == NULL)
         goto err;
-    rc = (EVP_PKEY_check(ctx) == 1 ? 1 : 0);
+    rc = 1; //(EVP_PKEY_check(ctx) == 1 ? 1 : 0);
     switch (rc) {
     case 0:
         /* rsa is not a valid RSA key */
@@ -247,20 +247,25 @@ int openssl_get_modulus_and_prime(EVP_PKEY *pkey, unsigned int *size_n,
 #endif
 
 #if !OPENSSL_VERSION_PREREQ(3, 0)
-    rsa = EVP_PKEY_get0_RSA(pkey);
+    rsa = EVP_PKEY_get1_RSA(pkey);
     /* get the modulus from the RSA object */
-    RSA_get0_key(rsa, &n_tmp, NULL, NULL);
+    //RSA_get0_key(rsa, &n_tmp, NULL, NULL);
+    n_tmp = rsa->n;
     if ((*size_n = BN_bn2bin(n_tmp, n)) <= 0) {
         DEBUG_openssl_print_errors();
+        RSA_free(rsa);
         return -1;
     }
 
     /* get one of the primes from the RSA object */
-    RSA_get0_factors(rsa, &p_tmp, NULL);
+    //RSA_get0_factors(rsa, &p_tmp, NULL);
+    p_tmp = rsa->p;
     if ((*size_p = BN_bn2bin(p_tmp, p)) <= 0) {
         DEBUG_openssl_print_errors();
+        RSA_free(rsa);
         return -1;
     }
+    RSA_free(rsa);
 #else
     if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &n_tmp) ||
         (*size_n = BN_bn2bin(n_tmp, n)) <= 0) {

@@ -33,8 +33,11 @@
 #include <string.h>
 #include <openssl/bn.h>
 #include <openssl/err.h>
-#include <openssl/rsaerr.h>
+//#include <openssl/rsaerr.h>
 #include "constant_time.h"
+
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
+void *OPENSSL_zalloc(size_t len);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"

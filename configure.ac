@@ -296,10 +296,10 @@ if test "x$with_openssl" != "xno"; then
 			  [have_alt_fix_for_cve_2022_4304=no
 			  AC_MSG_RESULT([no])])
 	if test "x$with_openssl" != "xno"; then
-		AC_CHECK_LIB([crypto], [EVP_sha3_256], [
+		AC_CHECK_LIB([crypto], [RSA_generate_key], [
 			OPENSSL_LIBS="$OPENSSL_LIBS -lcrypto"
 			with_openssl=yes], [
-			AC_MSG_ERROR([OpenSSL 1.1.1 or later is required but OpenSSL libraries version 1.1.1 or later couldn't be found])
+			AC_MSG_ERROR([OpenSSL 1.0.2 or later is required but OpenSSL libraries version 1.0.2 or later couldn't be found])
 		])
 	fi
 	if test "x$with_openssl" = "xno"; then
@@ -676,6 +676,7 @@ AM_CONDITIONAL([ENABLE_LOCKS], [test "x$enable_locks" = "xyes"])
 CFLAGS="$CFLAGS -DPKCS64 -D_XOPEN_SOURCE=600 -Wall -Wextra"
 
 CFLAGS+=' -DCONFIG_PATH=\"$(localstatedir)/lib/opencryptoki\" -DSBIN_PATH=\"$(sbindir)\" -DLIB_PATH=\"$(libdir)\" -DLOCKDIR_PATH=\"$(lockdir)\" -DOCK_CONFDIR=\"$(sysconfdir)/opencryptoki\" -DOCK_LOGDIR=\"$(logdir)\"'
+CFLAGS+=" -std=c99"
 
 # At this point, CFLAGS is set to something sensible
 AC_PROG_CC

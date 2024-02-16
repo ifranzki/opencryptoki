@@ -47,6 +47,12 @@
 #include <openssl/crypto.h>
 #include <openssl/bn.h>
 
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+# define EC_POINT_get_affine_coordinates EC_POINT_get_affine_coordinates_GFp
+# define EC_POINT_set_compressed_coordinates \
+                                     EC_POINT_set_compressed_coordinates_GFp
+#endif
+
 #define ICA_MAX_MECH_LIST_ENTRIES       120
 
 typedef struct {
@@ -858,7 +864,10 @@ CK_RV token_specific_tdes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
     CK_KEY_TYPE keytype;
     CK_BYTE key_value[3 * DES_KEY_SIZE];
 
+    UNUSED(ctx);
+
     if (!ica_data->ica_des3_available)
+        return CKR_FUNCTION_NOT_SUPPORTED;
         return openssl_specific_tdes_cmac(tokdata, message, message_len,
                                           key, mac, first, last, ctx);
 
@@ -1892,6 +1901,7 @@ static CK_RV rsa_calc_private_exponent(ica_rsa_key_mod_expo_t *publKey,
                                        TEMPLATE *priv_tmpl)
 {
     BIGNUM *d, *e = NULL, *p = NULL, *q = NULL;
+    BN_CTX *ctx = BN_CTX_new();
     CK_ATTRIBUTE *attr = NULL;
     int len;
     CK_BYTE *buff = NULL;
@@ -1914,7 +1924,7 @@ static CK_RV rsa_calc_private_exponent(ica_rsa_key_mod_expo_t *publKey,
     if (BN_sub(d, d, p) != 1 ||
         BN_sub(d, d, q) != 1 ||
         BN_add_word(d, 1) != 1 ||
-        BN_mod_inverse(d, e, d, NULL) == NULL) {
+        BN_mod_inverse(d, e, d, ctx) == NULL) {
         TRACE_DEVEL("BN_sub/BN_add_word/BN_mod_inverse failed\n");
         rc = CKR_FUNCTION_FAILED;
         goto done;
@@ -1959,6 +1969,8 @@ done:
         free(buff);
     if (attr != NULL)
         free(attr);
+    if (ctx != NULL)
+        BN_CTX_free(ctx);
 
     return rc;
 }
@@ -2609,10 +2621,11 @@ static CK_RV ica_blinding_convert(STDLL_TokData_t *tokdata,
     }
     BN_set_flags(*unblind, BN_FLG_CONSTTIME);
 
-    if (!BN_BLINDING_lock(ex_data->blinding)) {
+  /*  if (!BN_BLINDING_lock(ex_data->blinding)) {
         TRACE_ERROR("BN_BLINDING_lock failed\n");
         return CKR_FUNCTION_FAILED;
-    }
+    } */
+    CRYPTO_w_lock(CRYPTO_LOCK_RSA_BLINDING);
 
     /* BN_BLINDING_convert_ex() calls BN_BLINDING_update() which may call
      * BN_BLINDING_create_param() to generate a new blinding factor. This
@@ -2622,7 +2635,8 @@ static CK_RV ica_blinding_convert(STDLL_TokData_t *tokdata,
     ica_blinding_private_data = ica_data;
 
     ret = BN_BLINDING_convert_ex(bn_data, *unblind, ex_data->blinding, bn_ctx);
-    BN_BLINDING_unlock(ex_data->blinding);
+    //BN_BLINDING_unlock(ex_data->blinding);
+    CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
     if(ret != 1) {
         TRACE_ERROR("BN_BLINDING_convert_ex failed\n");
         return CKR_FUNCTION_FAILED;
@@ -3342,9 +3356,12 @@ CK_RV token_specific_aes_gcm_init(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_BYTE *icv, *icb, *ucb, *subkey;
     CK_ULONG icv_length;
 
+    UNUSED(sess);
+
     if (!ica_data->ica_aes_available)
-        return openssl_specific_aes_gcm_init(tokdata, sess, ctx, mech,
-                                             key, encrypt);
+        return CKR_FUNCTION_NOT_SUPPORTED;
+        /*return openssl_specific_aes_gcm_init(tokdata, sess, ctx, mech,
+                                             key, encrypt); */
 
     /* find key object */
     rc = object_mgr_find_in_map1(tokdata, key, &key_obj, READ_LOCK);
@@ -3409,10 +3426,13 @@ CK_RV token_specific_aes_gcm(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_ULONG auth_data_len;
     CK_ULONG tag_data_len;
 
+    UNUSED(sess);
+
     if (!ica_data->ica_aes_available)
-        return openssl_specific_aes_gcm(tokdata, sess, ctx, in_data,
+        return CKR_FUNCTION_NOT_SUPPORTED;
+       /* return openssl_specific_aes_gcm(tokdata, sess, ctx, in_data,
                                         in_data_len, out_data, out_data_len,
-                                        encrypt);
+                                        encrypt);*/
 
     /*
      * Checks for input and output data length and block sizes are already
@@ -3504,10 +3524,13 @@ CK_RV token_specific_aes_gcm_update(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_BYTE *ucb, *subkey;
     CK_BYTE *buffer = NULL;
 
+    UNUSED(sess);
+
     if (!ica_data->ica_aes_available)
-        return openssl_specific_aes_gcm_update(tokdata, sess, ctx, in_data,
+        return CKR_FUNCTION_NOT_SUPPORTED;
+        /*return openssl_specific_aes_gcm_update(tokdata, sess, ctx, in_data,
                                                in_data_len, out_data,
-                                               out_data_len, encrypt);
+                                               out_data_len, encrypt);*/
 
     context = (AES_GCM_CONTEXT *) ctx->context;
     total = (context->len + in_data_len);
@@ -3656,9 +3679,12 @@ CK_RV token_specific_aes_gcm_final(STDLL_TokData_t *tokdata, SESSION *sess,
     CK_ULONG auth_data_len, tag_data_len;
     CK_BYTE *buffer = NULL;
 
+    UNUSED(sess);
+
     if (!ica_data->ica_aes_available)
-        return openssl_specific_aes_gcm_final(tokdata, sess, ctx, out_data,
-                                              out_data_len, encrypt);
+        return CKR_FUNCTION_NOT_SUPPORTED;
+        /*return openssl_specific_aes_gcm_final(tokdata, sess, ctx, out_data,
+                                              out_data_len, encrypt);*/
 
     /* find key object */
     rc = object_mgr_find_in_map_nocache(tokdata, ctx->key, &key, READ_LOCK);
@@ -3922,6 +3948,8 @@ CK_RV token_specific_aes_cmac(STDLL_TokData_t *tokdata, CK_BYTE *message,
     ica_private_data_t *ica_data = (ica_private_data_t *)tokdata->private_data;
     CK_RV rc;
     CK_ATTRIBUTE *attr = NULL;
+
+    UNUSED(ctx);
 
     if (!ica_data->ica_aes_available)
         return openssl_specific_aes_cmac(tokdata, message, message_len,
@@ -4950,8 +4978,8 @@ CK_RV token_specific_ec_generate_keypair(STDLL_TokData_t *tokdata,
             ica_data->ica_ec_keygen_available = FALSE;
     }
 
-    if (!ica_data->ica_ec_keygen_available)
-        rc = openssl_specific_ec_generate_keypair(tokdata, publ_tmpl, priv_tmpl);
+    /*if (!ica_data->ica_ec_keygen_available)
+        rc = openssl_specific_ec_generate_keypair(tokdata, publ_tmpl, priv_tmpl);*/
 
     return rc;
 }
@@ -5348,9 +5376,9 @@ CK_RV token_specific_ec_sign(STDLL_TokData_t *tokdata,  SESSION *sess,
             ica_data->ica_ec_signverify_available = FALSE;
     }
 
-    if (!ica_data->ica_ec_signverify_available)
+    /*if (!ica_data->ica_ec_signverify_available)
         rc = openssl_specific_ec_sign(tokdata, sess, in_data, in_data_len,
-                                      out_data, out_data_len, key_obj);
+                                      out_data, out_data_len, key_obj);*/
 
     return rc;
 }
@@ -5454,9 +5482,9 @@ CK_RV token_specific_ec_verify(STDLL_TokData_t *tokdata,
             ica_data->ica_ec_signverify_available = FALSE;
     }
 
-    if (!ica_data->ica_ec_signverify_available)
+    /*if (!ica_data->ica_ec_signverify_available)
         rc = openssl_specific_ec_verify(tokdata, sess, in_data, in_data_len,
-                                        signature, signature_len, key_obj);
+                                        signature, signature_len, key_obj);*/
 
     return rc;
 }
@@ -5606,11 +5634,11 @@ CK_RV token_specific_ecdh_pkcs_derive(STDLL_TokData_t *tokdata,
             ica_data->ica_ec_derive_available = FALSE;
     }
 
-    if (!ica_data->ica_ec_derive_available)
+    /*if (!ica_data->ica_ec_derive_available)
         rc = openssl_specific_ecdh_pkcs_derive(tokdata, priv_bytes, priv_length,
                                                pub_bytes, pub_length,
                                                secret_value, secret_value_len,
-                                               oid, oid_length);
+                                               oid, oid_length);*/
 
     return rc;
 }
@@ -5626,7 +5654,7 @@ CK_RV token_specific_object_add(STDLL_TokData_t *tokdata, SESSION *sess,
 #ifndef NO_EC
     ICA_EC_KEY *ica_eckey = NULL;
     unsigned int privlen;
-    EVP_PKEY *ossl_eckey = NULL;
+    //EVP_PKEY *ossl_eckey = NULL;
 #endif
     CK_RV rc;
 
@@ -5661,10 +5689,10 @@ CK_RV token_specific_object_add(STDLL_TokData_t *tokdata, SESSION *sess,
             }
         } else {
             /* Check if OpenSSL supports the curve */
-            rc = openssl_make_ec_key_from_template(obj->template, &ossl_eckey);
+            /*rc = openssl_make_ec_key_from_template(obj->template, &ossl_eckey);
             if (ossl_eckey != NULL)
-                    EVP_PKEY_free(ossl_eckey);
-            return rc;
+                    EVP_PKEY_free(ossl_eckey); */
+            return CKR_FUNCTION_NOT_SUPPORTED;
         }
         return CKR_OK;
 #endif

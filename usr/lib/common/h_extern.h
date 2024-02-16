@@ -3063,4 +3063,10 @@ extern token_spec_t token_specific;
  * Used for objects internal to a token for management of that token */
 #define CKA_HIDDEN              CKA_VENDOR_DEFINED + 0x01000000
 
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
+void *OPENSSL_zalloc(size_t len);
+
+#define EVP_MD_CTX_free     EVP_MD_CTX_destroy
+#define EVP_MD_CTX_new      EVP_MD_CTX_create
+
 #endif
