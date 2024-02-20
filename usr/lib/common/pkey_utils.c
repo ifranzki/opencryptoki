@@ -47,6 +47,8 @@ static const CK_BYTE ed448[] = OCK_ED448;
 # endif
 #endif
 
+#ifndef NO_PKEY
+
 /**
  * s390_stfle:
  *
@@ -1313,3 +1315,5 @@ done:
 
     return ret;
 }
+
+#endif

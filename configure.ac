@@ -240,18 +240,27 @@ dnl ---
 dnl --- Now that we have all the options, let's check for a valid build
 dnl ---
 
+dnl --- enable_pkey
+enable_pkey=no
+
 case $target in
      *s390x*)
+	  enable_pkey=yes
 	  ;;
      *s390*)
-	  CFLAGS="$CFLAGS -m31"
+	  CFLAGS="$CFLAGS -m31 -DNO_PKEY"
 	  ;;
      *ppc64* | *x86_64*)
+	  CFLAGS="$CFLAGS -DNO_PKEY"
 	  ;;
      *ppc* | i*86*)
-	  CFLAGS="$CFLAGS -m32"
+	  CFLAGS="$CFLAGS -m32 -DNO_PKEY"
+	  ;;
+     *)
+	  CFLAGS="$CFLAGS -DNO_PKEY"
 	  ;;
 esac
+AM_CONDITIONAL([NO_PKEY], [test "x$enable_pkey" != "xyes"])
 
 dnl --- enable_debug
 if test "x$enable_debug" = "xyes"; then

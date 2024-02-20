@@ -75,6 +75,8 @@ typedef enum {
     curve_ed448,
 } cpacf_curve_type_t;
 
+#ifndef NO_PKEY
+
 int get_msa_level(void);
 
 CK_BBOOL pkey_is_ec_public_key(TEMPLATE *tmpl);
@@ -109,5 +111,7 @@ CK_RV pkey_ec_verify(OBJECT *pubkey, CK_BYTE *hash, CK_ULONG hashlen,
 
 CK_RV pkey_ibm_ed_verify(OBJECT *pubkey, CK_BYTE *msg, CK_ULONG msg_len,
                          CK_BYTE *sig, CK_ULONG sig_len);
+
+#endif
 
 #endif
