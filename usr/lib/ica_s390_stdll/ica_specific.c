@@ -2441,10 +2441,8 @@ out:
 #ifdef SIXTY_FOUR_BIT
     #define BN_MASK2        (0xffffffffffffffffLL)
 #endif
-#ifdef THIRTY_TWO_BIT
-    #error "Not supported"
-#endif
 
+#ifndef THIRTY_TWO_BIT
 static CK_RV ica_calc_blinding_mont_ctx_n0(STDLL_TokData_t *tokdata,
                                            ica_ex_data_t *ex_data,
                                            BN_CTX *bn_ctx,
@@ -2510,6 +2508,7 @@ static CK_RV ica_calc_blinding_mont_ctx_n0(STDLL_TokData_t *tokdata,
     return CKR_OK;
 }
 #endif
+#endif
 
 static CK_RV ica_blinding_setup(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                 ica_ex_data_t *ex_data, BN_CTX *bn_ctx)
@@ -2570,11 +2569,15 @@ static CK_RV ica_blinding_setup(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
 
 #ifndef HAVE_ALT_FIX_FOR_CVE2022_4304
+#ifdef THIRTY_TWO_BIT
+    ex_data->blinding_mont_ctx_n0 = ex_data->blinding_mont_ctx->n0[0];
+#else
     rc = ica_calc_blinding_mont_ctx_n0(tokdata, ex_data, bn_ctx, modulus);
     if (rc != CKR_OK) {
         TRACE_ERROR("ica_calc_blinding_mont_ctx_n0 failed\n");
         goto done;
     }
+#endif
 #endif
 
     /*

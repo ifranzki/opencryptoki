@@ -64,6 +64,12 @@ typedef uint128_t limb2_t;
 #  endif
 #  define LIMB_BIT_SIZE 64
 #  define LIMB_BYTE_SIZE 8
+# elif BN_BYTES == 4
+typedef uint32_t limb_t;
+typedef uint64_t limb2_t;
+#  define LIMB_BIT_SIZE 32
+#  define LIMB_BYTE_SIZE 4
+#  define HAVE_LIMB2_T
 # else
 #  error "Not supported"
 # endif
