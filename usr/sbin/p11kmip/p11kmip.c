@@ -2934,7 +2934,7 @@ static CK_RV p11kmip_export_key(void)
     CK_OBJECT_HANDLE wrapping_pubkey, secret_key_handle;
     struct p11kmip_keytype pubkey_keytype, privkey_keytype,
         secret_keytype;
-    struct kmip_node *wrap_pubkey_uid = NULL, *wrap_privkey_uuid,
+    struct kmip_node *wrap_pubkey_uid = NULL, *wrap_privkey_uuid = NULL,
         *secret_key_uid = NULL;
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length;
@@ -3882,7 +3882,7 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                                      kmip_wrap_padding_method ==
                                                      KMIP_PADDING_METHOD_OAEP ?
                                                      kmip_wrap_hash_alg : 0,
-                                                     KMIP_KEY_ROLE_TYPE_KEK, 0,
+                                                     NULL, 0,
                                                      kmip_wrap_key_alg, NULL,
                                                      NULL, NULL, NULL, NULL,
                                                      NULL, NULL, NULL,
@@ -4018,7 +4018,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         goto out;
     }
 
-    enc_kinfo = kmip_new_key_info(false, unwrapkey_uid, NULL);
+    enc_kinfo = kmip_new_key_info(false, unwrapkey_uid, enc_cparams);
     if (enc_kinfo == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
