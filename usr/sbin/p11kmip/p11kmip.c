@@ -3790,10 +3790,13 @@ static CK_RV p11kmip_activate_remote_key(struct kmip_node **obj_uid)
     rc = perform_kmip_request(KMIP_OPERATION_ACTIVATE, act_req,
                               &act_resp, &act_status, &act_reason);
     
-    // My expectation is that we will get this error if we attempt
-    // an activate request against a key which is already active.
-    // If so, we can probably catch it here.
-    // KMIP_RESULT_REASON_WRONG_KEY_LIFECYCLE_STATE
+    if (rc) {
+        // We will get this reason code if we are attempting to activate
+        // a key which is already active. This is fine for our purposes.
+        if (act_reason == KMIP_RESULT_REASON_PERMISSION_DENIED) {
+            rc = CKR_OK;
+        }
+    }
 
 out:
     kmip_node_free(act_req);
