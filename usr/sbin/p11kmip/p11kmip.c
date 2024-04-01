@@ -126,6 +126,7 @@ static bool opt_force_pem_pwd_prompt = false;
 static CK_RV p11kmip_locate_remote_key(const char *label, const struct
                                        p11kmip_keytype *keytype,
                                        struct kmip_node **obj_uid);
+static CK_RV p11kmip_activate_remote_key(struct kmip_node **obj_uid);
 static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                                 *keytype,
                                                 CK_OBJECT_HANDLE
@@ -2967,6 +2968,16 @@ static CK_RV p11kmip_export_key(void)
             goto done;
         }
 
+        // Make sure the public key is active. Technically, this
+        // is not necessary, but we may as well keep the public and private
+        // key in the same state.
+        rc = p11kmip_activate_remote_key(wrap_pubkey_uid);
+
+        if (rc != CKR_OK) {
+            warnx("Failed to activate public key on KMIP server\n");
+            goto done;
+        }
+
         rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
                                                 wrap_pubkey_uid,
                                                 &pub_key);
@@ -2996,6 +3007,14 @@ static CK_RV p11kmip_export_key(void)
     if (rc != CKR_OK) {
         warnx("Failed to locate private key '%s' on server", 
         opt_unwrap_label == NULL ? opt_wrap_label : opt_unwrap_label);
+    }
+
+    // Make sure the private key is active. 
+    rc = p11kmip_activate_remote_key(wrap_privkey_uuid);
+
+    if (rc != CKR_OK) {
+        warnx("Failed to activate public key on KMIP server\n");
+        goto done;
     }
 
     rc = p11kmip_find_local_key(&secret_keytype, opt_target_label,
@@ -3755,6 +3774,34 @@ out:
 
 }
 
+static CK_RV p11kmip_activate_remote_key(struct kmip_node **obj_uid)
+{
+    struct kmip_node *act_req = NULL, *act_resp = NULL;
+    enum kmip_result_status act_status = 0;
+    enum kmip_result_reason act_reason = 0;
+    CK_RV rc = CKR_OK;
+
+    act_req = kmip_new_activate_request_payload(obj_uid);  /* ID placeholder */
+    if (act_req == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+    }
+
+    rc = perform_kmip_request(KMIP_OPERATION_ACTIVATE, act_req,
+                              &act_resp, &act_status, &act_reason);
+    
+    // My expectation is that we will get this error if we attempt
+    // an activate request against a key which is already active.
+    // If so, we can probably catch it here.
+    // KMIP_RESULT_REASON_WRONG_KEY_LIFECYCLE_STATE
+
+out:
+    kmip_node_free(act_req);
+    kmip_node_free(act_resp);
+
+    return rc;
+}
+
 /**
  * @brief 
  * 
@@ -3882,7 +3929,7 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                                      kmip_wrap_padding_method ==
                                                      KMIP_PADDING_METHOD_OAEP ?
                                                      kmip_wrap_hash_alg : 0,
-                                                     NULL, 0,
+                                                     KMIP_KEY_ROLE_TYPE_KEK, 0,
                                                      kmip_wrap_key_alg, NULL,
                                                      NULL, NULL, NULL, NULL,
                                                      NULL, NULL, NULL,
@@ -4000,7 +4047,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                     kmip_wrap_padding_method ==
                                                     KMIP_PADDING_METHOD_OAEP ?
                                                     kmip_wrap_hash_alg : 0,
-                                                    KMIP_KEY_ROLE_TYPE_KEK, 0,
+                                                    0, 0,
                                                     kmip_wrap_key_alg, NULL,
                                                     NULL, NULL, NULL, NULL,
                                                     NULL, NULL, NULL,
