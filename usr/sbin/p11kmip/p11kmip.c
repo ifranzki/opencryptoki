@@ -139,7 +139,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                  const char *wrapped_key_blob,
                                                  const char *wrapped_key_label,
                                                  struct kmip_node
-                                                 *unwrapkey_uid,
+                                                 *wrapkey_uid,
                                                  struct kmip_node **key_uid);
 static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
                                                 *keytype,
@@ -3038,7 +3038,7 @@ static CK_RV p11kmip_export_key(void)
                                              wrapped_key_length,
                                              wrapped_key_blob, 
                                              opt_target_label,
-                                             wrap_privkey_uuid,
+                                             wrap_pubkey_uid,
                                              &secret_key_uid);
 
     if (rc != CKR_OK) {
@@ -4030,7 +4030,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                  const char *wrapped_key_blob,
                                                  const char *wrapped_key_label,
                                                  struct kmip_node
-                                                 *unwrapkey_uid,
+                                                 *wrapkey_uid,
                                                  struct kmip_node **key_uid)
 {
     struct kmip_node *kobj = NULL, *name_attr = NULL, *unique_id = NULL;
@@ -4044,31 +4044,31 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     enum kmip_result_status reg_status = 0, act_status = 0;
     enum kmip_result_reason reg_reason = 0, act_reason = 0;
     int rc;
-	printf("%p",unwrapkey_uid);
-    enc_cparams = kmip_new_cryptographic_parameters(NULL, 0,
-                                                    kmip_wrap_padding_method,
-                                                    kmip_wrap_padding_method ==
-                                                    KMIP_PADDING_METHOD_OAEP ?
-                                                    kmip_wrap_hash_alg : 0,
-                                                    0, 0,
-                                                    kmip_wrap_key_alg, NULL,
-                                                    NULL, NULL, NULL, NULL,
-                                                    NULL, NULL, NULL,
-                                                    kmip_wrap_padding_method ==
-                                                    KMIP_PADDING_METHOD_OAEP ?
-                                                    KMIP_MASK_GENERATOR_MGF1 :
-                                                    0,
-                                                    kmip_wrap_padding_method ==
-                                                    KMIP_PADDING_METHOD_OAEP ?
-                                                    kmip_wrap_hash_alg : 0,
-                                                    NULL);
-    if (enc_cparams == NULL) {
-        warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
-        goto out;
-    }
+    
+    // enc_cparams = kmip_new_cryptographic_parameters(NULL, 0,
+    //                                                 kmip_wrap_padding_method,
+    //                                                 kmip_wrap_padding_method ==
+    //                                                 KMIP_PADDING_METHOD_OAEP ?
+    //                                                 kmip_wrap_hash_alg : 0,
+    //                                                 0, 0,
+    //                                                 kmip_wrap_key_alg, NULL,
+    //                                                 NULL, NULL, NULL, NULL,
+    //                                                 NULL, NULL, NULL,
+    //                                                 kmip_wrap_padding_method ==
+    //                                                 KMIP_PADDING_METHOD_OAEP ?
+    //                                                 KMIP_MASK_GENERATOR_MGF1 :
+    //                                                 0,
+    //                                                 kmip_wrap_padding_method ==
+    //                                                 KMIP_PADDING_METHOD_OAEP ?
+    //                                                 kmip_wrap_hash_alg : 0,
+    //                                                 NULL);
+    // if (enc_cparams == NULL) {
+    //     warnx("Allocate KMIP node failed");
+    //     rc = -ENOMEM;
+    //     goto out;
+    // }
 
-    enc_kinfo = kmip_new_key_info(false, unwrapkey_uid, enc_cparams);
+    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, NULL);
     if (enc_kinfo == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
