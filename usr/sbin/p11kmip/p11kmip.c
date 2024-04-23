@@ -4045,30 +4045,30 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     enum kmip_result_reason reg_reason = 0, act_reason = 0;
     int rc;
     
-    // enc_cparams = kmip_new_cryptographic_parameters(NULL, 0,
-    //                                                 kmip_wrap_padding_method,
-    //                                                 kmip_wrap_padding_method ==
-    //                                                 KMIP_PADDING_METHOD_OAEP ?
-    //                                                 kmip_wrap_hash_alg : 0,
-    //                                                 0, 0,
-    //                                                 kmip_wrap_key_alg, NULL,
-    //                                                 NULL, NULL, NULL, NULL,
-    //                                                 NULL, NULL, NULL,
-    //                                                 kmip_wrap_padding_method ==
-    //                                                 KMIP_PADDING_METHOD_OAEP ?
-    //                                                 KMIP_MASK_GENERATOR_MGF1 :
-    //                                                 0,
-    //                                                 kmip_wrap_padding_method ==
-    //                                                 KMIP_PADDING_METHOD_OAEP ?
-    //                                                 kmip_wrap_hash_alg : 0,
-    //                                                 NULL);
-    // if (enc_cparams == NULL) {
-    //     warnx("Allocate KMIP node failed");
-    //     rc = -ENOMEM;
-    //     goto out;
-    // }
+    enc_cparams = kmip_new_cryptographic_parameters(NULL, 0,
+                                                    kmip_wrap_padding_method,
+                                                    kmip_wrap_padding_method ==
+                                                    KMIP_PADDING_METHOD_OAEP ?
+                                                    kmip_wrap_hash_alg : 0,
+                                                    0, 0,
+                                                    kmip_wrap_key_alg, NULL,
+                                                    NULL, NULL, NULL, NULL,
+                                                    NULL, NULL, NULL,
+                                                    kmip_wrap_padding_method ==
+                                                    KMIP_PADDING_METHOD_OAEP ?
+                                                    KMIP_MASK_GENERATOR_MGF1 :
+                                                    0,
+                                                    kmip_wrap_padding_method ==
+                                                    KMIP_PADDING_METHOD_OAEP ?
+                                                    kmip_wrap_hash_alg : 0,
+                                                    NULL);
+    if (enc_cparams == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = -ENOMEM;
+        goto out;
+    }
 
-    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, NULL);
+    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, enc_cparams);
     if (enc_kinfo == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
@@ -4124,9 +4124,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         rc = -ENOMEM;
         goto out;
     }
-    // Questions:
-    // - what should the mode be? can I determine that from the key?
-    // - shouldn't the length of the key be in here... somewhere?
+    
     cparams_attr = kmip_new_cryptographic_parameters(NULL, 0, 0, 0,
                                                      KMIP_KEY_ROLE_TYPE_DEK,
                                                      0, KMIP_CRYPTO_ALGO_AES,
@@ -4155,10 +4153,15 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         goto out;
     }
 
+    // reg_req = kmip_new_register_request_payload_va(NULL,
+    //                                                KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
+    //                                                kobj, NULL, 4, name_attr,
+    //                                                umask_attr, cparams_attr,
+    //                                                descr_attr);
     reg_req = kmip_new_register_request_payload_va(NULL,
                                                    KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
-                                                   kobj, NULL, 4, name_attr,
-                                                   umask_attr, cparams_attr,
+                                                   kobj, NULL, 3, name_attr,
+                                                   umask_attr,
                                                    descr_attr);
     if (reg_req == NULL) {
         warnx("Allocate KMIP node failed");
