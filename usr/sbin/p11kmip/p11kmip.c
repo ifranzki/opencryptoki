@@ -4126,7 +4126,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     }
     
     cparams_attr = kmip_new_cryptographic_parameters(NULL, 0, 0, 0,
-                                                     KMIP_KEY_ROLE_TYPE_DEK,
+                                                     0,
                                                      0, KMIP_CRYPTO_ALGO_AES,
                                                      false, NULL, NULL, NULL,
                                                      NULL, NULL, NULL, NULL,
@@ -4143,7 +4143,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         goto out;
     }
 
-    asprintf(&description, "Wrapping key for PKCS#11 client on system %s",
+    asprintf(&description, "Secret key for PKCS#11 client on system %s",
              utsname.nodename);
     descr_attr = build_description_attr(description);
     free(description);
