@@ -4068,7 +4068,8 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         goto out;
     }
 
-    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, enc_cparams);
+    //enc_kinfo = kmip_new_key_info(false, wrapkey_uid, enc_cparams);
+    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, NULL);
     if (enc_kinfo == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
@@ -4118,7 +4119,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     }
 
     umask_attr = kmip_new_cryptographic_usage_mask(KMIP_CRY_USAGE_MASK_ENCRYPT |
-                                                   KMIP_CRY_USAGE_MASK_WRAP_KEY);
+                                                   KMIP_CRY_USAGE_MASK_DECRYPT);
     if (umask_attr == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
@@ -4160,9 +4161,8 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     //                                                descr_attr);
     reg_req = kmip_new_register_request_payload_va(NULL,
                                                    KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
-                                                   kobj, NULL, 3, name_attr,
-                                                   umask_attr,
-                                                   descr_attr);
+                                                   kobj, NULL, 2, name_attr,
+                                                   umask_attr);
     if (reg_req == NULL) {
         warnx("Allocate KMIP node failed");
         rc = -ENOMEM;
