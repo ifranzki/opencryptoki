@@ -110,7 +110,6 @@ static char *opt_unwrap_label = NULL;
 static bool opt_gen_targkey = false;
 static bool opt_gen_keypair = false;
 static bool opt_send_wrapkey = false;
-static bool opt_retr_wrapkey = false;
 
 static char *opt_file = NULL;
 static char *opt_pem_password = NULL;
@@ -382,7 +381,6 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
              .value.string = &opt_wrap_attrs,.name = "WRAPKEY-ATTRS",},
      .description = "The boolean attributes to set for the public key"
      "after it has been imported (optional). "
-     "Only compatible with the '--retr-wrapkey' option:"
      "  P M B Y S X K H."
      "Specify a set of these letters without any"
      "blanks in between. See below for the meaning"
@@ -392,24 +390,7 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_id,.name = "WRAPKEY-ID",},
      .description = "The value to be set for the CKA_ID attribute of"
-     "the imported wrapping key. Only compatible with the "
-     "'--retr-wrapkey' option.",},
-    {.short_opt = 'u',.long_opt = "unwrapkey-label",.required = false,
-     .arg = {.type = ARG_TYPE_STRING,.required = true,
-             .value.string = &opt_unwrap_label,.name = "UNWRAPKEY-LABEL",},
-     .description = "The label of the private key on the KMIP "
-     "server to be used for unwrapping the target key, if different from"
-     " the label of the public key used for wrapping (optional).",},
-    {.short_opt = 0,.long_opt = "retr-wrapkey",.required = false,
-     .long_opt_val = OPT_RETR_WRAPKEY,
-     .arg = {.type = ARG_TYPE_PLAIN,.required = false,
-             .value.plain = &opt_retr_wrapkey,},
-     .description = "If specified, the public key to be used for "
-     "wrapping is first retrieved from the KMIP server and stored in "
-     "the PKCS#11 slot. In this case, the label specified by the "
-     "'wrapkey-label' option is used to select the public key to "
-     "be retrieved, and the public key is stored under"
-     " the same label in the PKCS#11 slot.",},
+     "the imported wrapping key.",},
      { .short_opt = 0, .long_opt = NULL, },
 };
 
@@ -2948,72 +2929,47 @@ static CK_RV p11kmip_export_key(void)
     pubkey_keytype = p11kmip_rsa_keytype;
     pubkey_keytype.class = CKO_PUBLIC_KEY;
 
-    privkey_keytype = p11kmip_rsa_keytype;
-    privkey_keytype.class = CKO_PRIVATE_KEY;
-
     secret_keytype = p11kmip_aes_keytype;
 
-    if (opt_retr_wrapkey) {
-        rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype,
-                                       &wrap_pubkey_uid);
-
-        if (rc != CKR_OK) {
-            warnx("Error while locating target key on KMIP server\n");
-            goto done;
-        }
-        // If we didn't find it, throw an error
-        if (wrap_pubkey_uid == NULL) {
-            warnx("Did not find target key '%s' on server\n", opt_wrap_label);
-            rc = CKR_GENERAL_ERROR;
-            goto done;
-        }
-
-        // Make sure the public key is active. Technically, this
-        // is not necessary, but we may as well keep the public and private
-        // key in the same state.
-        rc = p11kmip_activate_remote_key(wrap_pubkey_uid);
-
-        if (rc != CKR_OK) {
-            warnx("Failed to activate public key on KMIP server\n");
-            goto done;
-        }
-
-        rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
-                                                wrap_pubkey_uid,
-                                                &pub_key);
-
-        if (rc != CKR_OK) {
-            warnx("Failed to retrieve public key from KMIP server\n");
-            goto done;
-        }
-
-        rc = p11kmip_create_local_public_key(&pubkey_keytype,
-                                             pub_key, opt_wrap_label,
-                                             NULL, 0, &wrapping_pubkey);
-
-        if (rc != CKR_OK) {
-            warnx("Failed to create public key '%s'\n", opt_wrap_label);
-            goto done;
-        }
-    } else {
-        rc = p11kmip_find_local_key(&pubkey_keytype, opt_wrap_label, NULL,
-                                    &wrapping_pubkey);
-    }
-
-    rc = p11kmip_locate_remote_key(opt_unwrap_label == NULL ?
-        opt_wrap_label : opt_unwrap_label,
-        &privkey_keytype, &wrap_privkey_uuid);
+    rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype,
+                                    &wrap_pubkey_uid);
 
     if (rc != CKR_OK) {
-        warnx("Failed to locate private key '%s' on server", 
-        opt_unwrap_label == NULL ? opt_wrap_label : opt_unwrap_label);
+        warnx("Error while locating target key on KMIP server\n");
+        goto done;
+    }
+    // If we didn't find it, throw an error
+    if (wrap_pubkey_uid == NULL) {
+        warnx("Did not find target key '%s' on server\n", opt_wrap_label);
+        rc = CKR_GENERAL_ERROR;
+        goto done;
     }
 
-    // Make sure the private key is active. 
-    rc = p11kmip_activate_remote_key(wrap_privkey_uuid);
+    // // Make sure the public key is active. Technically, this
+    // // is not necessary, but we may as well keep the public and private
+    // // key in the same state.
+    // rc = p11kmip_activate_remote_key(wrap_pubkey_uid);
+
+    // if (rc != CKR_OK) {
+    //     warnx("Failed to activate public key on KMIP server\n");
+    //     goto done;
+    // }
+
+    rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
+                                            wrap_pubkey_uid,
+                                            &pub_key);
 
     if (rc != CKR_OK) {
-        warnx("Failed to activate public key on KMIP server\n");
+        warnx("Failed to retrieve public key from KMIP server\n");
+        goto done;
+    }
+
+    rc = p11kmip_create_local_public_key(&pubkey_keytype,
+                                            pub_key, opt_wrap_label,
+                                            NULL, 0, &wrapping_pubkey);
+
+    if (rc != CKR_OK) {
+        warnx("Failed to create public key '%s'\n", opt_wrap_label);
         goto done;
     }
 
