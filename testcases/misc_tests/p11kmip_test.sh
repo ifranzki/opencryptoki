@@ -272,7 +272,7 @@ key_import_tests() {
 	pkcs11 {
 		slot_number = 0
 	}
-	EOL
+	EOF
 
 	echo "*** Running test using environment variables"
 
