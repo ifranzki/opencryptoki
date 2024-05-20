@@ -239,6 +239,8 @@ key_import_tests() {
 	}
 	EOF
 
+	echo "*** Running test using configuration options"
+
 	p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
@@ -272,8 +274,10 @@ key_import_tests() {
 	}
 	EOL
 
-	# p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
-	# --wrapkey-label $KMIP_PUBLIC_KEY_NAME
+	echo "*** Running test using environment variables"
+
+	p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
+	--wrapkey-label $KMIP_PUBLIC_KEY_NAME
 
 	################################################################
 	# Using only commandline options                               #
@@ -292,6 +296,8 @@ key_import_tests() {
 	unset KMIP_HOSTNAME
 	unset KMIP_CLIENT_CERT
 	unset KMIP_CLIENT_KEY
+
+	echo "*** Running test using command line options"
 
 	p11kmip import-key --slot $__PKCS11_SLOT_ID --pin $__PKCS11_USER_PIN  \
 		--send-wrapkey \
