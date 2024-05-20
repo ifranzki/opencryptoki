@@ -222,22 +222,22 @@ key_import_tests() {
 	# Using configuration file options                             #
 	################################################################
 
-	cat > $P11KMIP_CONF_FILE << EOF
-	kmip {
-		host = "${KMIP_HOST}"
-		tls_client_cert = "${KMIP_CLIENT_CERT_PATH}"
-		tls_client_key = "${KMIP_KEY_CERT_PATH}"
-
-		wrap_key_format = "PKCS1"
-		wrap_key_algorithm = "RSA"
-		wrap_key_size = 2048
-		wrap_padding_method = "PKCS1.5"
-		wrap_hashing_algorithm = "SHA-1"
-	}
-	pkcs11 {
-		slot_number = ${PKCS11_USER_SLOT}
-	}
-	EOF
+	# Build a standard configuration
+	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
+    echo "kmip {                                              " >> $P11KMIP_CONF_FILE
+    echo "    host = \"${KMIP_HOST}\"                         " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_cert = \"${KMIP_CLIENT_CERT_PATH}\"  " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"${KMIP_KEY_CERT_PATH}\"      " >> $P11KMIP_CONF_FILE
+    echo "                                                    " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_format = \"PKCS1\"                     " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_algorithm = \"RSA\"                    " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_size = 2048                            " >> $P11KMIP_CONF_FILE
+    echo "    wrap_padding_method = \"PKCS1.5\"               " >> $P11KMIP_CONF_FILE
+    echo "    wrap_hashing_algorithm = \"SHA-1\"              " >> $P11KMIP_CONF_FILE
+    echo "}                                                   " >> $P11KMIP_CONF_FILE
+    echo "pkcs11 {                                            " >> $P11KMIP_CONF_FILE
+    echo "    slot_number = ${PKCS11_USER_SLOT}               " >> $P11KMIP_CONF_FILE
+    echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
 
@@ -257,22 +257,21 @@ key_import_tests() {
 	# KMIP_CLIENT_KEY  set externally
 
 	# Fill the configuration file with bogus values
-	cat > $P11KMIP_CONF_FILE << EOF
-	kmip {
-		host = "255.255.255.255:0"
-		tls_client_cert = "/dev/null"
-		tls_client_key = "/dev/null"
-
-		wrap_key_format = "PKCS1"
-		wrap_key_algorithm = "RSA"
-		wrap_key_size = 2048
-		wrap_padding_method = "PKCS1.5"
-		wrap_hashing_algorithm = "SHA-1"
-	}
-	pkcs11 {
-		slot_number = 0
-	}
-	EOF
+	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
+    echo "kmip {                                           " >> $P11KMIP_CONF_FILE
+    echo "    host = \"255.255.255.255:0\"                 " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_cert = \"/dev/null\"              " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"/dev/null\"               " >> $P11KMIP_CONF_FILE
+    echo "                                                 " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_format = \"PKCS1\"                  " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_algorithm = \"RSA\"                 " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_size = 2048                         " >> $P11KMIP_CONF_FILE
+    echo "    wrap_padding_method = \"PKCS1.5\"            " >> $P11KMIP_CONF_FILE
+    echo "    wrap_hashing_algorithm = \"SHA-1\"           " >> $P11KMIP_CONF_FILE
+    echo "}                                                " >> $P11KMIP_CONF_FILE
+    echo "pkcs11 {                                         " >> $P11KMIP_CONF_FILE
+    echo "    slot_number = 0                              " >> $P11KMIP_CONF_FILE
+    echo "}                                                " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using environment variables"
 
