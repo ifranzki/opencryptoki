@@ -1305,7 +1305,7 @@ static void parse_config_file_error_hook(int line, int col, const char *msg)
 static CK_RV parse_config_file(void)
 {
     FILE *fp = NULL;
-    char *file_loc = getenv(P11KMIP_DEFAULT_CONF_FILE_ENV_NAME);
+    char *file_loc = getenv(P11KMIP_CONF_FILE_ENV_NAME);
     char pathname[PATH_MAX];
     struct passwd *pw;
 
@@ -1314,7 +1314,7 @@ static CK_RV parse_config_file(void)
         if (fp == NULL) {
             warnx
                 ("Cannot read config file '%s' (specified via env variable %s): %s",
-                 file_loc, P11KMIP_DEFAULT_CONF_FILE_ENV_NAME, strerror(errno));
+                 file_loc, P11KMIP_CONF_FILE_ENV_NAME, strerror(errno));
             return CKR_OK;
         }
     } else {
