@@ -284,6 +284,7 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
              .value.plain = &opt_verbose,},
      .description = "Increase debug information"},
     {.short_opt = 0,.long_opt = NULL,},
+    
 };
 
 #define PKCS11_OPTS                                                            \
@@ -306,6 +307,24 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
                      "PKCS11_USER_PIN is set, or the '-p'/'--pin' option is "  \
                      "specified.", }
 
+#define KMIP_OPTS                                                              \
+    { .short_opt = 0, .long_opt = "kmip-host", .required = false,              \
+      .arg =  { .type = ARG_TYPE_STRING, .required = false,                    \
+                .value.number = &opt_kmip_hostname,                            \
+                .name = "KMIP-HOSTNAME" },                                     \
+      .description = "The hostname of the KMIP server to use (optional).", },  \
+    { .short_opt = 0, .long_opt = "tls-client-cert", .required = false,        \
+      .arg =  { .type = ARG_TYPE_STRING, .required = false,                    \
+                .value.number = &opt_kmip_client_cert,                         \
+                .name = "TLS-CLIENT-CERT" },                                   \
+      .description = "The path to the TLS client certificate to use for the "  \
+                     "KMIP connection (optional).", },                         \
+    { .short_opt = 0, .long_opt = "tls-client-key", .required = false,         \
+      .arg =  { .type = ARG_TYPE_STRING, .required = false,                    \
+                .value.number = &opt_kmip_client_key,                          \
+                .name = "TLS-CLIENT-KEY" },                                    \
+      .description = "The path to the TLS client key to use for the "          \
+                     "KMIP connection (optional).", }
 
 static const struct p11kmip_arg p11kmip_import_key_args[] = {
     {.name = NULL},
@@ -317,6 +336,7 @@ static const struct p11kmip_arg p11kmip_export_key_args[] = {
 
 static const struct p11kmip_opt p11kmip_import_key_opts[] = {
     PKCS11_OPTS,
+    KMIP_OPTS,
     {.short_opt = 'w',.long_opt = "wrapkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_label,.name = "WRAPKEY-LABEL",},
@@ -367,6 +387,7 @@ static const struct p11kmip_opt p11kmip_import_key_opts[] = {
 
 static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     PKCS11_OPTS,
+    KMIP_OPTS,
     {.short_opt = 'w',.long_opt = "wrapkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_label,.name = "WRAPKEY-LABEL",},
