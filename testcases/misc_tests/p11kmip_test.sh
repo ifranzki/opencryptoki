@@ -27,6 +27,8 @@ P11KMIP_TMP="/tmp/p11kmip"
 P11KMIP_UNIQUE_NAME="$(uname -n)-$(date +%s)"
 P11KMIP_UNIQUE_NAME="${P11KMIP_UNIQUE_NAME^^}"
 
+P11KMIP_CONF_FILE="${P11KMIP_TMP}/p11kmip.conf"
+
 # Prepare PKCS11 variables
 echo "** Setting SLOT=30 to the Softtoken unless otherwise set - 'p11kmip_test.sh'"
 
@@ -39,8 +41,8 @@ echo "** Using Slot $SLOT with PKCS11_USER_PIN $PKCS11_USER_PIN and PKCSLIB $PKC
 echo "** Setting KMIP_REST_URL=https://\${KMIP_HOST}:19443 unless otherwise set - 'p11kmip_test.sh'"
 echo "** Setting KMIP_SERVER=\${KMIP_HOST}:5696 unless otherwise set - 'p11kmip_test.sh'"
 
-KMIP_CERT=$DIR/p11kmip_client_cert.pem
-KMIP_KEY=$DIR/p11kmip_client_key.pem
+KMIP_CLIENT_CERT=$DIR/p11kmip_client_cert.pem
+KMIP_KEY_CERT=$DIR/p11kmip_client_key.pem
 
 KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_HOST}:19443}"
 KMIP_SERVER="${KMIP_SERVER:-${KMIP_HOST}:5696}"
@@ -96,7 +98,7 @@ setup_kmip_client() {
 		if [[ $UPLOAD_CERT_DONE -eq 0 ]] ; then
 			curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/filetransfer/upload/objectfiles" \
 				--header "accept: application/json" --header "Content-Type: multipart/form-data" \
-				--form "fileToUpload=@$KMIP_CERT" --form "destination=" --header "Authorization:SKLMAuth userAuthId=$AUTHID" \
+				--form "fileToUpload=@$KMIP_CLIENT_CERT" --form "destination=" --header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_upload_cert_stdout 2>$P11KMIP_TMP/curl_upload_cert_stderr
 			RC=$?
 			echo "rc:" $RC
@@ -108,12 +110,12 @@ setup_kmip_client() {
 				echo "warning: Login token expired, re-login and retry"
 				continue
 			fi
-			if [[ "$MSG" == "CTGKM3466E Cannot upload the file $(basename $KMIP_CERT) because a file with the same name already exists on the server." ]]; then
+			if [[ "$MSG" == "CTGKM3466E Cannot upload the file $(basename $KMIP_CLIENT_CERT) because a file with the same name already exists on the server." ]]; then
 				echo "info: Client certificate already uploaded to server"
 				UPLOAD_CERT_DONE=1
 				continue
 			fi
-			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CERT) is uploaded." ]]; then
+			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CLIENT_CERT) is uploaded." ]]; then
 				RC=1
 				echo "error: Status not as expected"
 				cat $P11KMIP_TMP/curl_upload_cert_stdout
@@ -156,7 +158,7 @@ setup_kmip_client() {
 		if [[ $ASSIGN_CERT_DONE -eq 0 ]] ; then
 			curl --fail-with-body --location --request PUT "$KMIP_REST_URL/SKLM/rest/v1/clients/$KMIP_CLIENT_NAME/assignCertificate" \
 				--header "Content-Type: application/json" \
-				--data "{\"certUseOption\":\"IMPORT_CERT\",\"certAlias\":\"$P11KMIP_UNIQUE_NAME\",\"importPath\":\"$(basename $KMIP_CERT)\"}" \
+				--data "{\"certUseOption\":\"IMPORT_CERT\",\"certAlias\":\"$P11KMIP_UNIQUE_NAME\",\"importPath\":\"$(basename $KMIP_CLIENT_CERT)\"}" \
 				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_assign_cert_stdout 2>$P11KMIP_TMP/curl_assign_cert_stderr
 			RC=$?
@@ -195,8 +197,8 @@ setup_pkcs11_keys() {
 }
 
 setup_kmip_keys() {
-	KMIP_KEY_FILE="p11kmip_asym_keys.p12"
-	KMIP_KEY_PASSWORD="hG3KGs2@"
+	KMIP_KEY_CERT_FILE="p11kmip_asym_keys.p12"
+	KMIP_KEY_CERT_PASSWORD="hG3KGs2@"
 
 	curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/objects/keypair" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
@@ -220,73 +222,91 @@ key_import_tests() {
 	# Using configuration file options                             #
 	################################################################
 
-	# cat >/usr/local/etc/opencryptoki/p11kmip.conf <<EOF
-	# kmip {
-	# 	host = "${TEST_KMIP_HOST}"
-	# 	tls_client_cert = "${TEST_KMIP_CERT_PATH}"
-	# 	tls_client_key = "${TEST_KMIP_KEY_PATH}"
+	cat > $P11KMIP_CONF_FILE << EOF
+	kmip {
+		host = "${KMIP_HOST}"
+		tls_client_cert = "${KMIP_CLIENT_CERT_PATH}"
+		tls_client_key = "${KMIP_KEY_CERT_PATH}"
 
-	# 	wrap_key_format = "PKCS1"
-	# 	wrap_key_algorithm = "RSA"
-	# 	wrap_key_size = 2048
-	# 	wrap_padding_method = "PKCS1.5"
-	# 	wrap_hashing_algorithm = "SHA-1"
-	# }
-	# pkcs11 {
-	# 	slot_number = ${TEST_USER_SLOT}
-	# }
-	# EOF
+		wrap_key_format = "PKCS1"
+		wrap_key_algorithm = "RSA"
+		wrap_key_size = 2048
+		wrap_padding_method = "PKCS1.5"
+		wrap_hashing_algorithm = "SHA-1"
+	}
+	pkcs11 {
+		slot_number = ${PKCS11_USER_SLOT}
+	}
+	EOF
 
-	# p11kmip import-key --pin $TEST_USER_PIN \
-	# --targkey-label $TEST_TARG_LABEL --wrapkey-label $TEST_WRAP_LABEL
-
-	# ################################################################
-	# # Using environment variables                                  #
-	# ################################################################
-
-	# # Set environment variables
-	# PKCS11_USER_PIN=$TEST_USER_PIN
-	# PKCS11_SLOT_ID=$TEST_USER_SLOT
-	# KMIP_HOSTNAME=$TEST_KMIP_HOST
-	# KMIP_CLIENT_CERT=$TEST_KMIP_CERT_PATH
-	# KMIP_CLIENT_KEY=$TEST_KMIP_KEY_PATH
-
-	# # Fill the configuration file with bogus values
-	# cat >/usr/local/etc/opencryptoki/p11kmip.conf <<EOL
-	# kmip {
-	# host = "255.255.255.255:0"
-	# tls_client_cert = "/dev/null"
-	# tls_client_key = "/dev/null"
-
-	# wrap_key_format = "PKCS1"
-	# wrap_key_algorithm = "RSA"
-	# wrap_key_size = 2048
-	# wrap_padding_method = "PKCS1.5"
-	# wrap_hashing_algorithm = "SHA-1"
-	# }
-	# pkcs11 {
-	# slot_number = 0
-	# }
-	# EOL
-
-	# p11kmip import-key --targkey-label $TEST_TARG_LABEL \
-	# --wrapkey-label $TEST_WRAP_LABEL
-
-	# ################################################################
-	# # Using only commandline options                               #
-	# ################################################################
-
-	# # Unset environment variables
-	# unset PKCS11_USER_PIN
-	# unset PKCS11_SLOT_ID
-	# unset KMIP_HOSTNAME
-	# unset KMIP_CLIENT_CERT
-	# unset KMIP_CLIENT_KEY
-
-	p11kmip import-key --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN  \
+	p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+
+	################################################################
+	# Using environment variables                                  #
+	################################################################
+
+	# PKCS11_USER_PIN  set externally
+	# PKCS11_SLOT_PIN  set externally
+	# KMIP_HOSTNAME    set externally
+	# KMIP_CLIENT_CERT set externally
+	# KMIP_CLIENT_KEY  set externally
+
+	# Fill the configuration file with bogus values
+	cat > $P11KMIP_CONF_FILE << EOF
+	kmip {
+		host = "255.255.255.255:0"
+		tls_client_cert = "/dev/null"
+		tls_client_key = "/dev/null"
+
+		wrap_key_format = "PKCS1"
+		wrap_key_algorithm = "RSA"
+		wrap_key_size = 2048
+		wrap_padding_method = "PKCS1.5"
+		wrap_hashing_algorithm = "SHA-1"
+	}
+	pkcs11 {
+		slot_number = 0
+	}
+	EOL
+
+	# p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
+	# --wrapkey-label $KMIP_PUBLIC_KEY_NAME
+
+	################################################################
+	# Using only commandline options                               #
+	################################################################
+
+	# Stash real variables in temporary variables
+	__PKCS11_USER_PIN=PKCS11_USER_PIN
+	__PKCS11_SLOT_ID=PKCS11_SLOT_ID
+	__KMIP_HOSTNAME=KMIP_HOSTNAME
+	__KMIP_CLIENT_CERT=KMIP_CLIENT_CERT
+	__KMIP_CLIENT_KEY=KMIP_CLIENT_KEY	
+
+	# Unset environment variables
+	unset PKCS11_USER_PIN
+	unset PKCS11_SLOT_ID
+	unset KMIP_HOSTNAME
+	unset KMIP_CLIENT_CERT
+	unset KMIP_CLIENT_KEY
+
+	p11kmip import-key --slot $__PKCS11_SLOT_ID --pin $__PKCS11_USER_PIN  \
+		--send-wrapkey \
+		--kmip-host $__KMIP_HOST \
+		--tls-client-cert $__KMIP_CLIENT_CERT \
+		--tls-client-key $__KMIP_CLIENT_KEY \
+		--targkey-label $__PKCS11_SECRET_KEY_LABEL \
+		--wrapkey-label $__PKCS11_PRIVATE_KEY_LABEL
+	
+	# Restore environment variables from stashed values
+	PKCS11_USER_PIN=$__PKCS11_USER_PIN
+	PKCS11_SLOT_ID=$__PKCS11_SLOT_ID
+	KMIP_HOSTNAME=$__KMIP_HOSTNAME
+	KMIP_CLIENT_CERT=$__KMIP_CLIENT_CERT
+	KMIP_CLIENT_KEY=$__KMIP_CLIENT_KEY	
 }
 
 key_export_tests() {
