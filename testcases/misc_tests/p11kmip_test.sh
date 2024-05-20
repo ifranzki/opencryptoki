@@ -283,11 +283,11 @@ key_import_tests() {
 	################################################################
 
 	# Stash real variables in temporary variables
-	__PKCS11_USER_PIN=PKCS11_USER_PIN
-	__PKCS11_SLOT_ID=PKCS11_SLOT_ID
-	__KMIP_HOSTNAME=KMIP_HOSTNAME
-	__KMIP_CLIENT_CERT=KMIP_CLIENT_CERT
-	__KMIP_CLIENT_KEY=KMIP_CLIENT_KEY	
+	__PKCS11_USER_PIN=$PKCS11_USER_PIN
+	__PKCS11_SLOT_ID=$PKCS11_SLOT_ID
+	__KMIP_HOSTNAME=$KMIP_HOSTNAME
+	__KMIP_CLIENT_CERT=$KMIP_CLIENT_CERT
+	__KMIP_CLIENT_KEY=$KMIP_CLIENT_KEY	
 
 	# Unset environment variables
 	unset PKCS11_USER_PIN
