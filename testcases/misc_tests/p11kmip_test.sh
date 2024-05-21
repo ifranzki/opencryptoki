@@ -197,9 +197,6 @@ setup_pkcs11_keys() {
 }
 
 setup_kmip_keys() {
-	KMIP_KEY_CERT_FILE="p11kmip_asym_keys.p12"
-	KMIP_KEY_CERT_PASSWORD="hG3KGs2@"
-
 	curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/objects/keypair" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--data "{\"clientName\":\"$P11KMIP_UNIQUE_NAME\", \"prefixName\":\"tst\", \"numberOfObjects\": \"1\", \"publicKeyCryptoUsageMask\":\"Wrap_Unwrap\", \"privateKeyCryptoUsageMask\":\"Wrap_Unwrap\"}" \
@@ -246,6 +243,8 @@ key_import_tests() {
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 
+	echo "rc = $?"
+
 	################################################################
 	# Using environment variables                                  #
 	################################################################
@@ -278,6 +277,8 @@ key_import_tests() {
 	p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
 	--wrapkey-label $KMIP_PUBLIC_KEY_NAME
 
+	echo "rc = $?"
+
 	################################################################
 	# Using only commandline options                               #
 	################################################################
@@ -306,6 +307,8 @@ key_import_tests() {
 		--targkey-label $__PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $__PKCS11_PRIVATE_KEY_LABEL
 	
+	echo "rc = $?"
+
 	# Restore environment variables from stashed values
 	PKCS11_USER_PIN=$__PKCS11_USER_PIN
 	PKCS11_SLOT_ID=$__PKCS11_SLOT_ID
@@ -315,9 +318,30 @@ key_import_tests() {
 }
 
 key_export_tests() {
+	# Build a standard configuration
+	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
+    echo "kmip {                                              " >> $P11KMIP_CONF_FILE
+    echo "    host = \"${KMIP_HOST}\"                         " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_cert = \"${KMIP_CLIENT_CERT_PATH}\"  " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"${KMIP_KEY_CERT_PATH}\"      " >> $P11KMIP_CONF_FILE
+    echo "                                                    " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_format = \"PKCS1\"                     " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_algorithm = \"RSA\"                    " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_size = 2048                            " >> $P11KMIP_CONF_FILE
+    echo "    wrap_padding_method = \"PKCS1.5\"               " >> $P11KMIP_CONF_FILE
+    echo "    wrap_hashing_algorithm = \"SHA-1\"              " >> $P11KMIP_CONF_FILE
+    echo "}                                                   " >> $P11KMIP_CONF_FILE
+    echo "pkcs11 {                                            " >> $P11KMIP_CONF_FILE
+    echo "    slot_number = ${PKCS11_USER_SLOT}               " >> $P11KMIP_CONF_FILE
+    echo "}                                                   " >> $P11KMIP_CONF_FILE
+
+	echo "*** Running test using configuration options"
+
 	p11kmip export-key --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBLIC_KEY_NAME
+	
+	echo "rc = $?"
 }
 
 echo "** Setting up KMIP client on KMIP server - 'p11kmip_test.sh'"
