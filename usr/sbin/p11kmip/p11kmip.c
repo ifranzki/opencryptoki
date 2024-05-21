@@ -4738,7 +4738,7 @@ int main(int argc, char *argv[])
 {
     const struct p11kmip_cmd *command = NULL;
     CK_RV rc = CKR_OK;
-
+    print("Heartbeat 1 -- before everything\n");
     /* Get p11kmip command (if any) */
     if (argc >= 2 && strncmp(argv[1], "-", 1) != 0) {
         command = find_command(argv[1]);
@@ -4751,17 +4751,17 @@ int main(int argc, char *argv[])
         argc--;
         argv = &argv[1];
     }
-
+    print("Heartbeat 2 -- after argv\n");
     /* Get command arguments (if any) */
     rc = parse_cmd_arguments(command, &argc, &argv);
     if (rc != CKR_OK)
         goto done;
-
+    print("Heartbeat 3 -- after parse_cmd_arguments\n");
     /* Get generic and command specific options (if any) */
     rc = parse_cmd_options(command, argc, argv);
     if (rc != CKR_OK)
         goto done;
-
+    print("Heartbeat 4 -- after parse_cmd_options\n");
     if (opt_help) {
         if (command == NULL)
             print_help();

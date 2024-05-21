@@ -337,7 +337,7 @@ key_export_tests() {
 
 	echo "*** Running test using configuration options"
 
-	p11kmip export-key --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN  \
+	p11kmip export-key -pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBLIC_KEY_NAME
 	
