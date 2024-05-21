@@ -1278,10 +1278,9 @@ static CK_RV parse_env_vars(void)
 
     loc_env_pkcs_slot = getenv(PKCS11_SLOT_ID_ENV_NAME);
     if (loc_env_pkcs_slot != NULL) {
+        // ATOI gives 0 on an invalid string, but 0 is a valid
+        // slot ID, so no error checking to be done
         env_pkcs_slot = atoi(loc_env_pkcs_slot);
-        
-        warnx("Environment variable '%s' had invalid value: %s", PKCS11_SLOT_ID_ENV_NAME, loc_env_pkcs_slot);
-        return CKR_ARGUMENTS_BAD;
     }
 
     env_pkcs_pin = getenv(PKCS11_USER_PIN_ENV_NAME);
