@@ -52,7 +52,6 @@ echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER an
 
 mkdir -p $P11KMIP_TMP
 
-
 setup_kmip_client() {
   RETRY_COUNT=0
   LOGIN_DONE=0

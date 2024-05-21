@@ -309,18 +309,18 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
 
 #define KMIP_OPTS                                                              \
     { .short_opt = 0, .long_opt = "kmip-host", .required = false,              \
-      .arg =  { .type = ARG_TYPE_STRING, .required = false,                    \
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.number = &opt_kmip_hostname,                            \
                 .name = "KMIP-HOSTNAME" },                                     \
       .description = "The hostname of the KMIP server to use (optional).", },  \
     { .short_opt = 0, .long_opt = "tls-client-cert", .required = false,        \
-      .arg =  { .type = ARG_TYPE_STRING, .required = false,                    \
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.number = &opt_kmip_client_cert,                         \
                 .name = "TLS-CLIENT-CERT" },                                   \
       .description = "The path to the TLS client certificate to use for the "  \
                      "KMIP connection (optional).", },                         \
     { .short_opt = 0, .long_opt = "tls-client-key", .required = false,         \
-      .arg =  { .type = ARG_TYPE_STRING, .required = false,                    \
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.number = &opt_kmip_client_key,                          \
                 .name = "TLS-CLIENT-KEY" },                                    \
       .description = "The path to the TLS client key to use for the "          \
@@ -4781,31 +4781,31 @@ int main(int argc, char *argv[])
         rc = CKR_ARGUMENTS_BAD;
         goto done;
     }
-
+    printf("Heartbeat 5 -- after checking for command\n");
     rc = check_required_args(command->args);
     if (rc != CKR_OK)
         goto done;
-
+    printf("Heartbeat 6 -- after checking for required arguments\n");
     rc = check_required_cmd_opts(command->opts);
     if (rc != CKR_OK)
         goto done;
-
+    printf("Heartbeat 7 -- after checking for required options\n");
     rc = parse_env_vars();
     if (rc != CKR_OK)
         goto done;
-
+    printf("Heartbeat 8 -- after parsing environment options\n");
     rc = parse_config_file();
     if (rc != CKR_OK)
         goto done;
-
+    printf("Heartbeat 9 -- after parsing configuration file\n");
     rc = init_kmip();
     if (rc != CKR_OK)
         goto done;
-
+    printf("Heartbeat 10 -- after init KMIP\n");
     rc = init_pkcs11(command);
     if (rc != CKR_OK)
         goto done;
-
+    printf("Heartbeat 11 -- after init PKCS#11\n");
     /* Run the command */
     rc = command->func();
     if (rc != CKR_OK) {
