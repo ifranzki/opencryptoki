@@ -41,6 +41,7 @@ echo "** Using Slot $SLOT with PKCS11_USER_PIN $PKCS11_USER_PIN and PKCSLIB $PKC
 echo "** Setting KMIP_REST_URL=https://\${KMIP_HOST}:19443 unless otherwise set - 'p11kmip_test.sh'"
 echo "** Setting KMIP_SERVER=\${KMIP_HOST}:5696 unless otherwise set - 'p11kmip_test.sh'"
 
+echo "Dirpath: $DIR"
 KMIP_CLIENT_CERT=$DIR/p11kmip_client_cert.pem
 KMIP_KEY_CERT=$DIR/p11kmip_client_key.pem
 
@@ -337,7 +338,7 @@ key_export_tests() {
 
 	echo "*** Running test using configuration options"
 
-	p11kmip export-key -pin $PKCS11_USER_PIN  \
+	p11kmip export-key --pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBLIC_KEY_NAME
 	
