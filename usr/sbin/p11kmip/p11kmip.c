@@ -336,7 +336,7 @@ static const struct p11kmip_arg p11kmip_export_key_args[] = {
 
 static const struct p11kmip_opt p11kmip_import_key_opts[] = {
     PKCS11_OPTS,
-    // KMIP_OPTS,
+    KMIP_OPTS,
     {.short_opt = 'w',.long_opt = "wrapkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_label,.name = "WRAPKEY-LABEL",},
@@ -1279,9 +1279,9 @@ static CK_RV parse_env_vars(void)
     loc_env_pkcs_slot = getenv(PKCS11_SLOT_ID_ENV_NAME);
     if (loc_env_pkcs_slot != NULL) {
         env_pkcs_slot = atoi(loc_env_pkcs_slot);
-
-        //Fail if invalid
-        return CKR_GENERAL_ERROR;
+        
+        warnx("Environment variable '%s' had invalid value: %s", PKCS11_SLOT_ID_ENV_NAME, loc_env_pkcs_slot);
+        return CKR_ARGUMENTS_BAD;
     }
 
     env_pkcs_pin = getenv(PKCS11_USER_PIN_ENV_NAME);
