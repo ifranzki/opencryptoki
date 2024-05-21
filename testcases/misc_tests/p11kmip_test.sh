@@ -233,7 +233,7 @@ key_import_tests() {
     echo "    wrap_hashing_algorithm = \"SHA-1\"              " >> $P11KMIP_CONF_FILE
     echo "}                                                   " >> $P11KMIP_CONF_FILE
     echo "pkcs11 {                                            " >> $P11KMIP_CONF_FILE
-    echo "    slot_number = ${PKCS11_USER_SLOT}               " >> $P11KMIP_CONF_FILE
+    echo "    slot_number = ${PKCS11_SLOT_ID}                 " >> $P11KMIP_CONF_FILE
     echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
@@ -332,7 +332,7 @@ key_export_tests() {
     echo "    wrap_hashing_algorithm = \"SHA-1\"              " >> $P11KMIP_CONF_FILE
     echo "}                                                   " >> $P11KMIP_CONF_FILE
     echo "pkcs11 {                                            " >> $P11KMIP_CONF_FILE
-    echo "    slot_number = ${PKCS11_USER_SLOT}               " >> $P11KMIP_CONF_FILE
+    echo "    slot_number = ${PKCS11_SLOT_ID}                 " >> $P11KMIP_CONF_FILE
     echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
