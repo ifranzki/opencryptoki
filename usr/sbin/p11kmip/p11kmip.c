@@ -1395,6 +1395,7 @@ static CK_RV build_kmip_config(void)
     /* Populate the kmip_config global with static defaults */
     kmip_conf = &kmip_default_config;
 
+    printf("build_kmip_config: before 'if (p11kmip_cfg != NULL)'\n");
     /* The lack of a config file, by itself, is not fatal,  */
     /* because all the required information can potentially */
     /* be provided through commandline arguements           */
@@ -1601,6 +1602,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         }
     }
 
+    printf("build_kmip_config: before env vars section\n");
+    printf("  kmip_conf->server = %p", kmip_conf->server);
+    printf("  kmip_conf->tls_client_cert = %p", kmip_conf->tls_client_cert);
+    printf("  kmip_conf->tls_client_key = %p", kmip_conf->tls_client_key);
     /* Environment variables have priority over */
     /* configuration file settings */
     if (env_kmip_hostname != NULL)
@@ -1612,6 +1617,10 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (env_kmip_client_key != NULL)
         tls_client_key_path = env_kmip_client_key;
 
+    printf("build_kmip_config: before options section\n");
+    printf("  kmip_conf->server = %p", kmip_conf->server);
+    printf("  kmip_conf->tls_client_cert = %p", kmip_conf->tls_client_cert);
+    printf("  kmip_conf->tls_client_key = %p", kmip_conf->tls_client_key);
     /* Command line options have priority over        */
     /* environment variables and configuration options */
     if (opt_kmip_hostname != NULL)
@@ -1623,6 +1632,12 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (opt_kmip_client_key != NULL)
         tls_client_key_path = opt_kmip_client_key;
 
+    printf("build_kmip_config: after options section\n");
+    printf("  kmip_conf->server = %p", kmip_conf->server);
+    printf("  kmip_conf->tls_client_cert = %p", kmip_conf->tls_client_cert);
+    printf("  kmip_conf->tls_client_key = %p", kmip_conf->tls_client_key);
+
+    printf("build_kmip_config: opening TLS client key\n");
     // Now that we have the final path for the tls_client_key,
     // read in the contents
     tls_client_key_bio = BIO_new_file(tls_client_key_path, "r");
