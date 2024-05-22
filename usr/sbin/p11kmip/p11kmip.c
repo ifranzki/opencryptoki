@@ -1502,20 +1502,25 @@ static CK_RV build_kmip_config(void)
         }
 
         printf("build_kmip_config: confignode field assignment section'\n");
+
+        printf("build_kmip_config: assign kmip_conf->server");
         if (host != NULL) {
             kmip_conf->server = confignode_to_stringval(host)->value;
         }
 
+        printf("build_kmip_config: assign kmip_conf->tls_client_cert");
         if (tls_client_cert != NULL) {
             kmip_conf->tls_client_cert =
                 confignode_to_stringval(tls_client_cert)->value;
         }
 
+        printf("build_kmip_config: assign kmip_conf->tls_client_key");
         if (tls_client_key != NULL) {
             tls_client_key_path =
                 confignode_to_stringval(tls_client_key)->value;
         }
 
+        printf("build_kmip_config: assign wrap_key_format");
         if (wrap_key_format != NULL) {
             if (strcmp(confignode_to_stringval(wrap_key_format)->value,
                        P11KMIP_CONFIG_VALUE_FMT_PKCS1) == 0) {
