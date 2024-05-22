@@ -1382,13 +1382,14 @@ static CK_RV build_kmip_config(void)
 {
     CK_RV rc;
     int f;
-    struct ConfigBaseNode *c, *host, *tls_client_cert, *tls_client_key,
-        *wrap_key_format, *wrap_key_algorithm, *wrap_key_size,
-        *wrap_pad_method, *wrap_hash_algo;
-    struct ConfigStructNode *structnode;
+    struct ConfigBaseNode *c = NULL, *host = NULL, 
+        *tls_client_cert = NULL, *tls_client_key = NULL,
+        *wrap_key_format = NULL, *wrap_key_algorithm = NULL, *wrap_key_size = NULL,
+        *wrap_pad_method = NULL, *wrap_hash_algo = NULL;
+    struct ConfigStructNode *structnode = NULL;
     bool found;
     char *tls_client_key_path = NULL;
-    BIO *tls_client_key_bio;
+    BIO *tls_client_key_bio = NULL;
 
     rc = CKR_OK;
 
