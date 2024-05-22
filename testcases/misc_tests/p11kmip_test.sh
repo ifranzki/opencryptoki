@@ -46,7 +46,7 @@ KMIP_CLIENT_CERT=$DIR/p11kmip_client_cert.pem
 KMIP_KEY_CERT=$DIR/p11kmip_client_key.pem
 
 KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
-KMIP_HOST="${KMIP_SERVER:-${KMIP_IP}:5696}"
+KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
 
 echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER and KMIP_REST_PASSWORD $KMIP_REST_PASSWORD"
 
@@ -222,7 +222,7 @@ key_import_tests() {
 	# Build a standard configuration
 	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
-    echo "    host = \"${KMIP_HOST}\"                         " >> $P11KMIP_CONF_FILE
+    echo "    host = \"${KMIP_HOSTNAME}\"                         " >> $P11KMIP_CONF_FILE
     echo "    tls_client_cert = \"${KMIP_CLIENT_CERT}\"       " >> $P11KMIP_CONF_FILE
     echo "    tls_client_key = \"${KMIP_KEY_CERT}\"           " >> $P11KMIP_CONF_FILE
     echo "                                                    " >> $P11KMIP_CONF_FILE
@@ -251,7 +251,7 @@ key_import_tests() {
 
 	# PKCS11_USER_PIN  set externally
 	# PKCS11_SLOT_PIN  set externally
-	# KMIP_HOST        set externally
+	# KMIP_HOSTNAME        set externally
 	# KMIP_CLIENT_CERT set externally
 	# KMIP_CLIENT_KEY  set externally
 
@@ -286,14 +286,14 @@ key_import_tests() {
 	# Stash real variables in temporary variables
 	__PKCS11_USER_PIN=$PKCS11_USER_PIN
 	__PKCS11_SLOT_ID=$PKCS11_SLOT_ID
-	__KMIP_HOST=$KMIP_HOST
+	__KMIP_HOSTNAME=$KMIP_HOSTNAME
 	__KMIP_CLIENT_CERT=$KMIP_CLIENT_CERT
 	__KMIP_CLIENT_KEY=$KMIP_CLIENT_KEY	
 
 	# Unset environment variables
 	unset PKCS11_USER_PIN
 	unset PKCS11_SLOT_ID
-	unset KMIP_HOST
+	unset KMIP_HOSTNAME
 	unset KMIP_CLIENT_CERT
 	unset KMIP_CLIENT_KEY
 
@@ -301,7 +301,7 @@ key_import_tests() {
 
 	p11kmip import-key --slot $__PKCS11_SLOT_ID --pin $__PKCS11_USER_PIN  \
 		--send-wrapkey \
-		--kmip-host $__KMIP_HOST \
+		--kmip-host $__KMIP_HOSTNAME \
 		--tls-client-cert $__KMIP_CLIENT_CERT \
 		--tls-client-key $__KMIP_CLIENT_KEY \
 		--targkey-label $__PKCS11_SECRET_KEY_LABEL \
@@ -312,7 +312,7 @@ key_import_tests() {
 	# Restore environment variables from stashed values
 	PKCS11_USER_PIN=$__PKCS11_USER_PIN
 	PKCS11_SLOT_ID=$__PKCS11_SLOT_ID
-	KMIP_HOST=$__KMIP_HOST
+	KMIP_HOSTNAME=$__KMIP_HOSTNAME
 	KMIP_CLIENT_CERT=$__KMIP_CLIENT_CERT
 	KMIP_CLIENT_KEY=$__KMIP_CLIENT_KEY	
 }
@@ -321,7 +321,7 @@ key_export_tests() {
 	# Build a standard configuration
 	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
-    echo "    host = \"${KMIP_HOST}\"                         " >> $P11KMIP_CONF_FILE
+    echo "    host = \"${KMIP_HOSTNAME}\"                         " >> $P11KMIP_CONF_FILE
     echo "    tls_client_cert = \"${KMIP_CLIENT_CERT}\"       " >> $P11KMIP_CONF_FILE
     echo "    tls_client_key = \"${KMIP_KEY_CERT}\"           " >> $P11KMIP_CONF_FILE
     echo "                                                    " >> $P11KMIP_CONF_FILE
