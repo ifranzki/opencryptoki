@@ -1402,6 +1402,7 @@ static CK_RV build_kmip_config(void)
     if (p11kmip_cfg != NULL) {
         /* Iterate the configuration node(s) */
         confignode_foreach(c, p11kmip_cfg, f) {
+            printf("build_kmip_config: confignode_foreach'\n");
             if (!confignode_hastype(c, CT_STRUCT) ||
                 strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0) {
                 continue;
@@ -1413,6 +1414,7 @@ static CK_RV build_kmip_config(void)
                 goto done;
             }
 
+            printf("build_kmip_config: confignode_find section'\n");
             structnode = confignode_to_struct(c);
             host = confignode_find(structnode->value,
                                    P11KMIP_CONFIG_KEYWORD_HOST);
@@ -1431,6 +1433,7 @@ static CK_RV build_kmip_config(void)
             wrap_hash_algo = confignode_find(structnode->value,
                                              P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG);
 
+            printf("build_kmip_config: confignode field validation section'\n");
             // Ensure all the fields are the right type and
             // were specificied with the right combinations
             if (host != NULL && !confignode_hastype(host, CT_STRINGVAL)) {
@@ -1498,6 +1501,7 @@ static CK_RV build_kmip_config(void)
             }
         }
 
+        printf("build_kmip_config: confignode field assignment section'\n");
         if (host != NULL) {
             kmip_conf->server = confignode_to_stringval(host)->value;
         }
