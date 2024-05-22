@@ -1509,7 +1509,7 @@ static CK_RV build_kmip_config(void)
         }
 
         printf("build_kmip_config: assign kmip_conf->tls_client_cert\n");
-        printf("build_kmip_config: %x", tls_client_cert);
+        printf("build_kmip_config: assign kmmp_conf->tls_client_cert value: %p\n", tls_client_cert);
         if (tls_client_cert != NULL) {
             kmip_conf->tls_client_cert =
                 confignode_to_stringval(tls_client_cert)->value;
