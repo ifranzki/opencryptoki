@@ -2178,6 +2178,7 @@ static CK_RV load_pkcs11_lib(void)
     const char *libname;
 
     libname = secure_getenv(P11KMIP_PKCSLIB_ENV_NAME);
+    printf("PKCSLIB: %s\n", libname);
     if (libname == NULL || strlen(libname) < 1)
         libname = P11KMIP_DEFAULT_PKCS11_LIB;
 
