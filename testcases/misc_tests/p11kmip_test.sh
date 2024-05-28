@@ -238,8 +238,8 @@ key_import_tests() {
 
 	echo "*** Running test using configuration options"
 	cat $P11KMIP_CONF_FILE
-	PKCSLIB="test"
-	PKCSLIB="test2" p11kmip import-key --pin $PKCS11_USER_PIN  \
+	KMIP_HOSTNAME="test"
+	KMIP_HOSTNAME="test2" p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
