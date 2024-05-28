@@ -2276,11 +2276,11 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
     if (pin == NULL)
         return CKR_FUNCTION_FAILED;
 
-    printf("slot_id (opt_slot) = %d\n", slot);
+    printf("slot_id (opt_slot) = %ld\n", slot);
     // If not set by option, fallback to env variable
     if (slot == (CK_SLOT_ID) - 1) 
         slot = env_pkcs_slot;
-    printf("slot_id (env_slot) = %d\n", slot);
+    printf("slot_id (env_slot) = %ld\n", slot);
     // If not set by env variable, fallback to conf file
     if (slot == (CK_SLOT_ID) - 1) {
         if (p11kmip_cfg != NULL) {
@@ -2318,7 +2318,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
         }
     }
     
-    printf("slot_id before load: %d\n", slot)''
+    printf("slot_id before load: %ld\n", slot);
     rc = load_pkcs11_lib();
     if (rc != CKR_OK)
         goto done;
