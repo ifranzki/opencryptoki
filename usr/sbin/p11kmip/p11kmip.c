@@ -1402,10 +1402,10 @@ static CK_RV build_kmip_config(void)
     /* because all the required information can potentially */
     /* be provided through commandline arguements           */
     if (p11kmip_cfg != NULL) {
-        printf("build_kmip_config: p11kmip_cfg non-null");
+        printf("build_kmip_config: p11kmip_cfg non-null\n");
         /* Iterate the configuration node(s) */
         confignode_foreach(c, p11kmip_cfg, f) {
-            printf("build_kmip_config: confignode_foreach");
+            printf("build_kmip_config: c->key: %s", c->key);
             if (!confignode_hastype(c, CT_STRUCT) ||
                 strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0) {
                 continue;
