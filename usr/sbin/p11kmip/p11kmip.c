@@ -1605,9 +1605,8 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     }
 
     printf("build_kmip_config: before env vars section\n");
-    printf("  kmip_conf->server = %p", kmip_conf->server);
-    printf("  kmip_conf->tls_client_cert = %p", kmip_conf->tls_client_cert);
-    printf("  kmip_conf->tls_client_key = %p", kmip_conf->tls_client_key);
+    if (kmip_conf->tls_client_cert != NULL)
+        printf("kmip_conf->tls_client_cert = %s\n", kmip_conf->tls_client_cert);
     /* Environment variables have priority over */
     /* configuration file settings */
     if (env_kmip_hostname != NULL)
@@ -1620,9 +1619,8 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         tls_client_key_path = env_kmip_client_key;
 
     printf("build_kmip_config: before options section\n");
-    printf("  kmip_conf->server = %p", kmip_conf->server);
-    printf("  kmip_conf->tls_client_cert = %p", kmip_conf->tls_client_cert);
-    printf("  kmip_conf->tls_client_key = %p", kmip_conf->tls_client_key);
+    if (kmip_conf->tls_client_cert != NULL)
+        printf("kmip_conf->tls_client_cert = %s\n", kmip_conf->tls_client_cert);
     /* Command line options have priority over        */
     /* environment variables and configuration options */
     if (opt_kmip_hostname != NULL)
@@ -1635,9 +1633,8 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         tls_client_key_path = opt_kmip_client_key;
 
     printf("build_kmip_config: after options section\n");
-    printf("  kmip_conf->server = %p", kmip_conf->server);
-    printf("  kmip_conf->tls_client_cert = %p", kmip_conf->tls_client_cert);
-    printf("  kmip_conf->tls_client_key = %p", kmip_conf->tls_client_key);
+    if (kmip_conf->tls_client_cert != NULL)
+        printf("kmip_conf->tls_client_cert = %s\n", kmip_conf->tls_client_cert);
 
     printf("build_kmip_config: opening TLS client key\n");
     // Now that we have the final path for the tls_client_key,
@@ -2279,11 +2276,11 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
     if (pin == NULL)
         return CKR_FUNCTION_FAILED;
 
-    printf("slot_id (opt_slot) = %d", slot);
+    printf("slot_id (opt_slot) = %d\n", slot);
     // If not set by option, fallback to env variable
     if (slot == (CK_SLOT_ID) - 1) 
         slot = env_pkcs_slot;
-    printf("slot_id (env_slot) = %d", slot);
+    printf("slot_id (env_slot) = %d\n", slot);
     // If not set by env variable, fallback to conf file
     if (slot == (CK_SLOT_ID) - 1) {
         if (p11kmip_cfg != NULL) {
@@ -2321,7 +2318,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
         }
     }
     
-
+    printf("slot_id before load: %d\n", slot)''
     rc = load_pkcs11_lib();
     if (rc != CKR_OK)
         goto done;
