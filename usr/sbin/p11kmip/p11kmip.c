@@ -1309,7 +1309,7 @@ static CK_RV parse_config_file(void)
     char *file_loc = getenv(P11KMIP_CONF_FILE_ENV_NAME);
     char pathname[PATH_MAX];
     struct passwd *pw;
-    printf("Config file location: %s\n", file_loc);
+    
     if (file_loc != NULL) {
         fp = fopen(file_loc, "r");
         if (fp == NULL) {
@@ -1402,7 +1402,6 @@ static CK_RV build_kmip_config(void)
     /* because all the required information can potentially */
     /* be provided through commandline arguements           */
     if (p11kmip_cfg != NULL) {
-        printf("build_kmip_config: p11kmip_cfg non-null\n");
         /* Iterate the configuration node(s) */
         confignode_foreach(c, p11kmip_cfg, f) {
             if (!confignode_hastype(c, CT_STRUCT) ||
@@ -1505,19 +1504,16 @@ static CK_RV build_kmip_config(void)
             kmip_conf->server = confignode_to_stringval(host)->value;
         }
 
-        printf("build_kmip_config: assign kmip_conf->tls_client_cert\n");
         if (tls_client_cert != NULL) {
             kmip_conf->tls_client_cert =
                 confignode_to_stringval(tls_client_cert)->value;
         }
 
-        printf("build_kmip_config: assign kmip_conf->tls_client_key\n");
         if (tls_client_key != NULL) {
             tls_client_key_path =
                 confignode_to_stringval(tls_client_key)->value;
         }
 
-        printf("build_kmip_config: assign wrap_key_format\n");
         if (wrap_key_format != NULL) {
             if (strcmp(confignode_to_stringval(wrap_key_format)->value,
                        P11KMIP_CONFIG_VALUE_FMT_PKCS1) == 0) {
@@ -2283,9 +2279,11 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
     if (pin == NULL)
         return CKR_FUNCTION_FAILED;
 
+    printf("slot_id (opt_slot) = %d", slot);
     // If not set by option, fallback to env variable
-    if (slot == (CK_SLOT_ID) - 1)
+    if (slot == (CK_SLOT_ID) - 1) 
         slot = env_pkcs_slot;
+    printf("slot_id (env_slot) = %d", slot);
     // If not set by env variable, fallback to conf file
     if (slot == (CK_SLOT_ID) - 1) {
         if (p11kmip_cfg != NULL) {
@@ -2317,11 +2315,12 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
 
                 if (cfg_slot != NULL) {
                     slot = confignode_to_intval(cfg_slot)->value;
+                    printf("slot_id (cfg_slot) = %d", slot);
                 }
             }
         }
     }
-
+    
 
     rc = load_pkcs11_lib();
     if (rc != CKR_OK)
