@@ -1284,7 +1284,7 @@ static CK_RV parse_env_vars(void)
     }
 
     env_pkcs_pin = getenv(PKCS11_USER_PIN_ENV_NAME);
-    env_kmip_hostname = secure_getenv(KMIP_HOSTNAME_ENV_NAME);
+    env_kmip_hostname = getenv(KMIP_HOSTNAME_ENV_NAME);
     env_kmip_client_cert = getenv(KMIP_CLIENT_CERT_ENV_NAME);
     env_kmip_client_key = getenv(KMIP_CLIENT_KEY_ENV_NAME);
 

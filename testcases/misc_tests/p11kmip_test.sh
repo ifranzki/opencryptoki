@@ -237,9 +237,8 @@ key_import_tests() {
     echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
-	cat $P11KMIP_CONF_FILE
-	KMIP_HOSTNAME="test"
-	KMIP_HOSTNAME="test2" p11kmip import-key --pin $PKCS11_USER_PIN  \
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
@@ -249,12 +248,6 @@ key_import_tests() {
 	################################################################
 	# Using environment variables                                  #
 	################################################################
-
-	# PKCS11_USER_PIN  set externally
-	# PKCS11_SLOT_PIN  set externally
-	# KMIP_HOSTNAME        set externally
-	# KMIP_CLIENT_CERT set externally
-	# KMIP_CLIENT_KEY  set externally
 
 	# Fill the configuration file with bogus values
 	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
@@ -275,6 +268,10 @@ key_import_tests() {
 
 	echo "*** Running test using environment variables"
 
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	PKCS11_USER_PIN="$PKCS11_USER_PIN" PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \
+	KMIP_HOSTNAME="$KMIP_HOSTNAME" KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \
+	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \
 	p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
 	--wrapkey-label $KMIP_PUBLIC_KEY_NAME
 
@@ -284,38 +281,17 @@ key_import_tests() {
 	# Using only commandline options                               #
 	################################################################
 
-	# Stash real variables in temporary variables
-	__PKCS11_USER_PIN=$PKCS11_USER_PIN
-	__PKCS11_SLOT_ID=$PKCS11_SLOT_ID
-	__KMIP_HOSTNAME=$KMIP_HOSTNAME
-	__KMIP_CLIENT_CERT=$KMIP_CLIENT_CERT
-	__KMIP_CLIENT_KEY=$KMIP_CLIENT_KEY	
-
-	# Unset environment variables
-	unset PKCS11_USER_PIN
-	unset PKCS11_SLOT_ID
-	unset KMIP_HOSTNAME
-	unset KMIP_CLIENT_CERT
-	unset KMIP_CLIENT_KEY
-
 	echo "*** Running test using command line options"
 
-	p11kmip import-key --slot $__PKCS11_SLOT_ID --pin $__PKCS11_USER_PIN  \
+	p11kmip import-key --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
-		--kmip-host $__KMIP_HOSTNAME \
-		--tls-client-cert $__KMIP_CLIENT_CERT \
-		--tls-client-key $__KMIP_CLIENT_KEY \
-		--targkey-label $__PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $__PKCS11_PRIVATE_KEY_LABEL
+		--kmip-host $KMIP_HOSTNAME \
+		--tls-client-cert $KMIP_CLIENT_CERT \
+		--tls-client-key $KMIP_CLIENT_KEY \
+		--targkey-label $PKCS11_SECRET_KEY_LABEL \
+		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 	
 	echo "rc = $?"
-
-	# Restore environment variables from stashed values
-	PKCS11_USER_PIN=$__PKCS11_USER_PIN
-	PKCS11_SLOT_ID=$__PKCS11_SLOT_ID
-	KMIP_HOSTNAME=$__KMIP_HOSTNAME
-	KMIP_CLIENT_CERT=$__KMIP_CLIENT_CERT
-	KMIP_CLIENT_KEY=$__KMIP_CLIENT_KEY	
 }
 
 key_export_tests() {
@@ -338,6 +314,7 @@ key_export_tests() {
 
 	echo "*** Running test using configuration options"
 
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
 	p11kmip export-key --pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBLIC_KEY_NAME
