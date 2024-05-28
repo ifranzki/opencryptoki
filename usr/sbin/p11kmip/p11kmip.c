@@ -1307,7 +1307,7 @@ static CK_RV parse_config_file(void)
     char *file_loc = getenv(P11KMIP_CONF_FILE_ENV_NAME);
     char pathname[PATH_MAX];
     struct passwd *pw;
-
+    printf("Config file location: %s", file_loc);
     if (file_loc != NULL) {
         fp = fopen(file_loc, "r");
         if (fp == NULL) {
@@ -1403,7 +1403,6 @@ static CK_RV build_kmip_config(void)
     if (p11kmip_cfg != NULL) {
         /* Iterate the configuration node(s) */
         confignode_foreach(c, p11kmip_cfg, f) {
-            printf("build_kmip_config: confignode_foreach'\n");
             if (!confignode_hastype(c, CT_STRUCT) ||
                 strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0) {
                 continue;
@@ -1434,7 +1433,6 @@ static CK_RV build_kmip_config(void)
             wrap_hash_algo = confignode_find(structnode->value,
                                              P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG);
 
-            printf("build_kmip_config: confignode field validation section'\n");
             // Ensure all the fields are the right type and
             // were specificied with the right combinations
             if (host != NULL && !confignode_hastype(host, CT_STRINGVAL)) {
@@ -1502,9 +1500,6 @@ static CK_RV build_kmip_config(void)
             }
         }
 
-        printf("build_kmip_config: confignode field assignment section'\n");
-
-        printf("build_kmip_config: assign kmip_conf->server\n");
         if (host != NULL) {
             kmip_conf->server = confignode_to_stringval(host)->value;
         }
@@ -4763,7 +4758,7 @@ int main(int argc, char *argv[])
 {
     const struct p11kmip_cmd *command = NULL;
     CK_RV rc = CKR_OK;
-    printf("Heartbeat 1 -- before everything\n");
+    
     /* Get p11kmip command (if any) */
     if (argc >= 2 && strncmp(argv[1], "-", 1) != 0) {
         command = find_command(argv[1]);
@@ -4776,17 +4771,17 @@ int main(int argc, char *argv[])
         argc--;
         argv = &argv[1];
     }
-    printf("Heartbeat 2 -- after argv\n");
+    
     /* Get command arguments (if any) */
     rc = parse_cmd_arguments(command, &argc, &argv);
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 3 -- after parse_cmd_arguments\n");
+    
     /* Get generic and command specific options (if any) */
     rc = parse_cmd_options(command, argc, argv);
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 4 -- after parse_cmd_options\n");
+    
     if (opt_help) {
         if (command == NULL)
             print_help();
@@ -4806,31 +4801,31 @@ int main(int argc, char *argv[])
         rc = CKR_ARGUMENTS_BAD;
         goto done;
     }
-    printf("Heartbeat 5 -- after checking for command\n");
+    
     rc = check_required_args(command->args);
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 6 -- after checking for required arguments\n");
+    
     rc = check_required_cmd_opts(command->opts);
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 7 -- after checking for required options\n");
+    
     rc = parse_env_vars();
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 8 -- after parsing environment options\n");
+    
     rc = parse_config_file();
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 9 -- after parsing configuration file\n");
+    
     rc = init_kmip();
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 10 -- after init KMIP\n");
+    
     rc = init_pkcs11(command);
     if (rc != CKR_OK)
         goto done;
-    printf("Heartbeat 11 -- after init PKCS#11\n");
+    
     /* Run the command */
     rc = command->func();
     if (rc != CKR_OK) {
