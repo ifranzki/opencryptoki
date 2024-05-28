@@ -222,7 +222,7 @@ key_import_tests() {
 	# Build a standard configuration
 	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
-    echo "    host = \"${KMIP_HOSTNAME}\"                         " >> $P11KMIP_CONF_FILE
+    echo "    host = \"${KMIP_HOSTNAME}\"                     " >> $P11KMIP_CONF_FILE
     echo "    tls_client_cert = \"${KMIP_CLIENT_CERT}\"       " >> $P11KMIP_CONF_FILE
     echo "    tls_client_key = \"${KMIP_KEY_CERT}\"           " >> $P11KMIP_CONF_FILE
     echo "                                                    " >> $P11KMIP_CONF_FILE

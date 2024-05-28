@@ -1288,6 +1288,8 @@ static CK_RV parse_env_vars(void)
     env_kmip_client_cert = getenv(KMIP_CLIENT_CERT_ENV_NAME);
     env_kmip_client_key = getenv(KMIP_CLIENT_KEY_ENV_NAME);
 
+    printf("KMIP hostname env variable: %s\n", env_kmip_hostname);
+
     return CKR_OK;
 }
 
@@ -1307,7 +1309,7 @@ static CK_RV parse_config_file(void)
     char *file_loc = getenv(P11KMIP_CONF_FILE_ENV_NAME);
     char pathname[PATH_MAX];
     struct passwd *pw;
-    printf("Config file location: %s", file_loc);
+    printf("Config file location: %s\n", file_loc);
     if (file_loc != NULL) {
         fp = fopen(file_loc, "r");
         if (fp == NULL) {
