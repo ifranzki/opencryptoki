@@ -1284,7 +1284,7 @@ static CK_RV parse_env_vars(void)
     }
 
     env_pkcs_pin = getenv(PKCS11_USER_PIN_ENV_NAME);
-    env_kmip_hostname = getenv(KMIP_HOSTNAME_ENV_NAME);
+    env_kmip_hostname = secure_getenv(KMIP_HOSTNAME_ENV_NAME);
     env_kmip_client_cert = getenv(KMIP_CLIENT_CERT_ENV_NAME);
     env_kmip_client_key = getenv(KMIP_CLIENT_KEY_ENV_NAME);
 
@@ -2178,7 +2178,7 @@ static CK_RV load_pkcs11_lib(void)
     const char *libname;
 
     libname = secure_getenv(P11KMIP_PKCSLIB_ENV_NAME);
-    printf("PKCSLIB: %s\n", libname);
+    
     if (libname == NULL || strlen(libname) < 1)
         libname = P11KMIP_DEFAULT_PKCS11_LIB;
 
