@@ -1398,13 +1398,14 @@ static CK_RV build_kmip_config(void)
     /* Populate the kmip_config global with static defaults */
     kmip_conf = &kmip_default_config;
 
-    printf("build_kmip_config: before 'if (p11kmip_cfg != NULL)'\n");
     /* The lack of a config file, by itself, is not fatal,  */
     /* because all the required information can potentially */
     /* be provided through commandline arguements           */
     if (p11kmip_cfg != NULL) {
+        printf("build_kmip_config: p11kmip_cfg non-null");
         /* Iterate the configuration node(s) */
         confignode_foreach(c, p11kmip_cfg, f) {
+            printf("build_kmip_config: confignode_foreach");
             if (!confignode_hastype(c, CT_STRUCT) ||
                 strcmp(c->key, P11KMIP_CONFIG_KEYWORD_SERVER) != 0) {
                 continue;
@@ -1416,7 +1417,6 @@ static CK_RV build_kmip_config(void)
                 goto done;
             }
 
-            printf("build_kmip_config: confignode_find section'\n");
             structnode = confignode_to_struct(c);
             host = confignode_find(structnode->value,
                                    P11KMIP_CONFIG_KEYWORD_HOST);
@@ -1507,7 +1507,6 @@ static CK_RV build_kmip_config(void)
         }
 
         printf("build_kmip_config: assign kmip_conf->tls_client_cert\n");
-        printf("build_kmip_config: assign kmmp_conf->tls_client_cert value: %p\n", tls_client_cert);
         if (tls_client_cert != NULL) {
             kmip_conf->tls_client_cert =
                 confignode_to_stringval(tls_client_cert)->value;
