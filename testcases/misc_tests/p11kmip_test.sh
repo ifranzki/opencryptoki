@@ -237,7 +237,7 @@ key_import_tests() {
     echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
-
+	cat $P11KMIP_CONF_FILE
 	p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
