@@ -1411,7 +1411,7 @@ static CK_RV build_kmip_config(void)
             } else if (found) {
                 warnx
                     ("Syntax error in config file: '%s' specified multiple times\n",
-                     P11KMIP_CONFIG_KEYWORD_SERVER);
+                     P11KMIP_CONFIG_KEYWORD_KMIP);
                 rc = CKR_GENERAL_ERROR;
                 goto done;
             }
