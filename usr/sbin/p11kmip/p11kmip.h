@@ -28,7 +28,7 @@
 #define KMIP_CLIENT_CERT_ENV_NAME            "KMIP_CLIENT_CERT"
 #define KMIP_CLIENT_KEY_ENV_NAME             "KMIP_CLIENT_KEY"
 
-#define P11KMIP_CONFIG_KEYWORD_SERVER        "server"
+#define P11KMIP_CONFIG_KEYWORD_KMIP          "kmip"
 #define P11KMIP_CONFIG_KEYWORD_PKCS11        "pkcs11"
 #define P11KMIP_CONFIG_KEYWORD_HOST          "host"
 #define P11KMIP_CONFIG_KEYWORD_PORT          "port"
