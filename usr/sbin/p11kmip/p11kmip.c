@@ -313,16 +313,16 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
                 .value.string = &opt_kmip_hostname,                            \
                 .name = "KMIP-HOSTNAME" },                                     \
       .description = "The hostname of the KMIP server to use (optional).", },  \
-    { .short_opt = 0, .long_opt = "tls-client-cert", .required = false,        \
+    { .short_opt = 0, .long_opt = "tls-cert", .required = false,        \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.string = &opt_kmip_client_cert,                         \
-                .name = "TLS-CLIENT-CERT" },                                   \
+                .name = "TLS-CERT" },                                   \
       .description = "The path to the TLS client certificate to use for the "  \
                      "KMIP connection (optional).", },                         \
-    { .short_opt = 0, .long_opt = "tls-client-key", .required = false,         \
+    { .short_opt = 0, .long_opt = "tls-key", .required = false,         \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.string = &opt_kmip_client_key,                          \
-                .name = "TLS-CLIENT-KEY" },                                    \
+                .name = "TLS-KEY" },                                    \
       .description = "The path to the TLS client key to use for the "          \
                      "KMIP connection (optional).", }
 
@@ -4774,6 +4774,8 @@ int main(int argc, char *argv[])
     if (rc != CKR_OK)
         goto done;
     printf("opt_kmip_hostname: %p\n", opt_kmip_hostname);
+    if (opt_kmip_hostname)
+        print("opt_kmip_hostname value: %s", opt_kmip_hostname);
     printf("opt_kmip_client_cert: %p\n", opt_kmip_client_cert);
     printf("opt_kmip_client_key: %p\n", opt_kmip_client_key);
     if (opt_help) {
