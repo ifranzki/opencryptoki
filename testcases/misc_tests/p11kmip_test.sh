@@ -286,8 +286,8 @@ key_import_tests() {
 	p11kmip import-key --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--kmip-host $KMIP_HOSTNAME \
-		--tls-cert $KMIP_CLIENT_CERT \
-		--tls-key $KMIP_CLIENT_KEY \
+		--kmip-client-cert $KMIP_CLIENT_CERT \
+		--kmip-client-key $KMIP_CLIENT_KEY \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 	

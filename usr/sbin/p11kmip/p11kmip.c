@@ -309,20 +309,23 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
 
 #define KMIP_OPTS                                                              \
     { .short_opt = 0, .long_opt = "kmip-host", .required = false,              \
+      .long_opt_val = OPT_KMIP_HOSTNAME,                                       \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.string = &opt_kmip_hostname,                            \
                 .name = "KMIP-HOSTNAME" },                                     \
       .description = "The hostname of the KMIP server to use (optional).", },  \
-    { .short_opt = 0, .long_opt = "tls-cert", .required = false,        \
+    { .short_opt = 0, .long_opt = "kmip-client-cert", .required = false,       \
+      .long_opt_val = OPT_KMIP_CLIENT_CERT,                                    \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.string = &opt_kmip_client_cert,                         \
-                .name = "TLS-CERT" },                                   \
+                .name = "KMIP-CLIENT-CERT" },                                  \
       .description = "The path to the TLS client certificate to use for the "  \
                      "KMIP connection (optional).", },                         \
-    { .short_opt = 0, .long_opt = "tls-key", .required = false,         \
+    { .short_opt = 0, .long_opt = "kmip-client-key", .required = false,        \
+      .long_opt_val = OPT_KMIP_CLIENT_KEY,                                     \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
                 .value.string = &opt_kmip_client_key,                          \
-                .name = "TLS-KEY" },                                    \
+                .name = "KMIP-CLIENT-KEY" },                                   \
       .description = "The path to the TLS client key to use for the "          \
                      "KMIP connection (optional).", }
 
