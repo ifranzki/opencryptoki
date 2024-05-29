@@ -58,6 +58,9 @@
 #define OPT_SEND_WRAPKEY        259
 #define OPT_RETR_WRAPKEY        260
 #define OPT_GEN_TARGKEY         261
+#define OPT_KMIP_HOSTNAME       262
+#define OPT_KMIP_CLIENT_CERT    263
+#define OPT_KMIP_CLIENT_KEY     264
 
 #define MAX_PRINT_LINE_LENGTH   80
 #define PRINT_INDENT_POS        35
