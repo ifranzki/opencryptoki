@@ -1642,8 +1642,8 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     tls_client_key_bio = BIO_new_file(tls_client_key_path, "r");
 
     if (tls_client_key_bio == NULL) {
-        warnx("Unable to open '%s' for TLS client certificate",
-              confignode_to_stringval(tls_client_cert)->value);
+        warnx("Unable to open '%s' for TLS client key",
+              tls_client_key_path);
         //ERR_print_errors_cb(openssl_err_cb, NULL);
         return CKR_FUNCTION_FAILED;
     }
@@ -1654,7 +1654,7 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
 
     if (kmip_conf->tls_client_key == NULL) {
         warnx("Unable to extract TLS client key from '%s'",
-              confignode_to_stringval(tls_client_key)->value);
+              tls_client_key_path);
     }
 
     BIO_free(tls_client_key_bio);
@@ -2331,7 +2331,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
 
     pkcs11_initialized = true;
 
-    rc = open_pkcs11_session(opt_slot, command->session_flags, pin);
+    rc = open_pkcs11_session(slot, command->session_flags, pin);
     if (rc != CKR_OK)
         goto done;
 
