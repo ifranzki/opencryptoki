@@ -4775,7 +4775,7 @@ int main(int argc, char *argv[])
         goto done;
     printf("opt_kmip_hostname: %p\n", opt_kmip_hostname);
     if (opt_kmip_hostname)
-        print("opt_kmip_hostname value: %s", opt_kmip_hostname);
+        printf("opt_kmip_hostname value: %s", opt_kmip_hostname);
     printf("opt_kmip_client_cert: %p\n", opt_kmip_client_cert);
     printf("opt_kmip_client_key: %p\n", opt_kmip_client_key);
     if (opt_help) {
