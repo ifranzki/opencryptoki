@@ -1605,9 +1605,6 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         }
     }
 
-    printf("build_kmip_config: before env vars section\n");
-    if (tls_client_key_path != NULL)
-        printf("tls_client_key_path = %s\n", tls_client_key_path);
     /* Environment variables have priority over */
     /* configuration file settings */
     if (env_kmip_hostname != NULL)
@@ -1619,9 +1616,6 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (env_kmip_client_key != NULL)
         tls_client_key_path = env_kmip_client_key;
 
-    printf("build_kmip_config: before options vars section\n");
-    if (tls_client_key_path != NULL)
-        printf("tls_client_key_path = %s\n", tls_client_key_path);
     /* Command line options have priority over        */
     /* environment variables and configuration options */
     if (opt_kmip_hostname != NULL)
@@ -1633,11 +1627,6 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (opt_kmip_client_key != NULL)
         tls_client_key_path = opt_kmip_client_key;
 
-    printf("build_kmip_config: after options vars section\n");
-    if (tls_client_key_path != NULL)
-        printf("tls_client_key_path = %s\n", tls_client_key_path);
-
-    printf("build_kmip_config: opening TLS client key\n");
     // Now that we have the final path for the tls_client_key,
     // read in the contents
     tls_client_key_bio = BIO_new_file(tls_client_key_path, "r");
@@ -4776,11 +4765,7 @@ int main(int argc, char *argv[])
     rc = parse_cmd_options(command, argc, argv);
     if (rc != CKR_OK)
         goto done;
-    printf("opt_kmip_hostname: %p\n", opt_kmip_hostname);
-    if (opt_kmip_hostname)
-        printf("opt_kmip_hostname value: %s", opt_kmip_hostname);
-    printf("opt_kmip_client_cert: %p\n", opt_kmip_client_cert);
-    printf("opt_kmip_client_key: %p\n", opt_kmip_client_key);
+    
     if (opt_help) {
         if (command == NULL)
             print_help();
