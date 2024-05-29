@@ -1616,7 +1616,7 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (env_kmip_client_key != NULL)
         tls_client_key_path = env_kmip_client_key;
 
-    printf("build_kmip_config: before env vars section\n");
+    printf("build_kmip_config: before options vars section\n");
     if (tls_client_key_path != NULL)
         printf("tls_client_key_path = %s\n", tls_client_key_path);
     /* Command line options have priority over        */
@@ -1630,7 +1630,7 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (opt_kmip_client_key != NULL)
         tls_client_key_path = opt_kmip_client_key;
 
-    printf("build_kmip_config: before env vars section\n");
+    printf("build_kmip_config: after options vars section\n");
     if (tls_client_key_path != NULL)
         printf("tls_client_key_path = %s\n", tls_client_key_path);
 

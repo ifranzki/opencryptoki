@@ -43,7 +43,7 @@ echo "** Setting KMIP_SERVER=\${KMIP_IP}:5696 unless otherwise set - 'p11kmip_te
 
 echo "Dirpath: $DIR"
 KMIP_CLIENT_CERT=$DIR/p11kmip_client_cert.pem
-KMIP_KEY_CERT=$DIR/p11kmip_client_key.pem
+KMIP_CLIENT_KEY=$DIR/p11kmip_client_key.pem
 
 KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
 KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
@@ -224,7 +224,7 @@ key_import_tests() {
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
     echo "    host = \"${KMIP_HOSTNAME}\"                     " >> $P11KMIP_CONF_FILE
     echo "    tls_client_cert = \"${KMIP_CLIENT_CERT}\"       " >> $P11KMIP_CONF_FILE
-    echo "    tls_client_key = \"${KMIP_KEY_CERT}\"           " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"${KMIP_CLIENT_KEY}\"          " >> $P11KMIP_CONF_FILE
     echo "                                                    " >> $P11KMIP_CONF_FILE
     echo "    wrap_key_format = \"PKCS1\"                     " >> $P11KMIP_CONF_FILE
     echo "    wrap_key_algorithm = \"RSA\"                    " >> $P11KMIP_CONF_FILE
@@ -300,7 +300,7 @@ key_export_tests() {
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
     echo "    host = \"${KMIP_HOSTNAME}\"                     " >> $P11KMIP_CONF_FILE
     echo "    tls_client_cert = \"${KMIP_CLIENT_CERT}\"       " >> $P11KMIP_CONF_FILE
-    echo "    tls_client_key = \"${KMIP_KEY_CERT}\"           " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"${KMIP_CLIENT_KEY}\"         " >> $P11KMIP_CONF_FILE
     echo "                                                    " >> $P11KMIP_CONF_FILE
     echo "    wrap_key_format = \"PKCS1\"                     " >> $P11KMIP_CONF_FILE
     echo "    wrap_key_algorithm = \"RSA\"                    " >> $P11KMIP_CONF_FILE
