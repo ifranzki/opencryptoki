@@ -4773,7 +4773,7 @@ int main(int argc, char *argv[])
     rc = parse_cmd_options(command, argc, argv);
     if (rc != CKR_OK)
         goto done;
-    
+    print("opt_kmip_client_key: %p", opt_kmip_client_key);
     if (opt_help) {
         if (command == NULL)
             print_help();
