@@ -310,18 +310,18 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
 #define KMIP_OPTS                                                              \
     { .short_opt = 0, .long_opt = "kmip-host", .required = false,              \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
-                .value.number = &opt_kmip_hostname,                            \
+                .value.string = &opt_kmip_hostname,                            \
                 .name = "KMIP-HOSTNAME" },                                     \
       .description = "The hostname of the KMIP server to use (optional).", },  \
     { .short_opt = 0, .long_opt = "tls-client-cert", .required = false,        \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
-                .value.number = &opt_kmip_client_cert,                         \
+                .value.string = &opt_kmip_client_cert,                         \
                 .name = "TLS-CLIENT-CERT" },                                   \
       .description = "The path to the TLS client certificate to use for the "  \
                      "KMIP connection (optional).", },                         \
     { .short_opt = 0, .long_opt = "tls-client-key", .required = false,         \
       .arg =  { .type = ARG_TYPE_STRING, .required = true,                     \
-                .value.number = &opt_kmip_client_key,                          \
+                .value.string = &opt_kmip_client_key,                          \
                 .name = "TLS-CLIENT-KEY" },                                    \
       .description = "The path to the TLS client key to use for the "          \
                      "KMIP connection (optional).", }
