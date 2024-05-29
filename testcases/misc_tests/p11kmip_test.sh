@@ -224,7 +224,7 @@ key_import_tests() {
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
     echo "    host = \"${KMIP_HOSTNAME}\"                     " >> $P11KMIP_CONF_FILE
     echo "    tls_client_cert = \"${KMIP_CLIENT_CERT}\"       " >> $P11KMIP_CONF_FILE
-    echo "    tls_client_key = \"${KMIP_CLIENT_KEY}\"          " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"${KMIP_CLIENT_KEY}\"         " >> $P11KMIP_CONF_FILE
     echo "                                                    " >> $P11KMIP_CONF_FILE
     echo "    wrap_key_format = \"PKCS1\"                     " >> $P11KMIP_CONF_FILE
     echo "    wrap_key_algorithm = \"RSA\"                    " >> $P11KMIP_CONF_FILE
