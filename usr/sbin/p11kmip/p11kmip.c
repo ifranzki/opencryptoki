@@ -1288,8 +1288,6 @@ static CK_RV parse_env_vars(void)
     env_kmip_client_cert = getenv(KMIP_CLIENT_CERT_ENV_NAME);
     env_kmip_client_key = getenv(KMIP_CLIENT_KEY_ENV_NAME);
 
-    printf("KMIP hostname env variable: %s\n", env_kmip_hostname);
-
     return CKR_OK;
 }
 
@@ -1605,8 +1603,8 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     }
 
     printf("build_kmip_config: before env vars section\n");
-    if (kmip_conf->tls_client_cert != NULL)
-        printf("kmip_conf->tls_client_cert = %s\n", kmip_conf->tls_client_cert);
+    if (tls_client_key_path != NULL)
+        printf("tls_client_key_path = %s\n", tls_client_key_path);
     /* Environment variables have priority over */
     /* configuration file settings */
     if (env_kmip_hostname != NULL)
@@ -1618,9 +1616,9 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (env_kmip_client_key != NULL)
         tls_client_key_path = env_kmip_client_key;
 
-    printf("build_kmip_config: before options section\n");
-    if (kmip_conf->tls_client_cert != NULL)
-        printf("kmip_conf->tls_client_cert = %s\n", kmip_conf->tls_client_cert);
+    printf("build_kmip_config: before env vars section\n");
+    if (tls_client_key_path != NULL)
+        printf("tls_client_key_path = %s\n", tls_client_key_path);
     /* Command line options have priority over        */
     /* environment variables and configuration options */
     if (opt_kmip_hostname != NULL)
@@ -1632,9 +1630,9 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     if (opt_kmip_client_key != NULL)
         tls_client_key_path = opt_kmip_client_key;
 
-    printf("build_kmip_config: after options section\n");
-    if (kmip_conf->tls_client_cert != NULL)
-        printf("kmip_conf->tls_client_cert = %s\n", kmip_conf->tls_client_cert);
+    printf("build_kmip_config: before env vars section\n");
+    if (tls_client_key_path != NULL)
+        printf("tls_client_key_path = %s\n", tls_client_key_path);
 
     printf("build_kmip_config: opening TLS client key\n");
     // Now that we have the final path for the tls_client_key,
@@ -2276,11 +2274,9 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
     if (pin == NULL)
         return CKR_FUNCTION_FAILED;
 
-    printf("slot_id (opt_slot) = %ld\n", slot);
     // If not set by option, fallback to env variable
     if (slot == (CK_SLOT_ID) - 1) 
         slot = env_pkcs_slot;
-    printf("slot_id (env_slot) = %ld\n", slot);
     // If not set by env variable, fallback to conf file
     if (slot == (CK_SLOT_ID) - 1) {
         if (p11kmip_cfg != NULL) {
@@ -2318,7 +2314,6 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
         }
     }
     
-    printf("slot_id before load: %ld\n", slot);
     rc = load_pkcs11_lib();
     if (rc != CKR_OK)
         goto done;
