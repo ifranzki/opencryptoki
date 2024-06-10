@@ -1657,8 +1657,6 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         goto done;
     }
 
-
-
 done:
 
     return rc;
