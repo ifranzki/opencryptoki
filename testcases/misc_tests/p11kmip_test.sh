@@ -20,9 +20,6 @@ PKCS11_SECRET_KEY_LABEL="local-secret-key"
 PKCS11_PUBLIC_KEY_LABEL="local-public-key"
 PKCS11_PRIVATE_KEY_LABEL="local-private-key"
 
-KMIP_PUBLIC_KEY_NAME="tst00292ad2f000000001"
-KMIP_PRIVATE_KEY_NAME="tst00292ad2f000000000"
-
 P11KMIP_TMP="/tmp/p11kmip"
 P11KMIP_UNIQUE_NAME="$(uname -n)-$(date +%s)"
 P11KMIP_UNIQUE_NAME="${P11KMIP_UNIQUE_NAME^^}"
@@ -196,6 +193,20 @@ setup_pkcs11_keys() {
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
 }
 
+cleanup_pkcs11_keys() {
+	# AES key for exporting
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_SECRET_KEY_LABEL
+	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
+
+	# RSA keys for wrapping and importing
+	p11sak remove-key rsa private --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PRIVATE_KEY_LABEL
+	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
+	p11sak remove-key rsa public --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PUBLIC_KEY_LABEL
+	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
+
+	# TODO: also delete the ones created by the import test(s)
+}
+
 setup_kmip_keys() {
 	curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/objects/keypair" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
@@ -212,6 +223,23 @@ setup_kmip_keys() {
 	
 	KMIP_PUBKEY_LABEL=`jq .managedObject.alias $P11KMIP_TMP/curl_get_pubkey_stdout -r`
 	KMIP_PUBKEY_LABEL=${KMIP_PUBKEY_LABEL:1:21}
+}
+
+cleanup_kmip_keys() {
+	PUBKEY_ID=`jq .publicKeyId $P11KMIP_TMP/curl_generate_keys_stdout -r`
+	PRIVKEY_ID=`jq .privateKeyId $P11KMIP_TMP/curl_generate_keys_stdout -r`
+
+	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${PUBKEY_ID}" \
+		--header "accept: application/json" --header "Content-Type: application/json" \
+		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
+		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_public_key_stdout 2>$P11KMIP_TMP/curl_delete_public_key_stderr
+
+	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${PRIVKEY_ID}" \
+		--header "accept: application/json" --header "Content-Type: application/json" \
+		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
+		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_private_key_stdout 2>$P11KMIP_TMP/curl_delete_private_key_stderr
+
+	# TODO: also delete the ones created by the export test(s)
 }
 
 key_import_tests() {
@@ -273,7 +301,7 @@ key_import_tests() {
 	KMIP_HOSTNAME="$KMIP_HOSTNAME" KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \
 	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \
 	p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
-	--wrapkey-label $KMIP_PUBLIC_KEY_NAME
+		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 
 	echo "rc = $?"
 
@@ -317,7 +345,7 @@ key_export_tests() {
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
 	p11kmip export-key --pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $KMIP_PUBLIC_KEY_NAME
+		--wrapkey-label $KMIP_PUBKEY_LABEL
 	
 	echo "rc = $?"
 }
@@ -339,3 +367,9 @@ key_import_tests
 echo "** Running key export tests - 'p11kmip_test.sh'"
 
 key_export_tests
+
+echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
+
+cleanup_kmip_keys
+
+cleanup_pkcs11_keys
