@@ -199,9 +199,9 @@ cleanup_pkcs11_keys() {
 	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
 
 	# RSA keys for wrapping and importing
-	p11sak remove-key rsa private --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PRIVATE_KEY_LABEL
+	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PRIVATE_KEY_LABEL
 	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
-	p11sak remove-key rsa public --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PUBLIC_KEY_LABEL
+	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PUBLIC_KEY_LABEL
 	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
 
 	# TODO: also delete the ones created by the import test(s)
