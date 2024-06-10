@@ -277,7 +277,8 @@ key_import_tests() {
 	p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 
 	echo "rc = $?"
 
@@ -305,11 +306,15 @@ key_import_tests() {
 	echo "*** Running test using environment variables"
 
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
-	PKCS11_USER_PIN="$PKCS11_USER_PIN" PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \
-	KMIP_HOSTNAME="$KMIP_HOSTNAME" KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \
+	PKCS11_USER_PIN="$PKCS11_USER_PIN" \
+	PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \
+	KMIP_HOSTNAME="$KMIP_HOSTNAME" \
+	KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \
 	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \
-	p11kmip import-key --targkey-label $PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+	p11kmip import-key \
+		--targkey-label $PKCS11_SECRET_KEY_LABEL \
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 
 	echo "rc = $?"
 
@@ -319,13 +324,15 @@ key_import_tests() {
 
 	echo "*** Running test using command line options"
 
-	p11kmip import-key --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN  \
-		--send-wrapkey \
+	p11kmip import-key \
+		--slot $PKCS11_SLOT_ID \
+		--pin $PKCS11_USER_PIN  \
 		--kmip-host $KMIP_HOSTNAME \
 		--kmip-client-cert $KMIP_CLIENT_CERT \
 		--kmip-client-key $KMIP_CLIENT_KEY \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL
 	
 	echo "rc = $?"
 }
@@ -351,7 +358,8 @@ key_export_tests() {
 	echo "*** Running test using configuration options"
 
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
-	p11kmip export-key --pin $PKCS11_USER_PIN  \
+	p11kmip export-key \
+		--pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBKEY_LABEL
 	
