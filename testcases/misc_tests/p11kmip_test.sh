@@ -23,6 +23,7 @@ PKCS11_PRIVATE_KEY_LABEL="local-private-key"
 P11KMIP_TMP="/tmp/p11kmip"
 P11KMIP_UNIQUE_NAME="$(uname -n)-$(date +%s)"
 P11KMIP_UNIQUE_NAME="${P11KMIP_UNIQUE_NAME^^}"
+KMIP_CLIENT_NAME=$(echo ${P11KMIP_UNIQUE_NAME^^} | sed -r 's/[ .,;:#+*$%-]+/_/g')
 
 P11KMIP_CONF_FILE="${P11KMIP_TMP}/p11kmip.conf"
 
@@ -124,7 +125,6 @@ setup_kmip_client() {
 
 		# Create a client in SKLM
 		if [[ $CREATE_CLIENT_DONE -eq 0 ]] ; then
-			KMIP_CLIENT_NAME=$(echo ${P11KMIP_UNIQUE_NAME^^} | sed -r 's/[ .,;:#+*$%-]+/_/g')
 			echo "clientname:" $KMIP_CLIENT_NAME
 
 			curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/clients" \
@@ -191,6 +191,9 @@ setup_pkcs11_keys() {
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
 	p11sak import-key rsa public --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PUBLIC_KEY_LABEL --file $DIR/rsa-key.pem --attr sX
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
+
+	echo "*** pkcs11 keys after import"
+	p11sak list-keys --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN
 }
 
 cleanup_pkcs11_keys() {
@@ -210,7 +213,7 @@ cleanup_pkcs11_keys() {
 setup_kmip_keys() {
 	curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/objects/keypair" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
-		--data "{\"clientName\":\"$P11KMIP_UNIQUE_NAME\", \"prefixName\":\"tst\", \"numberOfObjects\": \"1\", \"publicKeyCryptoUsageMask\":\"Wrap_Unwrap\", \"privateKeyCryptoUsageMask\":\"Wrap_Unwrap\"}" \
+		--data "{\"clientName\":\"$KMIP_CLIENT_NAME\", \"prefixName\":\"tst\", \"numberOfObjects\": \"1\", \"publicKeyCryptoUsageMask\":\"Wrap_Unwrap\", \"privateKeyCryptoUsageMask\":\"Wrap_Unwrap\"}" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_generate_keys_stdout 2>$P11KMIP_TMP/curl_generate_keys_stderr
 	
@@ -373,3 +376,4 @@ echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 cleanup_kmip_keys
 
 cleanup_pkcs11_keys
+
