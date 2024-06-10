@@ -227,23 +227,13 @@ setup_kmip_keys() {
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_get_pubkey_stdout 2>$P11KMIP_TMP/curl_get_pubkey_stderr
 	RC_PKMIP_GENERATE=$((RC_KMIP_GENERATE + $?))
 
-	curl --fail-with-body --location --request GET "$KMIP_REST_URL/SKLM/rest/v1/objects/$KMIP_PRIVKEY_ID" \
-		--header "accept: application/json" --header "Content-Type: application/json" \
-		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
-		--insecure --silent --show-error >$P11KMIP_TMP/curl_get_privkey_stdout 2>$P11KMIP_TMP/curl_get_privkey_stderr
-	RC_PKMIP_GENERATE=$((RC_KMIP_GENERATE + $?))
-
 	KMIP_PUBKEY_LABEL=`jq .managedObject.alias $P11KMIP_TMP/curl_get_pubkey_stdout -r`
 	KMIP_PUBKEY_LABEL=${KMIP_PUBKEY_LABEL:1:21}
 
-	KMIP_PRIVKEY_LABEL=`jq .managedObject.alias $P11KMIP_TMP/curl_get_privkey_stdout -r`
-	KMIP_PRIVKEY_LABEL=${KMIP_PRIVKEY_LABEL:1:21}
-
 	echo "*** kmip keys after creation"
 	echo "**** kmip pubkey id: ${KMIP_PUBKEY_ID}"
-	echo "**** kmip pubkey label: ${KMIP_PUBKEY_LABEL}"
 	echo "**** kmip privkey id: ${KMIP_PRIVKEY_ID}"
-	echo "**** kmip privkey label: ${KMIP_PRIVKEY_LABEL}"
+	echo "**** kmip pubkey label: ${KMIP_PUBKEY_LABEL}"
 }
 
 cleanup_kmip_keys() {
