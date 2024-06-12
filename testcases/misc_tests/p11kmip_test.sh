@@ -265,7 +265,7 @@ cleanup_kmip_client() {
 			if [[ "$RC" == "CTGKM6004E" ]]; then
 				echo "warning: Login token expired, re-login and retry"
 				continue
-			fi}
+			fi
 			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CLIENT_CERT) is uploaded." ]]; then
 				RC=1
 				echo "error: Status not as expected"
