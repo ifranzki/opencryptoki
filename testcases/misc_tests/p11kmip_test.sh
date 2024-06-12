@@ -130,7 +130,7 @@ setup_kmip_client() {
 
 			curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/clients" \
 				--header "Content-Type: application/json" \
-				--data "{\"clientName\":\"$KMIP_CLIENT_NAME\", \"applicationUsage\": \"Generic\"}" \
+				--data "{\"clientName\":\"$KMIP_CLIENT_NAME\", \"applicationUsage\": \"GENERIC\"}" \
 				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_create_client_stdout 2>$P11KMIP_TMP/curl_create_client_stderr
 			RC=$?
@@ -235,7 +235,7 @@ cleanup_kmip_client() {
 			echo "rc:" $RC
 
 			# Expected to return: {"message":"CTGKM3411I Successfully created client xxxx .","messageId":"CTGKM3411I"}
-			MSG=`jq .message $P11KMIP_TMP/curl_create_client_stdout -r`
+			MSG=`jq .message $P11KMIP_TMP/curl_delete_client_stdout -r`
 			if [[ "$MSG" == "CTGKM6004E User is not authenticated or has already logged out." ]]; then
 				echo "warning: Login token expired, re-login and retry"
 				continue
@@ -243,8 +243,8 @@ cleanup_kmip_client() {
 			if [[ "$MSG" != "" ]]; then
 				RC=1
 				echo "error: Message not as expected"
-				cat $P11KMIP_TMP/curl_create_client_stdout
-				cat $P11KMIP_TMP/curl_create_client_stderr
+				cat $P11KMIP_TMP/curl_delete_client_stdout
+				cat $P11KMIP_TMP/curl_delete_client_stderr
 			fi
 			DELETE_CLIENT_DONE=1
 			echo "succeeded: curl_delete_client"
@@ -260,17 +260,17 @@ cleanup_kmip_client() {
 			echo "rc:" $RC
 
 			# Expected to return: {"code":"0","status":"CTGKM3465I File xxxx is uploaded.","messageId":"CTGKM3465I"}
-			RC=`jq .code $P11KMIP_TMP/curl_upload_cert_stdout -r`
-			MSG=`jq .status $P11KMIP_TMP/curl_upload_cert_stdout -r`
+			RC=`jq .code $P11KMIP_TMP/curl_delete_cert_stdout -r`
+			MSG=`jq .status $P11KMIP_TMP/curl_delete_cert_stdout -r`
 			if [[ "$RC" == "CTGKM6004E" ]]; then
 				echo "warning: Login token expired, re-login and retry"
 				continue
 			fi
-			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CLIENT_CERT) is uploaded." ]]; then
+			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CLIENT_CERT) is deleted." ]]; then
 				RC=1
 				echo "error: Status not as expected"
-				cat $P11KMIP_TMP/curl_upload_cert_stdout
-				cat $P11KMIP_TMP/curl_upload_cert_stderr
+				cat $P11KMIP_TMP/curl_delete_cert_stdout
+				cat $P11KMIP_TMP/curl_delete_cert_stderr
 			fi
 			DELETE_CERT_DONE=1
 			echo "succeeded: curl_delete_cert"
