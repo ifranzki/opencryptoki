@@ -304,9 +304,19 @@ key_import_tests() {
 		--send-wrapkey \
 		--targkey-label $KMIP_SECKEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
-		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		>$P11KMIP_TMP/p11kmip_import_key_conf_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_conf_test_stderr
 
-	echo "rc = $?"
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr"
+		cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stderr
+		return
+	fi
 
 	################################################################
 	# Using environment variables                                  #
@@ -340,9 +350,18 @@ key_import_tests() {
 	p11kmip import-key \
 		--targkey-label $KMIP_SECKEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
-		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		>$P11KMIP_TMP/p11kmip_import_key_env_test_stdout 2>$P11KMIP_TMP/p11kmip_import_env_conf_test_stderr
 
 	echo "rc = $?"
+	echo "stdout:"
+	cat $P11KMIP_TMP/p11kmip_import_key_env_test_stdout
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr"
+		cat $P11KMIP_TMP/p11kmip_import_key_env_test_stderr
+		return
+	fi
 
 	################################################################
 	# Using only commandline options                               #
@@ -358,9 +377,18 @@ key_import_tests() {
 		--kmip-client-key $KMIP_CLIENT_KEY \
 		--targkey-label $KMIP_SECKEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
-		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		>$P11KMIP_TMP/p11kmip_import_key_opt_test_stdout 2>$P11KMIP_TMP/p11kmip_import_opt_conf_test_stderr
 	
 	echo "rc = $?"
+	echo "stdout:"
+	cat $P11KMIP_TMP/p11kmip_import_key_opt_test_stdout
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr"
+		cat $P11KMIP_TMP/p11kmip_import_key_opt_test_stderr
+		return
+	fi
 }
 
 key_export_tests() {
@@ -386,6 +414,7 @@ key_export_tests() {
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
 	p11kmip export-key \
 		--pin $PKCS11_USER_PIN  \
+		-- retr-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBKEY_LABEL
 	
