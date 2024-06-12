@@ -3059,6 +3059,7 @@ static CK_RV p11kmip_export_key(void)
         warnx("Failed to register wrapped secret key with server\n");
         goto done;
     }
+
 done:
     if (!opt_quiet) {
         printf("  Secret Key\n");
@@ -4086,6 +4087,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                     kmip_wrap_hash_alg : 0,
                                                     NULL);
     if (enc_cparams == NULL) {
+        printf("Failed while allocating enc_cparams");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4093,6 +4095,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
 
     enc_kinfo = kmip_new_key_info(false, wrapkey_uid, NULL);
     if (enc_kinfo == NULL) {
+        printf("Failed while allocating enc_kinfo");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4103,6 +4106,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                            enc_kinfo, NULL, NULL, 0, NULL, 0,
                                            KMIP_ENCODING_OPTION_NO);
     if (wrap_data == NULL) {
+        printf("Failed while allocating wrap_data");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4111,6 +4115,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     kmip_node_new_byte_string(KMIP_TAG_KEY_VALUE, NULL, wrapped_key_blob,
 					 wrapped_key_length);
     if (kval == NULL) {
+        printf("Failed while allocating kval");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4119,6 +4124,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     kblock = kmip_new_key_block(KMIP_KEY_FORMAT_TYPE_RAW, 0, kval,
                                 KMIP_CRYPTO_ALGO_AES, 256, wrap_data);
     if (kblock == NULL) {
+        printf("Failed while allocating kblock");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4126,6 +4132,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
 
     kobj = kmip_new_symmetric_key(kblock);
     if (kobj == NULL) {
+        printf("Failed while allocating kobj");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4135,6 +4142,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         name_attr = kmip_new_name(wrapped_key_label,
                                   KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
         if (name_attr == NULL) {
+            printf("Failed while allocating name_attr");
             warnx("Allocate KMIP node failed");
             rc = CKR_HOST_MEMORY;
             goto out;
@@ -4144,6 +4152,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     umask_attr = kmip_new_cryptographic_usage_mask(KMIP_CRY_USAGE_MASK_ENCRYPT |
                                                    KMIP_CRY_USAGE_MASK_DECRYPT);
     if (umask_attr == NULL) {
+        printf("Failed while allocating umask_attr");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4156,6 +4165,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                      NULL, NULL, NULL, NULL,
                                                      0, 0, NULL);
     if (cparams_attr == NULL) {
+        printf("Failed while allocating cparams_attr");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4172,6 +4182,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     descr_attr = build_description_attr(description);
     free(description);
     if (descr_attr == NULL) {
+        printf("Failed while allocating descr_attr");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
@@ -4182,12 +4193,14 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                    kobj, NULL, 2, name_attr,
                                                    umask_attr);
     if (reg_req == NULL) {
+        printf("Failed while reg_req");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
     }
 
     act_req = kmip_new_activate_request_payload(NULL);  /* ID placeholder */
     if (act_req == NULL) {
+        printf("Failed while act_req");
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
     }
