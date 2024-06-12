@@ -91,6 +91,7 @@ static char *env_kmip_client_key = NULL;
 static bool opt_help = false;
 static bool opt_version = false;
 static bool opt_verbose = false;
+static bool opt_quiet = false;
 static CK_SLOT_ID opt_slot = (CK_SLOT_ID) - 1;
 static char *opt_pin = NULL;
 static bool opt_force_pin_prompt = false;
@@ -283,6 +284,10 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
      .arg = {.type = ARG_TYPE_PLAIN,.required = false,
              .value.plain = &opt_verbose,},
      .description = "Increase debug information"},
+    {.short_opt = 'q',.long_opt = "quiet",.required = false,
+     .arg = {.type = ARG_TYPE_PLAIN,.required = false,
+             .value.plain = &opt_quiet,},
+     .description = "Suppress messages."},
     {.short_opt = 0,.long_opt = NULL,},
     
 };
@@ -2926,6 +2931,16 @@ static CK_RV p11kmip_import_key(void)
     }
 
 done:
+    if (!opt_quiet) {
+        printf("  Secret Key\n");
+        printf("     PKCS#11 Label...%s\n", opt_target_label);
+        printf("     KMIP UID........%s\n", secret_key_uid);
+
+        printf("  Public Key\n");
+        printf("     PKCS#11 Label...%s\n", opt_wrap_label);
+        printf("     KMIP UID........%s\n", wrap_pubkey_uid);
+    }
+
     kmip_node_free(wrap_pubkey_uid);
     kmip_node_free(secret_key_uid);
 
@@ -2968,16 +2983,6 @@ static CK_RV p11kmip_export_key(void)
         goto done;
     }
 
-    // // Make sure the public key is active. Technically, this
-    // // is not necessary, but we may as well keep the public and private
-    // // key in the same state.
-    // rc = p11kmip_activate_remote_key(wrap_pubkey_uid);
-
-    // if (rc != CKR_OK) {
-    //     warnx("Failed to activate public key on KMIP server\n");
-    //     goto done;
-    // }
-
     rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
                                             wrap_pubkey_uid,
                                             &pub_key);
@@ -2988,8 +2993,8 @@ static CK_RV p11kmip_export_key(void)
     }
 
     rc = p11kmip_create_local_public_key(&pubkey_keytype,
-                                            pub_key, opt_wrap_label,
-                                            NULL, 0, &wrapping_pubkey);
+                                        pub_key, opt_wrap_label,
+                                        NULL, 0, &wrapping_pubkey);
 
     if (rc != CKR_OK) {
         warnx("Failed to create public key '%s'\n", opt_wrap_label);
@@ -3025,6 +3030,15 @@ static CK_RV p11kmip_export_key(void)
         goto done;
     }
 done:
+    if (!opt_quiet) {
+        printf("  Secret Key\n");
+        printf("     PKCS#11 Label...%s\n", opt_target_label);
+        printf("     KMIP UID........%s\n", secret_key_uid);
+
+        printf("  Public Key\n");
+        printf("     PKCS#11 Label...%s\n", opt_wrap_label);
+        printf("     KMIP UID........%s\n", wrap_pubkey_uid);
+    }
 
     return rc;
 }
