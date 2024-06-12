@@ -253,20 +253,48 @@ cleanup_kmip_keys() {
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_public_key_stdout 2>$P11KMIP_TMP/curl_delete_public_key_stderr
 
+	if [[ $? -ne 0 ]] ;
+	then
+		echo "Error cleaning up KMIP public key"
+		cat $P11KMIP_TMP/curl_delete_public_key_stdout
+		cat $P11KMIP_TMP/curl_delete_public_key_stderr
+	fi
+
 	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_PRIVATE_KEY_ID}" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_private_key_stdout 2>$P11KMIP_TMP/curl_delete_private_key_stderr
+
+	if [[ $? -ne 0 ]] ;
+	then
+		echo "Error cleaning up KMIP private key"
+		cat $P11KMIP_TMP/curl_delete_private_key_stdout
+		cat $P11KMIP_TMP/curl_delete_private_key_stderr
+	fi
 
 	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_SENT_WRAPKEY_UID}" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_wrapping_key_stdout 2>$P11KMIP_TMP/curl_delete_wrapping_key_stderr
 	
+	if [[ $? -ne 0 ]] ;
+	then
+		echo "Error cleaning up KMIP wrapping key"
+		cat $P11KMIP_TMP/curl_delete_wrapping_key_stdout
+		cat $P11KMIP_TMP/curl_delete_wrapping_key_stderr
+	fi
+
 	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_GEND_TARGKEY_ID}" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_secret_key_stdout 2>$P11KMIP_TMP/curl_delete_secret_key_stderr
+	
+	if [[ $? -ne 0 ]] ;
+	then
+		echo "Error cleaning up KMIP secret key"
+		cat $P11KMIP_TMP/curl_delete_secret_key_stdout
+		cat $P11KMIP_TMP/curl_delete_secret_key_stderr
+	fi
 }
 
 key_import_tests() {
@@ -307,7 +335,7 @@ key_import_tests() {
 	cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout
 
 	if [[ $RC -ne 0 ]] ; then
-		echo "stderr"
+		echo "stderr:"
 		cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stderr
 		return
 	fi
@@ -356,7 +384,7 @@ key_import_tests() {
 	cat $P11KMIP_TMP/p11kmip_import_key_env_test_stdout
 
 	if [[ $RC -ne 0 ]] ; then
-		echo "stderr"
+		echo "stderr:"
 		cat $P11KMIP_TMP/p11kmip_import_key_env_test_stderr
 		return
 	fi
@@ -383,7 +411,7 @@ key_import_tests() {
 	cat $P11KMIP_TMP/p11kmip_import_key_opt_test_stdout
 
 	if [[ $RC -ne 0 ]] ; then
-		echo "stderr"
+		echo "stderr:"
 		cat $P11KMIP_TMP/p11kmip_import_key_opt_test_stderr
 		return
 	fi
