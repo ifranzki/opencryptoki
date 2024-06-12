@@ -47,7 +47,7 @@ KMIP_CLIENT_KEY=$DIR/p11kmip_client_key.pem
 KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
 KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
 
-echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER and KMIP_REST_PASSWORD $KMIP_REST_PASSWORD"
+echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER and KMIP_REST_PASSWORD ************"
 
 mkdir -p $P11KMIP_TMP
 
@@ -121,7 +121,7 @@ setup_kmip_client() {
 				cat $P11KMIP_TMP/curl_upload_cert_stderr
 			fi
 			UPLOAD_CERT_DONE=1
-			#echo "succeeded: curl_upload_cert"
+			echo "succeeded: curl_upload_cert"
 		fi
 
 		# Create a client in SKLM
@@ -149,7 +149,7 @@ setup_kmip_client() {
 				cat $P11KMIP_TMP/curl_create_client_stderr
 			fi
 			CREATE_CLIENT_DONE=1
-			# echo "succeeded: curl_create_client"
+			echo "succeeded: curl_create_client"
 		fi
 
 		# Assign the certificate with the client
@@ -175,7 +175,105 @@ setup_kmip_client() {
 				cat $P11KMIP_TMP/curl_assign_cert_stderr
 			fi
 			ASSIGN_CERT_DONE=1
-			# echo "succeeded: curl_assign_cert"
+			echo "succeeded: curl_assign_cert"
+		fi
+
+		break
+	done
+}
+
+cleanup_kmip_client() {
+  RETRY_COUNT=0
+  LOGIN_DONE=0
+  DELETE_CLIENT_DONE=0
+  DELETE_CERT_DONE=0
+
+  while true; do
+		if [[ $RETRY_COUNT -gt 100 ]] ; then
+			echo "error: Too many login retries"
+			break
+		fi
+		RETRY_COUNT=$((RETRY_COUNT+1))
+
+		if [[ $LOGIN_DONE -eq 0 ]] ; then
+			# Get a login authorization ID from SKLM
+			curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/ckms/login" \
+				--header "Content-Type: application/json" \
+				--data "{\"userid\":\"$KMIP_REST_USER\", \"password\":\"$KMIP_REST_PASSWORD\"}" \
+				--insecure --silent --show-error >$P11KMIP_TMP/curl_get_login_authid_stdout 2>$P11KMIP_TMP/curl_get_login_authid_stderr
+			RC=$?
+			echo "rc:" $RC
+			if [[ $RC -ne 0 ]] ; then
+				cat $P11KMIP_TMP/curl_get_login_authid_stdout
+				cat $P11KMIP_TMP/curl_get_login_authid_stderr
+				break
+			fi
+
+			# Parse the response data and extract the authorization id token
+			# Expected to return: {"UserAuthId":"xxxxxx"}
+			AUTHID=`jq .UserAuthId $P11KMIP_TMP/curl_get_login_authid_stdout -r`
+			echo "AuthID:" $AUTHID
+			if [[ $LOGIN_DONE -eq 0 ]]; then
+				echo "succeeded: curl_get_login_authid"
+			fi
+			if [[ $RC -ne 0 ]] ; then
+				break
+				cat $P11KMIP_TMP/curl_get_login_authid_stderr
+			fi
+			LOGIN_DONE=1
+		fi
+
+		# Delete a client in SKLM
+		if [[ $DELETE_CLIENT_DONE -eq 0 ]] ; then
+			echo "clientname:" $KMIP_CLIENT_NAME
+
+			curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/clients/$KMIP_CLIENT_NAME" \
+				--header "Content-Type: application/json" \
+				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
+				--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_client_stdout 2>$P11KMIP_TMP/curl_delete_client_stderr
+			RC=$?
+			echo "rc:" $RC
+
+			# Expected to return: {"message":"CTGKM3411I Successfully created client xxxx .","messageId":"CTGKM3411I"}
+			MSG=`jq .message $P11KMIP_TMP/curl_create_client_stdout -r`
+			if [[ "$MSG" == "CTGKM6004E User is not authenticated or has already logged out." ]]; then
+				echo "warning: Login token expired, re-login and retry"
+				continue
+			fi
+			if [[ "$MSG" != "" ]]; then
+				RC=1
+				echo "error: Message not as expected"
+				cat $P11KMIP_TMP/curl_create_client_stdout
+				cat $P11KMIP_TMP/curl_create_client_stderr
+			fi
+			DELETE_CLIENT_DONE=1
+			echo "succeeded: curl_delete_client"
+		fi
+
+		# Delete the client certificate from SKLM
+		if [[ $DELETE_CERT_DONE -eq 0 ]] ; then
+			curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/certificates/$P11KMIP_UNIQUE_NAME" \
+				--header "accept: application/json" \
+				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
+				--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_cert_stdout 2>$P11KMIP_TMP/curl_delete_cert_stderr
+			RC=$?
+			echo "rc:" $RC
+
+			# Expected to return: {"code":"0","status":"CTGKM3465I File xxxx is uploaded.","messageId":"CTGKM3465I"}
+			RC=`jq .code $P11KMIP_TMP/curl_upload_cert_stdout -r`
+			MSG=`jq .status $P11KMIP_TMP/curl_upload_cert_stdout -r`
+			if [[ "$RC" == "CTGKM6004E" ]]; then
+				echo "warning: Login token expired, re-login and retry"
+				continue
+			fi
+			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CLIENT_CERT) is uploaded." ]]; then
+				RC=1
+				echo "error: Status not as expected"
+				cat $P11KMIP_TMP/curl_upload_cert_stdout
+				cat $P11KMIP_TMP/curl_upload_cert_stderr
+			fi
+			DELETE_CERT_DONE=1
+			echo "succeeded: curl_delete_cert"
 		fi
 
 		break
