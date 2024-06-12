@@ -109,7 +109,7 @@ static char *opt_target_id = NULL;
 static char *opt_unwrap_label = NULL;
 
 static bool opt_gen_targkey = false;
-static bool opt_gen_keypair = false;
+static bool opt_retr_wrapkey = false;
 static bool opt_send_wrapkey = false;
 
 static char *opt_file = NULL;
@@ -399,7 +399,9 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     {.short_opt = 'w',.long_opt = "wrapkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_label,.name = "WRAPKEY-LABEL",},
-     .description = "The label of the public key to be used for wrapping.",},
+     .description = "The label of the public key to be used for wrapping."
+     "Must exist on the KMIP server, and must exist in the PKCS#11 repository"
+     "unless specified with option '--retr-wrapkey'.",},
     {.short_opt = 't',.long_opt = "targkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_target_label,.name = "TARGKEY-LABEL",},
@@ -409,7 +411,8 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_attrs,.name = "WRAPKEY-ATTRS",},
      .description = "The boolean attributes to set for the public key"
-     "after it has been imported (optional). "
+     "after it has been imported (optional). Only applicable when specified"
+     " with '--retr-wrapkey'. "
      "  P M B Y S X K H."
      "Specify a set of these letters without any"
      "blanks in between. See below for the meaning"
@@ -418,8 +421,16 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     {.short_opt = 0,.long_opt = "wrapkey-id",.required = false,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_id,.name = "WRAPKEY-ID",},
-     .description = "The value to be set for the CKA_ID attribute of"
-     "the imported wrapping key.",},
+     .description = "The value to be used for the CKA_ID attribute of the"
+     "wrapping key. If '--retr-wrapkey' is specified, the retrieved wrapping"
+     "key will be created with this value.",},
+    {.short_opt = 0,.long_opt = "retr-wrapkey",.required = false,
+     .long_opt_val = OPT_RETR_WRAPKEY,
+     .arg = {.type = ARG_TYPE_PLAIN,.required = false,
+             .value.plain = &opt_retr_wrapkey,},
+     .description = " If specified, retrieves the public key used to wrap"
+     "the target key from the KMIP server and imports it into the PKCS#11"
+     "repository before using it for wrapping.",},
      { .short_opt = 0, .long_opt = NULL, },
 };
 
@@ -2969,6 +2980,9 @@ static CK_RV p11kmip_export_key(void)
 
     secret_keytype = p11kmip_aes_keytype;
 
+    // We must locate the KMIP public key to obtain its UID, even if
+    // we intend to utilize a local PKCS#11 public key for the actual
+    // wrapping.
     rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype,
                                     &wrap_pubkey_uid);
 
@@ -2983,22 +2997,38 @@ static CK_RV p11kmip_export_key(void)
         goto done;
     }
 
-    rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
-                                            wrap_pubkey_uid,
-                                            &pub_key);
+    if (opt_retr_wrapkey) {
+        // If we were told to retrieve the wrapping key,
+        // go through the process of importing the key
+        // material into the PKCS#11 repository
+        rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
+                                        wrap_pubkey_uid,
+                                        &pub_key);
 
-    if (rc != CKR_OK) {
-        warnx("Failed to retrieve public key from KMIP server\n");
-        goto done;
-    }
+        if (rc != CKR_OK) {
+            warnx("Failed to retrieve public key from KMIP server\n");
+            goto done;
+        }
 
-    rc = p11kmip_create_local_public_key(&pubkey_keytype,
-                                        pub_key, opt_wrap_label,
-                                        NULL, 0, &wrapping_pubkey);
+        // TODO: should be created with the specified attributes
+        rc = p11kmip_create_local_public_key(&pubkey_keytype,
+                                            pub_key, opt_wrap_label,
+                                            NULL, 0, &wrapping_pubkey);
 
-    if (rc != CKR_OK) {
-        warnx("Failed to create public key '%s'\n", opt_wrap_label);
-        goto done;
+        if (rc != CKR_OK) {
+            warnx("Failed to create public key '%s'\n", opt_wrap_label);
+            goto done;
+        }
+    } else {
+        // Else we expect it to already exist in the repository
+        // with the same label as the remote key
+        rc = p11kmip_find_local_key(&pubkey_keytype,
+                opt_wrap_label, opt_wrap_id, &wrapping_pubkey);
+        
+        if (rc != CKR_OK) {
+            warnx("Failed to locate public key '%s'\n", opt_wrap_label);
+            goto done;
+        }
     }
 
     rc = p11kmip_find_local_key(&secret_keytype, opt_target_label,
