@@ -4745,7 +4745,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
         goto out;
     }
 
-    rc = perform_kmip_request2(KMIP_OPERATION_CREATE_KEY_PAIR, crea_req,
+    rc = perform_kmip_request2(KMIP_OPERATION_CREATE, crea_req,
                                &crea_resp, &crea_status, &crea_reason,
                                KMIP_OPERATION_ACTIVATE, act_req,
                                &act_resp, &act_status, &act_reason,
