@@ -439,8 +439,8 @@ key_export_tests() {
 
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
 	p11kmip export-key \
+		--retr-wrapkey \
 		--pin $PKCS11_USER_PIN  \
-		-- retr-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
 		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL
 	
