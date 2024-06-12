@@ -16,6 +16,7 @@ status=0
 
 echo "** Now executing 'p11kmip_test.sh'"
 
+KMIP_SECRET_KEY_LABEL="remote-secret-key"
 PKCS11_SECRET_KEY_LABEL="local-secret-key"
 PKCS11_PUBLIC_KEY_LABEL="local-public-key"
 PKCS11_PRIVATE_KEY_LABEL="local-private-key"
@@ -218,8 +219,8 @@ setup_kmip_keys() {
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_generate_asym_keys_stdout 2>$P11KMIP_TMP/curl_generate_asym_keys_stderr
 	RC_PKMIP_GENERATE=$((RC_KMIP_GENERATE + $?))
 
-	KMIP_PUBKEY_ID=`jq .publicKeyId $P11KMIP_TMP/curl_generate_asym_keys_stdout -r`
-	KMIP_PRIVKEY_ID=`jq .privateKeyId $P11KMIP_TMP/curl_generate_asym_keys_stdout -r`
+	KMIP_PUBLIC_KEY_ID=`jq .publicKeyId $P11KMIP_TMP/curl_generate_asym_keys_stdout -r`
+	KMIP_PRIVATE_KEY_ID=`jq .privateKeyId $P11KMIP_TMP/curl_generate_asym_keys_stdout -r`
 
 	curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/objects/symmetrickey" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
@@ -230,50 +231,42 @@ setup_kmip_keys() {
 
 	KMIP_SECKEY_ID=`jq .id $P11KMIP_TMP/curl_generate_sym_key_stdout -r`
 
-	curl --fail-with-body --location --request GET "$KMIP_REST_URL/SKLM/rest/v1/objects/$KMIP_PUBKEY_ID" \
+	curl --fail-with-body --location --request GET "$KMIP_REST_URL/SKLM/rest/v1/objects/$KMIP_PUBLIC_KEY_ID" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_get_pubkey_stdout 2>$P11KMIP_TMP/curl_get_pubkey_stderr
 	RC_PKMIP_GENERATE=$((RC_KMIP_GENERATE + $?))
 
-	KMIP_PUBKEY_LABEL=`jq .managedObject.alias $P11KMIP_TMP/curl_get_pubkey_stdout -r`
-	KMIP_PUBKEY_LABEL=${KMIP_PUBKEY_LABEL:1:21}
-
-	curl --fail-with-body --location --request GET "$KMIP_REST_URL/SKLM/rest/v1/objects/$KMIP_SECKEY_ID" \
-		--header "accept: application/json" --header "Content-Type: application/json" \
-		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
-		--insecure --silent --show-error >$P11KMIP_TMP/curl_get_seckey_stdout 2>$P11KMIP_TMP/curl_get_seckey_stderr
-	RC_PKMIP_GENERATE=$((RC_KMIP_GENERATE + $?))
-
-	KMIP_SECKEY_LABEL=`jq .managedObject.alias $P11KMIP_TMP/curl_get_seckey_stdout -r`
-	KMIP_SECKEY_LABEL=${KMIP_SECKEY_LABEL:1:21}
+	KMIP_PUBLIC_KEY_LABEL=`jq .managedObject.alias $P11KMIP_TMP/curl_get_pubkey_stdout -r`
+	KMIP_PUBLIC_KEY_LABEL=${KMIP_PUBLIC_KEY_LABEL:1:21}
 
 	echo "*** kmip keys after creation"
-	echo "**** kmip pubkey id: ${KMIP_PUBKEY_ID}"
-	echo "**** kmip privkey id: ${KMIP_PRIVKEY_ID}"
-	echo "**** kmip seckey id: ${KMIP_SECKEY_ID}"
-	echo "**** kmip pubkey label: ${KMIP_PUBKEY_LABEL}"
-	echo "**** kmip seckey label: ${KMIP_SECKEY_LABEL}"
+	echo "**** kmip pubkey id: ${KMIP_PUBLIC_KEY_ID}"
+	echo "**** kmip privkey id: ${KMIP_PRIVATE_KEY_ID}"
+	echo "**** kmip pubkey label: ${KMIP_PUBLIC_KEY_LABEL}"
 
 }
 
 cleanup_kmip_keys() {
-	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_PUBKEY_ID}" \
+	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_PUBLIC_KEY_ID}" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_public_key_stdout 2>$P11KMIP_TMP/curl_delete_public_key_stderr
 
-	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_PRIVKEY_ID}" \
+	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_PRIVATE_KEY_ID}" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_private_key_stdout 2>$P11KMIP_TMP/curl_delete_private_key_stderr
 
-	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_SECKEY_ID}" \
+	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_SENT_WRAPKEY_UID}" \
+		--header "accept: application/json" --header "Content-Type: application/json" \
+		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
+		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_wrapping_key_stdout 2>$P11KMIP_TMP/curl_delete_wrapping_key_stderr
+	
+	curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/objects/${KMIP_GEND_TARGKEY_ID}" \
 		--header "accept: application/json" --header "Content-Type: application/json" \
 		--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 		--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_secret_key_stdout 2>$P11KMIP_TMP/curl_delete_secret_key_stderr
-
-	# TODO: also delete the ones created by the export test(s)
 }
 
 key_import_tests() {
@@ -302,7 +295,8 @@ key_import_tests() {
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
 	p11kmip import-key --pin $PKCS11_USER_PIN  \
 		--send-wrapkey \
-		--targkey-label $KMIP_SECKEY_LABEL \
+		--gen-targkey \
+		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
 		>$P11KMIP_TMP/p11kmip_import_key_conf_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_conf_test_stderr
@@ -317,6 +311,10 @@ key_import_tests() {
 		cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stderr
 		return
 	fi
+
+	# Store the UID of the KMIP public and secret key just created
+	KMIP_GEND_TARGKEY_UID=$(cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
+	KMIP_SENT_WRAPKEY_UID=$(cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout | grep -A 2 "Public Key" | tail -n 1 | cut -d . -f 9)
 
 	################################################################
 	# Using environment variables                                  #
@@ -348,7 +346,7 @@ key_import_tests() {
 	KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \
 	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \
 	p11kmip import-key \
-		--targkey-label $KMIP_SECKEY_LABEL \
+		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
 		>$P11KMIP_TMP/p11kmip_import_key_env_test_stdout 2>$P11KMIP_TMP/p11kmip_import_env_conf_test_stderr
@@ -375,7 +373,7 @@ key_import_tests() {
 		--kmip-host $KMIP_HOSTNAME \
 		--kmip-client-cert $KMIP_CLIENT_CERT \
 		--kmip-client-key $KMIP_CLIENT_KEY \
-		--targkey-label $KMIP_SECKEY_LABEL \
+		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
 		>$P11KMIP_TMP/p11kmip_import_key_opt_test_stdout 2>$P11KMIP_TMP/p11kmip_import_opt_conf_test_stderr
@@ -416,7 +414,7 @@ key_export_tests() {
 		--pin $PKCS11_USER_PIN  \
 		-- retr-wrapkey \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $KMIP_PUBKEY_LABEL
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL
 	
 	echo "rc = $?"
 }
