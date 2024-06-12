@@ -130,7 +130,7 @@ setup_kmip_client() {
 
 			curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/clients" \
 				--header "Content-Type: application/json" \
-				--data "{\"clientName\":\"$KMIP_CLIENT_NAME\"}" \
+				--data "{\"clientName\":\"$KMIP_CLIENT_NAME\", \"applicationUsage\": \"Generic\"}" \
 				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_create_client_stdout 2>$P11KMIP_TMP/curl_create_client_stderr
 			RC=$?
@@ -188,7 +188,7 @@ cleanup_kmip_client() {
   DELETE_CLIENT_DONE=0
   DELETE_CERT_DONE=0
 
-  while true; do
+  	while true; do
 		if [[ $RETRY_COUNT -gt 100 ]] ; then
 			echo "error: Too many login retries"
 			break
@@ -265,7 +265,7 @@ cleanup_kmip_client() {
 			if [[ "$RC" == "CTGKM6004E" ]]; then
 				echo "warning: Login token expired, re-login and retry"
 				continue
-			fi
+			fi}
 			if [[ "$MSG" != "CTGKM3465I File $(basename $KMIP_CLIENT_CERT) is uploaded." ]]; then
 				RC=1
 				echo "error: Status not as expected"
@@ -575,3 +575,4 @@ echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 
 cleanup_pkcs11_keys
 
+cleanup_kmip_client
