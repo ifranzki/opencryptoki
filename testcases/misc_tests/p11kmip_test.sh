@@ -200,15 +200,19 @@ setup_pkcs11_keys() {
 cleanup_pkcs11_keys() {
 	# AES key for exporting
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_SECRET_KEY_LABEL
-	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 
 	# RSA keys for wrapping and importing
 	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PRIVATE_KEY_LABEL
-	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $PKCS11_PUBLIC_KEY_LABEL
-	RC_P11SAK_REMOVE=$((RC_P11SAK_IMPORT + $?))
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 
-	# TODO: also delete the ones created by the import test(s)
+	# Keys imported during test
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $KMIP_SECRET_KEY_LABEL
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $KMIP_PUBLIC_KEY_LABEL
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 }
 
 setup_kmip_keys() {
@@ -321,9 +325,10 @@ key_import_tests() {
 
 	echo "*** Running test using configuration options"
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
-	p11kmip import-key -d --pin $PKCS11_USER_PIN  \
+	p11kmip import-key \
 		--send-wrapkey \
 		--gen-targkey \
+		--pin $PKCS11_USER_PIN  \
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
@@ -438,7 +443,7 @@ key_export_tests() {
 	echo "*** Running test using configuration options"
 
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
-	p11kmip export-key -d \
+	p11kmip export-key \
 		--retr-wrapkey \
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
