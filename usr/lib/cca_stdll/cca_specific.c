@@ -192,6 +192,7 @@ static CSNBHMG_t dll_CSNBHMG;
 static CSNBHMV_t dll_CSNBHMV;
 static CSNBCTT2_t dll_CSNBCTT2;
 static CSUACFV_t dll_CSUACFV;
+CSNBRKA_t dll_CSNBRKA;
 
 /*
  * The CCA adapter lock is shared between all CCA token instances within the
@@ -911,6 +912,7 @@ static CK_RV cca_resolve_lib_sym(void *hdl)
     LDSYM_VERIFY(hdl, CSNBHMV);
     LDSYM_VERIFY(hdl, CSNBCTT2);
     LDSYM_VERIFY(hdl, CSUACFV);
+    LDSYM_VERIFY(hdl, CSNBRKA);
 
     return CKR_OK;
 }
@@ -12416,4 +12418,202 @@ CK_RV token_specific_handle_event(STDLL_TokData_t *tokdata,
     }
 
     return CKR_OK;
+}
+
+CK_RV token_specific_set_attribute_values(STDLL_TokData_t *tokdata,
+                                          SESSION *session,
+                                          OBJECT *obj,
+                                          TEMPLATE *new_tmpl)
+{
+    long return_code, reason_code;
+    unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
+    unsigned char exit_data[4];
+    long rule_array_count, exit_data_len = 0, zero = 0, key_len;
+    enum cca_token_type keytype;
+    unsigned int keybitsize;
+    const CK_BYTE *mkvp;
+    CK_BBOOL new_mk;
+    CK_OBJECT_CLASS class;
+    CK_KEY_TYPE ktype;
+    DL_NODE *node;
+    CK_ATTRIBUTE *attr;
+    CK_RV rc;
+
+    UNUSED(session);
+
+    rc = template_attribute_get_ulong(obj->template, CKA_CLASS, &class);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s CKA_CLASS is missing\n", __func__);
+        return rc;
+    }
+
+    switch (class) {
+    case CKO_SECRET_KEY:
+    case CKO_PRIVATE_KEY:
+    case CKO_PUBLIC_KEY:
+        break;
+    default:
+        /* Not a key, nothing to do */
+        return CKR_OK;
+    }
+
+    rc = template_attribute_get_ulong(obj->template, CKA_KEY_TYPE, &ktype);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s CKA_KEY_TYPE is missing\n", __func__);
+        return rc;
+    }
+
+    switch (ktype) {
+    case CKK_AES:
+    case CKK_AES_XTS:
+        memcpy(rule_array, "AES     ", CCA_KEYWORD_SIZE);
+        rule_array_count = 1;
+        break;
+    default:
+        /* Not an AES key, nothing to do */
+        return CKR_OK;
+    }
+
+    node = new_tmpl->attribute_list;
+    while (node) {
+        attr = (CK_ATTRIBUTE *)node->data;
+
+        switch (attr->type) {
+        case CKA_EXTRACTABLE:
+            if (attr->ulValueLen != sizeof(CK_BBOOL) || attr->pValue == NULL) {
+                TRACE_ERROR("%s\n", ock_err(ERR_ATTRIBUTE_VALUE_INVALID));
+                return CKR_ATTRIBUTE_VALUE_INVALID;
+            }
+
+            if (*((CK_BBOOL *)attr->pValue) != FALSE)
+                continue;
+
+            memcpy(rule_array + (rule_array_count * CCA_KEYWORD_SIZE),
+                   "NOEX-SYMNOEXUASYNOEXAASYNOEX-DESNOEX-AESNOEX-RSA",
+                   6 * CCA_KEYWORD_SIZE);
+            rule_array_count += 6;
+            break;
+        }
+
+        node = node->next;
+    }
+
+    if (rule_array_count == 1)
+        return CKR_OK; /* Nothing to do */
+
+    rc = template_attribute_get_non_empty(obj->template, CKA_IBM_OPAQUE, &attr);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s CKA_IBM_OPAQUE is missing\n", __func__);
+        return rc;
+    }
+
+    if (analyse_cca_key_token(attr->pValue, key_len,
+                              &keytype, &keybitsize, &mkvp) == FALSE ||
+        mkvp == NULL) {
+        TRACE_ERROR("Invalid/unknown cca token has been generated\n");
+        return CKR_FUNCTION_FAILED;
+    }
+
+    if (keytype != sec_aes_cipher_key)
+        return CKR_OK; /* AES DATA key can not be restricted, nothing to do */
+
+    rc = build_attribute(CKA_IBM_OPAQUE, attr->pValue, attr->ulValueLen,
+                         &attr);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s build_attribute failed rc=0x%lx\n", __func__, rc);
+        return rc;
+    }
+
+    key_len = (ktype == CKK_AES_XTS ? attr->ulValueLen / 2 : attr->ulValueLen);
+    USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
+        dll_CSNBRKA(&return_code, &reason_code,
+                    &exit_data_len, exit_data,
+                    &rule_array_count, rule_array,
+                    &key_len, attr->pValue,
+                    &zero, NULL, &zero, NULL, &zero, NULL);
+    USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
+
+    if (return_code != CCA_SUCCESS) {
+        TRACE_ERROR("CSNBRKA (Restrict Key Attribute) failed."
+                    " return:%ld, reason:%ld\n",
+                    return_code, reason_code);
+        rc = CKR_FUNCTION_FAILED;
+        goto out;
+    }
+
+    if (analyse_cca_key_token(attr->pValue, key_len,
+                              &keytype, &keybitsize, &mkvp) == FALSE ||
+        mkvp == NULL) {
+        TRACE_ERROR("Invalid/unknown cca token has been generated\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto out;
+    }
+
+    if (check_expected_mkvp(tokdata, keytype, mkvp, &new_mk) != CKR_OK) {
+        TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
+        rc = CKR_DEVICE_ERROR;
+        goto out;
+    }
+
+    rc = cca_reencipher_created_key(tokdata, obj->template,
+                                    attr->pValue, key_len,
+                                    new_mk, keytype, FALSE);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("cca_reencipher_created_key failed: 0x%lx\n", rc);
+        goto out;
+    }
+
+    if (ktype == CKK_AES_XTS) {
+        USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
+            dll_CSNBRKA(&return_code, &reason_code,
+                        &exit_data_len, exit_data,
+                        &rule_array_count, rule_array,
+                        &key_len, (CK_BYTE *)attr->pValue + key_len,
+                        &zero, NULL, &zero, NULL, &zero, NULL);
+        USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
+
+        if (return_code != CCA_SUCCESS) {
+            TRACE_ERROR("CSNBRKA (Restrict Key Attribute) failed."
+                        " return:%ld, reason:%ld\n",
+                        return_code, reason_code);
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+
+        if (analyse_cca_key_token((CK_BYTE *)attr->pValue + key_len, key_len,
+                                  &keytype, &keybitsize, &mkvp) == FALSE ||
+            mkvp == NULL) {
+            TRACE_ERROR("Invalid/unknown cca token has been generated\n");
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+
+        if (check_expected_mkvp(tokdata, keytype, mkvp, &new_mk) != CKR_OK) {
+            TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
+            rc = CKR_DEVICE_ERROR;
+            goto out;
+        }
+
+        rc = cca_reencipher_created_key(tokdata, obj->template,
+                                        (CK_BYTE *)attr->pValue + key_len,
+                                        key_len, new_mk, keytype, TRUE);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("cca_reencipher_created_key failed: 0x%lx\n", rc);
+            goto out;
+        }
+    }
+
+    rc = template_update_attribute(obj->template, attr);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s template_update_attribute failed rc=0x%lx\n",
+                    __func__, rc);
+        goto out;
+    }
+    attr = NULL;
+
+out:
+    if (attr != NULL)
+        free(attr);
+
+    return rc;
 }
