@@ -438,7 +438,7 @@ key_export_tests() {
 	echo "*** Running test using configuration options"
 
 	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
-	p11kmip export-key \
+	p11kmip export-key -d \
 		--retr-wrapkey \
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
