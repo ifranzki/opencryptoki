@@ -2945,11 +2945,11 @@ done:
     if (!opt_quiet) {
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+        printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
 
         printf("  Public Key\n");
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+        printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
     }
 
     kmip_node_free(wrap_pubkey_uid);

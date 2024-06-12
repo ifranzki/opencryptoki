@@ -16,15 +16,15 @@ status=0
 
 echo "** Now executing 'p11kmip_test.sh'"
 
-KMIP_SECRET_KEY_LABEL="remote-secret-key"
-PKCS11_SECRET_KEY_LABEL="local-secret-key"
-PKCS11_PUBLIC_KEY_LABEL="local-public-key"
-PKCS11_PRIVATE_KEY_LABEL="local-private-key"
-
 P11KMIP_TMP="/tmp/p11kmip"
 P11KMIP_UNIQUE_NAME="$(uname -n)-$(date +%s)"
 P11KMIP_UNIQUE_NAME="${P11KMIP_UNIQUE_NAME^^}"
 KMIP_CLIENT_NAME=$(echo ${P11KMIP_UNIQUE_NAME^^} | sed -r 's/[ .,;:#+*$%-]+/_/g')
+
+KMIP_SECRET_KEY_LABEL="remote-secret-key-${P11KMIP_UNIQUE_NAME}"
+PKCS11_SECRET_KEY_LABEL="local-secret-key-${P11KMIP_UNIQUE_NAME}"
+PKCS11_PUBLIC_KEY_LABEL="local-public-key-${P11KMIP_UNIQUE_NAME}"
+PKCS11_PRIVATE_KEY_LABEL="local-private-key-${P11KMIP_UNIQUE_NAME}"
 
 P11KMIP_CONF_FILE="${P11KMIP_TMP}/p11kmip.conf"
 
