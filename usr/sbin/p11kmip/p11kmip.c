@@ -1428,7 +1428,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: '%s' specified multiple times\n",
                      P11KMIP_CONFIG_KEYWORD_KMIP);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
 
@@ -1456,7 +1456,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_HOST, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (tls_client_cert != NULL
@@ -1464,7 +1464,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_CLIENT_CERT, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (tls_client_key != NULL
@@ -1472,7 +1472,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_CLIENT_KEY, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_key_format != NULL
@@ -1480,7 +1480,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_key_algorithm != NULL
@@ -1488,7 +1488,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_key_size != NULL
@@ -1496,7 +1496,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_pad_method != NULL
@@ -1504,7 +1504,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_hash_algo != NULL
@@ -1512,7 +1512,7 @@ static CK_RV build_kmip_config(void)
                 warnx
                     ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                      P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG, c->line);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
         }
@@ -1546,12 +1546,12 @@ static CK_RV build_kmip_config(void)
                 warnx("Syntax error in config file: Invalid value '%s' specified\
 for key word '%s's\n", confignode_to_stringval(wrap_key_format)->value,
                       P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
         } else {
             warnx("Wrapping key format not found in config file");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_ARGUMENTS_BAD;
             goto done;
         }
 
@@ -1563,12 +1563,12 @@ for key word '%s's\n", confignode_to_stringval(wrap_key_format)->value,
                 warnx("Syntax error in config file: Invalid value '%s' specified\
 for key word '%s's\n", confignode_to_stringval(wrap_key_algorithm)->value,
                       P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
         } else {
             warnx("Wrapping key algorithm not found in config file");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_ARGUMENTS_BAD;
             goto done;
         }
 
@@ -1576,7 +1576,7 @@ for key word '%s's\n", confignode_to_stringval(wrap_key_algorithm)->value,
             kmip_wrap_key_size = confignode_to_intval(wrap_key_size)->value;
         } else {
             warnx("Wrapping key length not found in config file");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_ARGUMENTS_BAD;
             goto done;
         }
 
@@ -1591,12 +1591,12 @@ for key word '%s's\n", confignode_to_stringval(wrap_key_algorithm)->value,
                 warnx("Syntax error in config file: Invalid value '%s' specified\
 for key word '%s's\n", confignode_to_stringval(wrap_pad_method)->value,
                       P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
         } else {
             warnx("Wrap padding method not found in config file");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_ARGUMENTS_BAD;
             goto done;
         }
 
@@ -1611,12 +1611,12 @@ for key word '%s's\n", confignode_to_stringval(wrap_pad_method)->value,
                 warnx("Syntax error in config file: Invalid value '%s' specified\
 for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
                       P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG);
-                rc = CKR_GENERAL_ERROR;
+                rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
         } else {
             warnx("Wrap hashing algorithm not found in config file");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_ARGUMENTS_BAD;
             goto done;
         }
     }
@@ -1669,7 +1669,7 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
         warnx
             ("TLS client key or client certificate was not provided through configuration\
  or commandline options");
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_FUNCTION_FAILED;
         goto done;
     }
 
@@ -1769,7 +1769,7 @@ static int discover_kmip_versions(struct kmip_version *version)
 
     req_pl = kmip_new_discover_versions_payload(-1, NULL);
     if (req_pl == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Allocate KMIP node failed");
         goto out;
     }
@@ -2030,7 +2030,7 @@ static int build_kmip_request2(enum kmip_operation operation1,
 
     req_bi1 = kmip_new_request_batch_item(operation1, NULL, 0, req_pl1);
     if (req_bi1 == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Allocate KMIP node failed");
         goto out;
     }
@@ -2038,7 +2038,7 @@ static int build_kmip_request2(enum kmip_operation operation1,
     if (operation2 != 0) {
         req_bi2 = kmip_new_request_batch_item(operation2, NULL, 0, req_pl2);
         if (req_bi2 == NULL) {
-            rc = -ENOMEM;
+            rc = CKR_HOST_MEMORY;
             warnx("Allocate KMIP node failed");
             goto out;
         }
@@ -2048,14 +2048,14 @@ static int build_kmip_request2(enum kmip_operation operation1,
                                       batch_err_opt, true,
                                       operation2 != 0 ? 2 : 1);
     if (req_hdr == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Allocate KMIP node failed");
         goto out;
     }
 
     *req = kmip_new_request_va(req_hdr, 2, req_bi1, req_bi2);
     if (*req == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Allocate KMIP node failed");
         goto out;
     }
@@ -2295,7 +2295,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
                     warnx
                         ("Syntax error in config file: '%s' specified multiple times\n",
                          P11KMIP_CONFIG_KEYWORD_PKCS11);
-                    rc = CKR_GENERAL_ERROR;
+                    rc = CKR_ARGUMENTS_BAD;
                     goto done;
                 }
 
@@ -2308,7 +2308,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
                     warnx
                         ("Syntax error in config file: Missing '%s' in attribute at line %hu\n",
                          P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
-                    rc = CKR_GENERAL_ERROR;
+                    rc = CKR_ARGUMENTS_BAD;
                     goto done;
                 }
 
@@ -2912,7 +2912,7 @@ static CK_RV p11kmip_import_key(void)
         // If we didn't find it, throw an error
         if (secret_key_uid == NULL) {
             warnx("Did not find target key '%s' on server\n", opt_target_label);
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_ARGUMENTS_BAD;
             goto done;
         }
     }
@@ -2924,7 +2924,7 @@ static CK_RV p11kmip_import_key(void)
 
     if (wrapped_key_blob == NULL) {
         warnx("Failed to retrieve wrapped key\n");
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_ARGUMENTS_BAD;
         goto done;
     }
 
@@ -2993,7 +2993,7 @@ static CK_RV p11kmip_export_key(void)
     // If we didn't find it, throw an error
     if (wrap_pubkey_uid == NULL) {
         warnx("Did not find target key '%s' on server\n", opt_wrap_label);
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_FUNCTION_FAILED;
         goto done;
     }
 
@@ -3334,7 +3334,7 @@ static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE
         malloc(unwrapped_templatecount * sizeof(CK_ATTRIBUTE));
     if (unwrapped_template == NULL) {
         warnx("Allocate attribute template failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto done;
     }
     // Copy in default attributes and any additional attributes
@@ -3446,7 +3446,7 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
     *wrapped_key_blob = malloc(sizeof(CK_BYTE) * (*wrapped_key_length));
     if (wrapped_key_blob == NULL) {
         warnx("Unable to allocated storage for wrapped key blob");
-        return -ENOMEM;
+        return CKR_HOST_MEMORY;
     }
 
     // Wrap key blob
@@ -3525,7 +3525,7 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         malloc(public_templatecount * sizeof(CK_ATTRIBUTE));
     if (public_template == NULL) {
         warnx("Allocate attribute template failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto done;
     }
     // Copy in default attributes and any additional attributes
@@ -3645,12 +3645,12 @@ static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
     }
 
     if (num_keys == 0) {
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_FUNCTION_FAILED;
         warnx("Failed to find key matching label '%s'\n", label);
 
         goto done;
     } else if (num_keys > 1) {
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_FUNCTION_FAILED;
         warnx("Found multiple keys matching label '%s'\n", label);
 
         goto done;
@@ -3691,7 +3691,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
 
         if (obj_type == P11KMIP_KMIP_UNKNOWN_OBJ) {
             warnx("Unknown object class");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_FUNCTION_NOT_SUPPORTED;
             goto out;
         }
         class_set = TRUE;
@@ -3702,7 +3702,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
 
         if (key_alg == P11KMIP_KMIP_UNKNOWN_ALG) {
             warnx("Unknown key algorithm");
-            rc = CKR_GENERAL_ERROR;
+            rc = CKR_FUNCTION_NOT_SUPPORTED;
             goto out;
         }
         alg_set = TRUE;
@@ -3721,7 +3721,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
     // Set the label
     attrs[k] = kmip_new_name(label, KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
     if (attrs[k] == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Allocate KMIP node failed");
         goto out;
     }
@@ -3731,7 +3731,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
     if (class_set) {
         attrs[k] = kmip_new_object_type(obj_type);
         if (attrs[k] == NULL) {
-            rc = -ENOMEM;
+            rc = CKR_HOST_MEMORY;
             warnx("Allocate KMIP node failed");
             goto out;
         }
@@ -3741,7 +3741,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
     if (alg_set) {
         attrs[k] = kmip_new_cryptographic_algorithm(key_alg);
         if (attrs[k] == NULL) {
-            rc = -ENOMEM;
+            rc = CKR_HOST_MEMORY;
             warnx("Allocate KMIP node failed");
             goto out;
         }
@@ -3751,7 +3751,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
     req_pl = kmip_new_locate_request_payload(NULL, 0, 0, 0, 0,
                                              num_attrs, attrs);
     if (req_pl == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Allocate KMIP node failed");
         goto out;
     }
@@ -3778,7 +3778,7 @@ static CK_RV p11kmip_locate_remote_key(const char *label, const struct
         rc = CKR_OK;
         *obj_uid = last_uid;
     } else {
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_FUNCTION_FAILED;
         warnx("Unable to uniquely identify wrapping key on KMIP server");
     }
 
@@ -3807,7 +3807,7 @@ static CK_RV p11kmip_activate_remote_key(struct kmip_node **obj_uid)
     act_req = kmip_new_activate_request_payload(obj_uid);  /* ID placeholder */
     if (act_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     rc = perform_kmip_request(KMIP_OPERATION_ACTIVATE, act_req,
@@ -3906,14 +3906,14 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
     }
     if (key == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
     kval = kmip_new_key_value_va(NULL, key, 0);
     if (kval == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -3921,14 +3921,14 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                 kmip_wrap_key_alg, kmip_wrap_key_size, NULL);
     if (kblock == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
     kobj = kmip_new_public_key(kblock);
     if (kobj == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -3937,7 +3937,7 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                   KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
         if (name_attr == NULL) {
             warnx("Allocate KMIP node failed");
-            rc = -ENOMEM;
+            rc = CKR_HOST_MEMORY;
             goto out;
         }
     }
@@ -3946,7 +3946,7 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                                    KMIP_CRY_USAGE_MASK_WRAP_KEY);
     if (umask_attr == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -3969,7 +3969,7 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                                      NULL);
     if (cparams_attr == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -3985,7 +3985,7 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
     free(description);
     if (descr_attr == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -3996,13 +3996,13 @@ static CK_RV p11kmip_register_remote_public_key(const struct p11kmip_keytype
                                                    descr_attr);
     if (reg_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     act_req = kmip_new_activate_request_payload(NULL);  /* ID placeholder */
     if (act_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     rc = perform_kmip_request2(KMIP_OPERATION_REGISTER, reg_req,
@@ -4087,15 +4087,14 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                     NULL);
     if (enc_cparams == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
-    //enc_kinfo = kmip_new_key_info(false, wrapkey_uid, enc_cparams);
     enc_kinfo = kmip_new_key_info(false, wrapkey_uid, NULL);
     if (enc_kinfo == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -4105,16 +4104,15 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                            KMIP_ENCODING_OPTION_NO);
     if (wrap_data == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
-    //kval = kmip_new_raw_key(wrapped_key_blob, wrapped_key_length);
     kmip_node_new_byte_string(KMIP_TAG_KEY_VALUE, NULL, wrapped_key_blob,
 					 wrapped_key_length);
     if (kval == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -4122,14 +4120,14 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                 KMIP_CRYPTO_ALGO_AES, 256, wrap_data);
     if (kblock == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
     kobj = kmip_new_symmetric_key(kblock);
     if (kobj == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -4138,7 +4136,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                   KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
         if (name_attr == NULL) {
             warnx("Allocate KMIP node failed");
-            rc = -ENOMEM;
+            rc = CKR_HOST_MEMORY;
             goto out;
         }
     }
@@ -4147,7 +4145,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                    KMIP_CRY_USAGE_MASK_DECRYPT);
     if (umask_attr == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
     
@@ -4159,7 +4157,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
                                                      0, 0, NULL);
     if (cparams_attr == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
@@ -4175,28 +4173,23 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     free(description);
     if (descr_attr == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
-
-    // reg_req = kmip_new_register_request_payload_va(NULL,
-    //                                                KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
-    //                                                kobj, NULL, 4, name_attr,
-    //                                                umask_attr, cparams_attr,
-    //                                                descr_attr);
+    
     reg_req = kmip_new_register_request_payload_va(NULL,
                                                    KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
                                                    kobj, NULL, 2, name_attr,
                                                    umask_attr);
     if (reg_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     act_req = kmip_new_activate_request_payload(NULL);  /* ID placeholder */
     if (act_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     rc = perform_kmip_request2(KMIP_OPERATION_REGISTER, reg_req,
@@ -4228,7 +4221,6 @@ out:
     kmip_node_free(reg_resp);
     kmip_node_free(act_req);
     kmip_node_free(act_resp);
-    //kmip_node_free(unique_id);
 
     return rc;
 }
@@ -4290,13 +4282,13 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
                                                 kmip_wrap_hash_alg : 0, NULL);
     if (cparams == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     wkey_info = kmip_new_key_info(false, wrapping_key_uid, cparams);
     if (wkey_info == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     wrap_spec = kmip_new_key_wrapping_specification_va(NULL,
@@ -4306,7 +4298,7 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
                                                        0);
     if (wrap_spec == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     req_pl = kmip_new_get_request_payload(NULL, wrapped_key_uid,
@@ -4314,7 +4306,7 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
                                           wrap_spec);
     if (req_pl == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     rc = perform_kmip_request(KMIP_OPERATION_GET, req_pl, &resp_pl,
@@ -4441,7 +4433,7 @@ static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
 
     kdata = kmip_node_get_byte_string(key, &klen);
     if (kdata == NULL) {
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         warnx("Failed to get key data");
         goto out;
     }
@@ -4516,7 +4508,7 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
                                           0, 0, NULL);
     if (req_pl == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
     }
 
     rc = perform_kmip_request(KMIP_OPERATION_GET, req_pl, &resp_pl,
@@ -4672,14 +4664,14 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
 
     if (secret_alg == P11KMIP_KMIP_UNKNOWN_ALG) {
         warnx("Invalid key type being generated");
-        rc = CKR_GENERAL_ERROR;
+        rc = CKR_FUNCTION_NOT_SUPPORTED;
         goto out;
     }
     attrs[idx] = kmip_new_cryptographic_algorithm(secret_alg);
 
     if (attrs[idx] == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
     idx++;
@@ -4694,7 +4686,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
     attrs[idx] = kmip_new_cryptographic_length(keysize * 8);
     if (attrs[idx] == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
     idx++;
@@ -4703,7 +4695,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
         kmip_new_cryptographic_usage_mask(get_kmip_usage_mask_p11(keytype));
     if (attrs[idx] == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
     idx++;
@@ -4714,7 +4706,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
         attrs[idx] = kmip_new_sensitive(true);
         if (attrs[idx] == NULL) {
             warnx("Allocate KMIP node failed");
-            rc = -ENOMEM;
+            rc = CKR_HOST_MEMORY;
             goto out;
         }
         idx++;
@@ -4724,7 +4716,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                KMIP_NAME_TYPE_UNINTERPRETED_TEXT_STRING);
     if (attrs[idx] == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
     idx++;
@@ -4734,14 +4726,14 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                NULL, num_attrs, attrs);
     if (crea_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
     act_req = kmip_new_activate_request_payload(NULL);  /* ID placeholder */
     if (act_req == NULL) {
         warnx("Allocate KMIP node failed");
-        rc = -ENOMEM;
+        rc = CKR_HOST_MEMORY;
         goto out;
     }
 
