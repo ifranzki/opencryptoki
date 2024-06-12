@@ -130,7 +130,7 @@ setup_kmip_client() {
 
 			curl --fail-with-body --location --request POST "$KMIP_REST_URL/SKLM/rest/v1/clients" \
 				--header "Content-Type: application/json" \
-				--data "{\"clientName\":\"$KMIP_CLIENT_NAME\", \"applicationUsage\": \"GENERIC\"}" \
+				--data "{\"clientName\":\"$KMIP_CLIENT_NAME\"}" \
 				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_create_client_stdout 2>$P11KMIP_TMP/curl_create_client_stderr
 			RC=$?
