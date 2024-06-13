@@ -2983,7 +2983,8 @@ static CK_RV p11kmip_export_key(void)
     CK_ULONG wrapping_key_num_attrs = 0, local_key_digest_len = 0,
         remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest, remote_key_digest;
-    enum kmip_crypto_algo digest_alg;
+    enum kmip_crypto_algo digest_alg = 0;
+    struct CK_MECHANISM digest_mech;
 
     // Until we support algorithms beyond RSA and AES,
     // using these hard-coded key types are sufficient
@@ -3100,8 +3101,10 @@ done:
         local_key_digest = malloc(32);
         remote_key_digest = malloc(32);
 
+        digest_mech.mechanism = CKM_SHA256;
+
         rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
-            secret_key_handle, CKM_SHA256);
+            &secret_key_handle, &digest_mech);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, &remote_key_digest, &remote_key_digest_len);
@@ -3718,9 +3721,11 @@ static CK_RV p11kmip_digest_local_key(CK_BYTE **digest,
 
     rc = pkcs11_funcs->C_DigestInit(pkcs11_session, digestMech);
 
-    rc = pkcs11_funcs->C_DigestKey(pkcs11_session, key);
+    rc = pkcs11_funcs->C_DigestKey(pkcs11_session, *key);
 
     rc = pkcs11_funcs->C_DigestFinal(pkcs11_session, digest, digestLen);
+
+    return rc;
 }
 
 /***************************************************************************/
@@ -4865,6 +4870,7 @@ out:
     kmip_node_free(get_attr_req);
     kmip_node_free(get_attr_resp);
 
+    return rc;
 }
 
 /***************************************************************************/
