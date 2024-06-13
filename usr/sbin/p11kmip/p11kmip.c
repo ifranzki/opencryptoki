@@ -4858,7 +4858,10 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     CK_ULONG_PTR digest_len)
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
-        *get_attr_req = NULL, *get_attr_resp = NULL;
+        *get_attr_req = NULL, *get_attr_resp = NULL,
+        *attr_ref = NULL;
+    CK_LONG num_attr_refs = 0, i = 0;
+    enum kmip_tag attr_tag = 0;
     enum kmip_result_status attr_list_status, get_attr_status = 0;
     enum kmip_result_reason attr_list_reason, get_attr_reason = 0;
     CK_RV rc = CKR_OK;
@@ -4877,13 +4880,63 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
 
     if (rc) {
         // Handle Failure
+        rc = CKR_FUNCTION_FAILED;
+        warnx("Failed to KMIP object get attribute list");
         goto out;
     }
 
     // Confirm there's a "digest" attribute in the list
-    kmip_node_dump(attr_list_resp, true);
+    num_attr_refs = kmip_node_get_structure_element_count(attr_list_resp);
+
+    for(i=0;i<num_attr_refs;i++){
+        attr_ref = kmip_node_get_structure_element_by_index(attr_list_resp, i + 1);
+
+        if (attr_ref == NULL) {
+            warnx("Retrieving KMIP attribute failed.");
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+
+        rc = kmip_get_attribute_reference(attr_ref, &attr_tag, NULL, NULL);
+
+        if (rc) {
+            warnx("Retrieving KMIP attribute failed.");
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        }
+
+        if (attr_tag == KMIP_TAG_DIGEST)
+            break;
+    }
+
+    if (i == num_attr_refs) {
+        warnx("Failed to get KMIP object attribute list");
+        rc = CKR_ARGUMENTS_BAD;
+        goto out;
+    }
 
     // Get the digest attribute
+    get_attr_req = kmip_new_get_attributes_request_payload_va(
+        NULL, key_uid, 1, attr_ref);
+
+    if (get_attr_req == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = CKR_HOST_MEMORY;
+        goto out;
+    }
+    
+    rc = perform_kmip_request(KMIP_OPERATION_GET_ATTRIBUTE_LIST, get_attr_req,
+            &get_attr_resp, &get_attr_status, 
+            &get_attr_reason);
+
+    if (rc) {
+        // Handle Failure
+        rc = CKR_FUNCTION_FAILED;
+        warnx("Failed to get KMIP object attribute");
+        goto out;
+    }
+
+    kmip_node_dump(get_attr_resp, true);
 
 out:
     kmip_node_free(attr_list_req);
