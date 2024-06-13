@@ -2811,8 +2811,11 @@ static CK_RV p11kmip_import_key(void)
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length;
     CK_ATTRIBUTE *wrapped_key_attrs = NULL;
-    CK_ULONG wrapped_key_num_attrs = 0;
-    CK_BYTE_PTR local_key_digest, remote_key_digest;
+    CK_ULONG wrapped_key_num_attrs, local_key_digest_len = 0,
+        remote_key_digest_len = 0;
+    CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
+    enum kmip_crypto_algo digest_alg = 0;
+    struct CK_MECHANISM digest_mech;
 
     // Until we support algorithms beyond RSA and AES,
     // using these hard-coded key types are sufficient
@@ -2952,13 +2955,28 @@ static CK_RV p11kmip_import_key(void)
 
 done:
     if (!opt_quiet) {
+        local_key_digest = malloc(32);
+        remote_key_digest = malloc(32);
+
+        digest_mech.mechanism = CKM_SHA256;
+
+        rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
+            &unwrapped_key_handle, &digest_mech);
+
+        rc = p11kmip_digest_remote_key(secret_key_uid,
+            &digest_alg, &remote_key_digest, &remote_key_digest_len);
+
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
+        printf("     PKCS#11 Digest..%s\n", local_key_digest);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
 
         printf("  Public Key\n");
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+
+        free(local_key_digest);
+        free(remote_key_digest);
     }
 
     kmip_node_free(wrap_pubkey_uid);
@@ -2982,7 +3000,7 @@ static CK_RV p11kmip_export_key(void)
     CK_ATTRIBUTE *wrapping_key_attrs = NULL;
     CK_ULONG wrapping_key_num_attrs = 0, local_key_digest_len = 0,
         remote_key_digest_len = 0;
-    CK_BYTE_PTR local_key_digest, remote_key_digest;
+    CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_crypto_algo digest_alg = 0;
     struct CK_MECHANISM digest_mech;
 
@@ -3111,12 +3129,15 @@ done:
 
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
         printf("     PKCS#11 Digest..%s\n", local_key_digest);
+        printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
 
         printf("  Public Key\n");
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+
+        free(local_key_digest);
+        free(remote_key_digest);
     }
 
     return rc;
