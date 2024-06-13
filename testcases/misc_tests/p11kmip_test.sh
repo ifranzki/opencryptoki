@@ -480,7 +480,7 @@ key_import_tests() {
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
-		>$P11KMIP_TMP/p11kmip_import_key_env_test_stdout 2>$P11KMIP_TMP/p11kmip_import_env_conf_test_stderr
+		>$P11KMIP_TMP/p11kmip_import_key_env_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_env_test_stderr
 
 	echo "rc = $?"
 	echo "stdout:"
@@ -507,7 +507,7 @@ key_import_tests() {
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
-		>$P11KMIP_TMP/p11kmip_import_key_opt_test_stdout 2>$P11KMIP_TMP/p11kmip_import_opt_conf_test_stderr
+		>$P11KMIP_TMP/p11kmip_import_key_opt_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_opt_test_stderr
 	
 	echo "rc = $?"
 	echo "stdout:"

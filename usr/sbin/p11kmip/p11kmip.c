@@ -4925,7 +4925,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         goto out;
     }
     
-    rc = perform_kmip_request(KMIP_OPERATION_GET_ATTRIBUTE_LIST, get_attr_req,
+    rc = perform_kmip_request(KMIP_OPERATION_GET_ATTRIBUTES, get_attr_req,
             &get_attr_resp, &get_attr_status, 
             &get_attr_reason);
 
