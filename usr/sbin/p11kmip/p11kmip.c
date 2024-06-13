@@ -405,14 +405,23 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     {.short_opt = 't',.long_opt = "targkey-label",.required = true,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_target_label,.name = "TARGKEY-LABEL",},
-     .description = "The label of the secret key to be exported into the "
-     "KMIP server.",},
+     .description = "The label of the secret key to be exported to the "
+     "KMIP server. Must exist in the PKCS#11 repository. This label will be used as the "
+     "name attribute of the exported key.",},
+    {.short_opt = 0,.long_opt = "retr-wrapkey",.required = false,
+     .long_opt_val = OPT_RETR_WRAPKEY,
+     .arg = {.type = ARG_TYPE_PLAIN,.required = false,
+             .value.plain = &opt_retr_wrapkey,},
+     .description = "If specified, the public key to be used for "
+     "wrapping is first retrieved from the KMIP server and stored in the PKCS#11"
+     "repository. The new key is stored using the same label specified in the "
+     "'wrapkey-label' option.",},
     {.short_opt = 0,.long_opt = "wrapkey-attrs",.required = false,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_attrs,.name = "WRAPKEY-ATTRS",},
      .description = "The boolean attributes to set for the public key"
-     "after it has been imported (optional). Only applicable when specified"
-     " with '--retr-wrapkey'. "
+     "after it has been imported (optional). Only compatible with the "
+     "'--retr-wrapkey' option: "
      "  P M B Y S X K H."
      "Specify a set of these letters without any"
      "blanks in between. See below for the meaning"
@@ -421,16 +430,9 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
     {.short_opt = 0,.long_opt = "wrapkey-id",.required = false,
      .arg = {.type = ARG_TYPE_STRING,.required = true,
              .value.string = &opt_wrap_id,.name = "WRAPKEY-ID",},
-     .description = "The value to be used for the CKA_ID attribute of the"
-     "wrapping key. If '--retr-wrapkey' is specified, the retrieved wrapping"
-     "key will be created with this value.",},
-    {.short_opt = 0,.long_opt = "retr-wrapkey",.required = false,
-     .long_opt_val = OPT_RETR_WRAPKEY,
-     .arg = {.type = ARG_TYPE_PLAIN,.required = false,
-             .value.plain = &opt_retr_wrapkey,},
-     .description = " If specified, retrieves the public key used to wrap"
-     "the target key from the KMIP server and imports it into the PKCS#11"
-     "repository before using it for wrapping.",},
+     .description = "The value to be set for the CKA_ID attribute of"
+     "the imported wrapping key. Only compatible with the "
+     "'--retr-wrapkey' option.",},
      { .short_opt = 0, .long_opt = NULL, },
 };
 
@@ -2804,6 +2806,7 @@ static CK_RV p11kmip_import_key(void)
     unsigned long wrapped_key_length;
     CK_ATTRIBUTE *wrapped_key_attrs = NULL;
     CK_ULONG wrapped_key_num_attrs = 0;
+    CK_BYTE_PTR local_key_digest, remote_key_digest;
 
     // Until we support algorithms beyond RSA and AES,
     // using these hard-coded key types are sufficient
@@ -2828,7 +2831,7 @@ static CK_RV p11kmip_import_key(void)
     }
 
     if (opt_target_id != NULL) {
-        rc = parse_id(opt_target_id, &wrapped_key_attrs, &wrapped_key_length);
+        rc = parse_id(opt_target_id, &wrapped_key_attrs, &wrapped_key_num_attrs);
 
         if (rc != CKR_OK) {
             warnx("Failed to parse ID for target key\n");
@@ -2971,7 +2974,10 @@ static CK_RV p11kmip_export_key(void)
     unsigned long wrapped_key_length;
     EVP_PKEY *pub_key;
     CK_ATTRIBUTE *wrapping_key_attrs = NULL;
-    CK_ULONG wrapping_key_num_attrs = 0;
+    CK_ULONG wrapping_key_num_attrs = 0, local_key_digest_len = 0,
+        remote_key_digest_len = 0;
+    CK_BYTE_PTR local_key_digest, remote_key_digest;
+    enum kmip_crypto_algo digest_alg;
 
     // Until we support algorithms beyond RSA and AES,
     // using these hard-coded key types are sufficient
@@ -2979,6 +2985,27 @@ static CK_RV p11kmip_export_key(void)
     pubkey_keytype.class = CKO_PUBLIC_KEY;
 
     secret_keytype = p11kmip_aes_keytype;
+
+    // Parse the attrs and id options up front to fail fast
+    if (opt_target_attrs != NULL) {
+        rc = parse_boolean_attrs(&secret_keytype, opt_target_attrs,
+                                 &wrapping_key_attrs, &wrapping_key_num_attrs,
+                                 false, NULL);
+
+        if (rc != CKR_OK) {
+            warnx("Failed to parse boolean attributes for wrapping key\n");
+            goto done;
+        }
+    }
+
+    if (opt_target_id != NULL) {
+        rc = parse_id(opt_target_id, &wrapping_key_attrs, &wrapping_key_num_attrs);
+
+        if (rc != CKR_OK) {
+            warnx("Failed to parse ID for wrapping key\n");
+            goto done;
+        }
+    }
 
     // We must locate the KMIP public key to obtain its UID, even if
     // we intend to utilize a local PKCS#11 public key for the actual
@@ -3013,7 +3040,9 @@ static CK_RV p11kmip_export_key(void)
         // TODO: should be created with the specified attributes
         rc = p11kmip_create_local_public_key(&pubkey_keytype,
                                             pub_key, opt_wrap_label,
-                                            NULL, 0, &wrapping_pubkey);
+                                            wrapping_key_attrs, 
+                                            wrapping_key_num_attrs,
+                                            &wrapping_pubkey);
 
         if (rc != CKR_OK) {
             warnx("Failed to create public key '%s'\n", opt_wrap_label);
@@ -3062,9 +3091,19 @@ static CK_RV p11kmip_export_key(void)
 
 done:
     if (!opt_quiet) {
+        local_key_digest = malloc(32);
+        remote_key_digest = malloc(32);
+
+        rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
+            secret_key_handle, CKM_SHA256);
+
+        rc = p11kmip_digest_remote_key(secret_key_uid,
+            &digest_alg, &remote_key_digest, &remote_key_digest_len);
+
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+        printf("     PKCS#11 Digest..%s\n", local_key_digest);
 
         printf("  Public Key\n");
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
@@ -3663,6 +3702,19 @@ done:
     free_attributes(attrs, num_attrs);
 
     return rc;
+}
+
+static CK_RV p11kmip_digest_local_key(CK_BYTE **digest, 
+    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE *key, 
+    CK_MECHANISM_PTR digestMech)
+{
+    CK_RV rc;
+
+    rc = pkcs11_funcs->C_DigestInit(pkcs11_session, digestMech);
+
+    rc = pkcs11_funcs->C_DigestKey(pkcs11_session, key);
+
+    rc = pkcs11_funcs->C_DigestFinal(pkcs11_session, digest, digestLen);
 }
 
 /***************************************************************************/
@@ -4767,6 +4819,46 @@ out:
     kmip_node_free(act_resp);
 
     return rc;
+}
+
+static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
+    enum kmip_crypto_algo *digest_alg, CK_BYTE **digest,
+    CK_ULONG_PTR digest_len)
+{
+    struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
+        *get_attr_req = NULL, *get_attr_resp = NULL;
+    enum kmip_result_status attr_list_status, get_attr_status = 0;
+    enum kmip_result_reason attr_list_reason, get_attr_reason = 0;
+    CK_RV rc = CKR_OK;
+
+    // Get the attribute list
+    attr_list_req = kmip_new_get_attribute_list_request_payload(key_uid);
+    if (attr_list_req == NULL) {
+        warnx("Allocate KMIP node failed");
+        rc = CKR_HOST_MEMORY;
+        goto out;
+    }
+
+    rc = perform_kmip_request(KMIP_OPERATION_GET_ATTRIBUTE_LIST, attr_list_req,
+                            &attr_list_resp, &attr_list_status, 
+                            &attr_list_reason);
+
+    if (rc) {
+        // Handle Failure
+        goto out;
+    }
+
+    // Confirm there's a "digest" attribute in the list
+    kmip_node_dump(attr_list_resp, true);
+
+    // Get the digest attribute
+
+out:
+    kmip_node_free(attr_list_req);
+    kmip_node_free(attr_list_resp);
+    kmip_node_free(get_attr_req);
+    kmip_node_free(get_attr_resp);
+
 }
 
 /***************************************************************************/
