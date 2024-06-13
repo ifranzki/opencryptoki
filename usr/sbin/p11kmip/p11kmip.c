@@ -157,6 +157,9 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                 const char *secret_key_label,
                                                 struct kmip_node
                                                 **secret_key_uid);
+static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
+    enum kmip_crypto_algo *digest_alg, CK_BYTE **digest,
+    CK_ULONG_PTR digest_len);
 
 /* PKCS#11 Local Function Prototypes*/
 static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE
@@ -186,6 +189,9 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
 static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                     const char *label, const char *id,
                                     CK_OBJECT_HANDLE * key);
+static CK_RV p11kmip_digest_local_key(CK_BYTE **digest, 
+    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE *key, 
+    CK_MECHANISM_PTR digestMech);
 
 /* P11 function prototypes */
 static bool opt_slot_is_set(const struct p11kmip_arg *arg);
