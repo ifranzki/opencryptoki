@@ -2815,7 +2815,7 @@ static CK_RV p11kmip_import_key(void)
         remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_crypto_algo digest_alg = 0;
-    struct CK_MECHANISM digest_mech;
+    struct CK_MECHANISM digest_mech = { 0 };
 
     // Until we support algorithms beyond RSA and AES,
     // using these hard-coded key types are sufficient
@@ -2960,15 +2960,15 @@ done:
 
         digest_mech.mechanism = CKM_SHA256;
 
-        rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
-            &unwrapped_key_handle, &digest_mech);
+        // rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
+        //     &unwrapped_key_handle, &digest_mech);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, &remote_key_digest, &remote_key_digest_len);
 
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
-        printf("     PKCS#11 Digest..%s\n", local_key_digest);
+        // printf("     PKCS#11 Digest..%s\n", local_key_digest);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
 
         printf("  Public Key\n");
@@ -3002,7 +3002,7 @@ static CK_RV p11kmip_export_key(void)
         remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_crypto_algo digest_alg = 0;
-    struct CK_MECHANISM digest_mech;
+    struct CK_MECHANISM digest_mech = { 0 };
 
     // Until we support algorithms beyond RSA and AES,
     // using these hard-coded key types are sufficient
@@ -3121,8 +3121,8 @@ done:
 
         digest_mech.mechanism = CKM_SHA256;
 
-        rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
-            &secret_key_handle, &digest_mech);
+        // rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
+        //     &secret_key_handle, &digest_mech);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, &remote_key_digest, &remote_key_digest_len);
