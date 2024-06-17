@@ -2276,7 +2276,9 @@ static CK_RV ccatok_pkey_add_attr_to_rule_array(CK_ATTRIBUTE_TYPE type,
  */
 static CK_BBOOL ccatok_pkey_attr_applicable(STDLL_TokData_t *tokdata,
                                         CK_ATTRIBUTE *attr, CK_KEY_TYPE ktype,
-                                        int curve_type, int curve_bitlen)
+                                        int curve_type, int curve_bitlen,
+                                        CK_IBM_CCA_AES_KEY_MODE_TYPE
+                                                                aes_key_mode)
 {
     struct cca_private_data *cca_data = tokdata->private_data;
 
@@ -2296,7 +2298,7 @@ static CK_BBOOL ccatok_pkey_attr_applicable(STDLL_TokData_t *tokdata,
          * AES CIPHER keys do support the XPRTCPAC keyword to allow export to
          * CPACF protected key format.
          */
-        if (cca_data->aes_key_mode != AES_KEY_MODE_CIPHER)
+        if (aes_key_mode != CK_IBM_CCA_AES_CIPHER_KEY)
             return CK_FALSE;
         switch (attr->type) {
         case CKA_IBM_PROTKEY_EXTRACTABLE:
@@ -2348,6 +2350,7 @@ static CK_BBOOL ccatok_pkey_attr_applicable(STDLL_TokData_t *tokdata,
  */
 static CK_RV ccatok_pkey_add_attrs(STDLL_TokData_t * tokdata, TEMPLATE *template,
                             CK_KEY_TYPE ktype, int curve_type, int curve_bitlen,
+                            CK_IBM_CCA_AES_KEY_MODE_TYPE aes_key_mode,
                             CK_BYTE *rule_array, CK_ULONG rule_array_size,
                             CK_ULONG *rule_array_count)
 {
@@ -2360,7 +2363,8 @@ static CK_RV ccatok_pkey_add_attrs(STDLL_TokData_t * tokdata, TEMPLATE *template
         attr = node->data;
 
         if (ccatok_pkey_attr_applicable(tokdata, attr, ktype,
-                                        curve_type, curve_bitlen)) {
+                                        curve_type, curve_bitlen,
+                                        aes_key_mode)) {
             ret = ccatok_pkey_add_attr_to_rule_array(attr->type, rule_array,
                                          rule_array_size, rule_array_count);
             if (ret != CKR_OK)
@@ -3327,6 +3331,58 @@ done:
     return ret;
 }
 
+
+static CK_RV cca_get_and_set_aes_key_mode(STDLL_TokData_t *tokdata,
+                                          TEMPLATE *tmpl,
+                                          CK_IBM_CCA_AES_KEY_MODE_TYPE *mode)
+{
+    struct cca_private_data *cca_data = tokdata->private_data;
+    CK_ATTRIBUTE *attr = NULL;
+    CK_RV rc;
+
+    if (template_attribute_find(tmpl, CKA_IBM_CCA_AES_KEY_MODE, &attr)) {
+        if (attr->ulValueLen != sizeof(CK_IBM_CCA_AES_KEY_MODE_TYPE) ||
+            attr->pValue == NULL) {
+            TRACE_ERROR("%s\n", ock_err(ERR_ATTRIBUTE_VALUE_INVALID));
+            return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+
+        *mode = *(CK_IBM_CCA_AES_KEY_MODE_TYPE *)attr->pValue;
+        switch (*mode) {
+        case CK_IBM_CCA_AES_DATA_KEY:
+        case CK_IBM_CCA_AES_CIPHER_KEY:
+            TRACE_DEVEL("AES key mode (attribute): %lu\n", *mode);
+            return CKR_OK;
+        default:
+            TRACE_ERROR("%s\n", ock_err(ERR_ATTRIBUTE_VALUE_INVALID));
+            return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+    }
+
+    switch (cca_data->aes_key_mode) {
+    case AES_KEY_MODE_DATA:
+        *mode = CK_IBM_CCA_AES_DATA_KEY;
+        break;
+    case AES_KEY_MODE_CIPHER:
+        *mode = CK_IBM_CCA_AES_CIPHER_KEY;
+        break;
+    default:
+        TRACE_DEVEL("Invalid AES key mode: %d\n", cca_data->aes_key_mode);
+        return CKR_FUNCTION_FAILED;
+    }
+
+    rc = build_update_attribute(tmpl, CKA_IBM_CCA_AES_KEY_MODE,
+                                (CK_BYTE *)mode, sizeof(*mode));
+    if (rc != CKR_OK) {
+        TRACE_DEVEL("build_update_attribute(CKA_IBM_CCA_AES_KEY_MODE) failed\n");
+        return rc;
+    }
+
+    TRACE_DEVEL("AES key mode (config): %lu\n", *mode);
+
+    return CKR_OK;
+}
+
 static CK_RV ccatok_var_sym_token_is_exportable(const CK_BYTE *token,
                                                 CK_ULONG token_len,
                                                 CK_BBOOL *exportable,
@@ -3399,6 +3455,7 @@ CK_RV token_specific_aes_xts_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     CK_BBOOL new_mk, new_mk2;
     CK_ATTRIBUTE *reenc_attr = NULL;
     CK_ULONG pl_ofs, pl_len;
+    CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
     CK_RV rc;
 
     if (cca_data->inconsistent) {
@@ -3425,7 +3482,13 @@ CK_RV token_specific_aes_xts_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
         return CKR_KEY_SIZE_RANGE;
     }
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    rc = cca_get_and_set_aes_key_mode(tokdata, tmpl, &mode);
+    if (rc != CKR_OK) {
+        TRACE_DEVEL("cca_get_and_set_aes_key_mode failed\n");
+        return rc;
+    }
+
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         key_token_len = CCA_MAX_AES_CIPHER_KEY_SIZE;
     else
         key_token_len = CCA_KEY_ID_SIZE;
@@ -3436,7 +3499,7 @@ CK_RV token_specific_aes_xts_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     *len = key_token_len * 2;
     *is_opaque = TRUE;
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         rc = cca_build_aes_cipher_token(tokdata, tmpl,
                                         key_token, &key_token_len);
     else
@@ -3449,7 +3512,7 @@ CK_RV token_specific_aes_xts_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     }
 
     memcpy(key_form, "OP      ", CCA_KEYWORD_SIZE);
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         memcpy(key_type, "TOKEN   ", CCA_KEYWORD_SIZE);
     else
         memcpy(key_type, "AESTOKEN", CCA_KEYWORD_SIZE);
@@ -3457,7 +3520,7 @@ CK_RV token_specific_aes_xts_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
 retry:
     memcpy(*aes_key, key_token, key_token_len);
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
         key_len = *len / 2;
         rc = cca_cipher_key_gen(tokdata, tmpl, CCA_AES_KEY, *aes_key, &key_len,
                                 key_form, key_type, key_size / 2,
@@ -3469,13 +3532,13 @@ retry:
     }
     if (rc != CKR_OK) {
         TRACE_ERROR("%s cca_%skey_gen function failed\n", ock_err(rc),
-                    cca_data->aes_key_mode ? "cipher_" : "");
+                    mode == CK_IBM_CCA_AES_CIPHER_KEY ? "cipher_" : "");
         return rc;
     }
 
     memcpy(*aes_key + key_len, key_token, key_token_len);
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
         rc = cca_cipher_key_gen(tokdata, tmpl, CCA_AES_KEY, *aes_key + key_len,
                                 &key_len, key_form, key_type, key_size / 2,
                                 TRUE, &new_mk2);
@@ -3485,7 +3548,7 @@ retry:
     }
     if (rc != CKR_OK) {
         TRACE_ERROR("%s cca_%skey_gen function failed\n", ock_err(rc),
-                    cca_data->aes_key_mode ? "cipher_" : "");
+                    mode == CK_IBM_CCA_AES_CIPHER_KEY ? "cipher_" : "");
         return rc;
     }
 
@@ -3528,7 +3591,7 @@ retry:
      * Compare the encrypted key material to ensure that the 2 key parts are
      * not the same.
      */
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
         /*
          * A CCA AES-CIPHER key blob contains the encrypted key material at a
          * variable position dependent on several length bytes
@@ -3602,7 +3665,6 @@ done:
 static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
                                 OBJECT * object)
 {
-    struct cca_private_data *cca_data = tokdata->private_data;
     CK_RV rc;
     CK_ATTRIBUTE *opaque_attr = NULL;
     enum cca_token_type token_type, token_type2;
@@ -3635,6 +3697,7 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
         CK_BBOOL true = TRUE;
         CK_ULONG value_len = 0;
         CK_BBOOL exp, cpacf_exp, exp2, cpacf_exp2;
+        CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
 
         if (analyse_cca_key_token(opaque_attr->pValue,
                                   opaque_attr->ulValueLen / 2, &token_type,
@@ -3645,8 +3708,9 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
 
         if (token_type == sec_aes_data_key) {
             /* keybitsize has been checked by the analyse_cca_key_token() function */
-            ;
+            mode = CK_IBM_CCA_AES_DATA_KEY;
         } else if (token_type == sec_aes_cipher_key) {
+            mode = CK_IBM_CCA_AES_CIPHER_KEY;
             if (token_keybitsize == 0) {
                 /*
                  * A CIPHER key with V1 payload does not allow to obtain the
@@ -3786,6 +3850,14 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
 #endif
         }
 
+        rc = build_update_attribute(object->template, CKA_IBM_CCA_AES_KEY_MODE,
+                                    (CK_BYTE *)&mode, sizeof(mode));
+        if (rc != CKR_OK) {
+            TRACE_DEVEL("build_update_attribute(CKA_IBM_CCA_AES_KEY_MODE) "
+                        "failed\n");
+            return rc;
+        }
+
         /*
          * Compare the encrypted key material to ensure that the 2 key parts are
          * not the same.
@@ -3845,6 +3917,7 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
         long key_token_len, key_len;
         CK_ATTRIBUTE *value_attr = NULL;
         long reserved_1 = 0, key_part_len;
+        CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
 
         rc = template_attribute_get_non_empty(object->template, CKA_VALUE,
                                               &value_attr);
@@ -3860,8 +3933,14 @@ static CK_RV import_aes_xts_key(STDLL_TokData_t *tokdata,
             return CKR_ATTRIBUTE_VALUE_INVALID;
         }
 
+        rc = cca_get_and_set_aes_key_mode(tokdata, object->template, &mode);
+        if (rc != CKR_OK) {
+            TRACE_DEVEL("cca_get_and_set_aes_key_mode failed\n");
+            return rc;
+        }
+
 retry:
-        if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+        if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
             memcpy(rule_array, "INTERNALAES     CIPHER  NO-KEY  ANY-MODE",
                    5 * CCA_KEYWORD_SIZE);
             rule_array_count = 5;
@@ -3973,7 +4052,7 @@ retry:
             return rc;
         }
 
-        if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+        if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
             memcpy(rule_array, "INTERNALAES     CIPHER  NO-KEY  ANY-MODE",
                    5 * CCA_KEYWORD_SIZE);
             rule_array_count = 5;
@@ -6291,6 +6370,7 @@ static CK_RV cca_aes_cipher_add_key_usage_keywords(STDLL_TokData_t *tokdata,
                                                    CK_ULONG rule_array_size,
                                                    CK_ULONG *rule_array_count)
 {
+    CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
     CK_BBOOL extractable = TRUE;
     CK_RV rc;
 
@@ -6311,8 +6391,14 @@ static CK_RV cca_aes_cipher_add_key_usage_keywords(STDLL_TokData_t *tokdata,
     }
 
 #ifndef NO_PKEY
+    rc = cca_get_and_set_aes_key_mode(tokdata, tmpl, &mode);
+    if (rc != CKR_OK) {
+        TRACE_DEVEL("cca_get_and_set_aes_key_mode failed\n");
+        return rc;
+    }
+
     /* Add protected key related attributes to the rule array */
-    rc = ccatok_pkey_add_attrs(tokdata, tmpl, CKK_AES, 0, 0, rule_array,
+    rc = ccatok_pkey_add_attrs(tokdata, tmpl, CKK_AES, 0, 0, mode, rule_array,
                                rule_array_size, rule_array_count);
     if (rc != CKR_OK) {
         TRACE_ERROR("%s ccatok_pkey_add_attrs failed with rc=0x%lx\n",
@@ -6440,6 +6526,7 @@ CK_RV token_specific_aes_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     CK_ULONG key_token_len;
     unsigned char key_form[CCA_KEYWORD_SIZE];
     unsigned char key_type[CCA_KEYWORD_SIZE];
+    CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
     CK_RV rc;
 
     if (cca_data->inconsistent) {
@@ -6447,7 +6534,13 @@ CK_RV token_specific_aes_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
         return CKR_DEVICE_ERROR;
     }
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    rc = cca_get_and_set_aes_key_mode(tokdata, tmpl, &mode);
+    if (rc != CKR_OK) {
+        TRACE_DEVEL("cca_get_and_set_aes_key_mode failed\n");
+        return rc;
+    }
+
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         key_token_len = CCA_MAX_AES_CIPHER_KEY_SIZE;
     else
         key_token_len = CCA_KEY_ID_SIZE;
@@ -6458,7 +6551,7 @@ CK_RV token_specific_aes_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     *len = key_token_len;
     *is_opaque = TRUE;
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         rc = cca_build_aes_cipher_token(tokdata, tmpl,
                                         *aes_key, &key_token_len);
     else
@@ -6471,12 +6564,12 @@ CK_RV token_specific_aes_key_gen(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
     }
 
     memcpy(key_form, "OP      ", CCA_KEYWORD_SIZE);
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         memcpy(key_type, "TOKEN   ", CCA_KEYWORD_SIZE);
     else
         memcpy(key_type, "AESTOKEN", CCA_KEYWORD_SIZE);
 
-    if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER)
+    if (mode == CK_IBM_CCA_AES_CIPHER_KEY)
         return cca_cipher_key_gen(tokdata, tmpl, CCA_AES_KEY, *aes_key, len,
                                   key_form, key_type, key_size, FALSE, NULL);
     else
@@ -7137,7 +7230,7 @@ CK_RV token_specific_ec_generate_keypair(STDLL_TokData_t * tokdata,
 #ifndef NO_PKEY
     /* Add protected key related attributes to the rule array */
     rv = ccatok_pkey_add_attrs(tokdata, priv_tmpl, CKK_EC, curve_type,
-                               curve_bitlen, rule_array, sizeof(rule_array),
+                               curve_bitlen, 0, rule_array, sizeof(rule_array),
                                (CK_ULONG *)&rule_array_count);
     if (rv != CKR_OK) {
         TRACE_ERROR("%s ccatok_pkey_add_attrs failed with rc=0x%lx\n", __func__, rv);
@@ -9626,7 +9719,6 @@ static CK_RV import_rsa_pubkey(STDLL_TokData_t *tokdata, TEMPLATE *publ_tmpl)
 static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
                                   OBJECT * object, CK_ULONG keytype)
 {
-    struct cca_private_data *cca_data = tokdata->private_data;
     CK_RV rc;
     CK_ATTRIBUTE *opaque_attr = NULL;
     enum cca_token_type token_type;
@@ -9646,6 +9738,7 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
         CK_BYTE zorro[32] = { 0 };
         CK_BBOOL true = TRUE;
         CK_ULONG value_len = 0;
+        CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
 
         if (analyse_cca_key_token(opaque_attr->pValue, opaque_attr->ulValueLen,
                                   &token_type, &token_keybitsize, &mkvp) != TRUE) {
@@ -9676,8 +9769,9 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
         } else if (keytype == CKK_AES) {
             if (token_type == sec_aes_data_key) {
                 /* keybitsize has been checked by the analyse_cca_key_token() function */
-                ;
+                mode = CK_IBM_CCA_AES_DATA_KEY;
             } else if (token_type == sec_aes_cipher_key) {
+                mode = CK_IBM_CCA_AES_CIPHER_KEY;
                 if (token_keybitsize == 0) {
                     /*
                      * A CIPHER key with V1 payload does not allow to obtain the
@@ -9729,6 +9823,15 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
                 TRACE_ERROR("CCA token type in CKA_IBM_OPAQUE does not match to keytype CKK_AES\n");
                 return CKR_TEMPLATE_INCONSISTENT;
             }
+
+            rc = build_update_attribute(object->template,
+                                        CKA_IBM_CCA_AES_KEY_MODE,
+                                        (CK_BYTE *)&mode, sizeof(mode));
+            if (rc != CKR_OK) {
+                TRACE_DEVEL("build_update_attribute(CKA_IBM_CCA_AES_KEY_MODE) "
+                            "failed\n");
+                return rc;
+            }
         } else {
             TRACE_DEBUG("Unknown/unsupported keytype in function %s line %d\n", __func__, __LINE__);
             return CKR_KEY_FUNCTION_NOT_PERMITTED;
@@ -9774,6 +9877,7 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
         CK_ATTRIBUTE *value_attr = NULL;
         long reserved_1 = 0, key_token_len = sizeof(target_key_token);
         long key_part_len;
+        CK_IBM_CCA_AES_KEY_MODE_TYPE mode = CK_IBM_CCA_AES_DATA_KEY;
 
         rc = template_attribute_get_non_empty(object->template, CKA_VALUE,
                                               &value_attr);
@@ -9782,7 +9886,15 @@ static CK_RV import_symmetric_key(STDLL_TokData_t *tokdata,
             return CKR_TEMPLATE_INCOMPLETE;
         }
 
-        if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+        if (keytype == CKK_AES) {
+            rc = cca_get_and_set_aes_key_mode(tokdata, object->template, &mode);
+            if (rc != CKR_OK) {
+                TRACE_DEVEL("cca_get_and_set_aes_key_mode failed\n");
+                return rc;
+            }
+        }
+
+        if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
             memcpy(rule_array, "INTERNALAES     CIPHER  NO-KEY  ANY-MODE",
                    5 * CCA_KEYWORD_SIZE);
             rule_array_count = 5;
@@ -10507,7 +10619,7 @@ static CK_RV import_ec_privkey(STDLL_TokData_t *tokdata, TEMPLATE *priv_templ)
 #ifndef NO_PKEY
         /* Add protected key related attributes to the rule array */
         rc = ccatok_pkey_add_attrs(tokdata, priv_templ, CKK_EC, curve_type,
-                                   curve_bitlen, rule_array, sizeof(rule_array),
+                                   curve_bitlen, 0, rule_array, sizeof(rule_array),
                                    (CK_ULONG *)&rule_array_count);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s ccatok_pkey_add_attrs failed with rc=0x%lx\n", __func__, rc);
@@ -11839,7 +11951,6 @@ static CK_RV ccatok_unwrap_key_rsa_pkcs(STDLL_TokData_t *tokdata,
                                         CK_BYTE *wrapped_key,
                                         CK_ULONG wrapped_key_len)
 {
-    struct cca_private_data *cca_data = tokdata->private_data;
     long return_code, reason_code, rule_array_count;
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0 };
     CK_BYTE buffer[3500] = { 0, };
@@ -11856,6 +11967,7 @@ static CK_RV ccatok_unwrap_key_rsa_pkcs(STDLL_TokData_t *tokdata,
     const CK_BYTE *mkvp;
     CK_BBOOL new_mk;
     uint16_t val;
+    CK_IBM_CCA_AES_KEY_MODE_TYPE mode;
     CK_RV rc;
 
     rc = template_attribute_get_ulong(key->template, CKA_CLASS, &key_class);
@@ -11918,9 +12030,15 @@ static CK_RV ccatok_unwrap_key_rsa_pkcs(STDLL_TokData_t *tokdata,
         }
         break;
     case CKK_AES:
+        rc = cca_get_and_set_aes_key_mode(tokdata, key->template, &mode);
+        if (rc != CKR_OK) {
+            TRACE_DEVEL("cca_get_and_set_aes_key_mode failed\n");
+            return rc;
+        }
+
         switch (mech->mechanism) {
         case CKM_RSA_PKCS:
-            if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+            if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
                 TRACE_ERROR("CCA does not support to unwrap with CKM_RSA_PKCS "
                             "for AES CIPHER keys\n");
                 return CKR_WRAPPED_KEY_INVALID;
@@ -11930,7 +12048,7 @@ static CK_RV ccatok_unwrap_key_rsa_pkcs(STDLL_TokData_t *tokdata,
             memcpy(rule_array, "AES     PKCS-1.2", 2 * CCA_KEYWORD_SIZE);
             break;
         case CKM_RSA_PKCS_OAEP:
-            if (cca_data->aes_key_mode == AES_KEY_MODE_CIPHER) {
+            if (mode == CK_IBM_CCA_AES_CIPHER_KEY) {
                 TRACE_ERROR("CCA does not support to unwrap with "
                             "CKM_RSA_PKCS_OAEP for AES CIPHER keys\n");
                 return CKR_WRAPPED_KEY_INVALID;
@@ -12658,14 +12776,14 @@ CK_RV token_specific_set_attribute_values(STDLL_TokData_t *tokdata,
     unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
     unsigned char exit_data[4];
     long rule_array_count, exit_data_len = 0, zero = 0, key_len;
-    enum cca_token_type keytype;
-    unsigned int keybitsize;
-    const CK_BYTE *mkvp;
-    CK_BBOOL new_mk;
+    enum cca_token_type keytype, keytype2;
+    unsigned int keybitsize, keybitsize2;
+    const CK_BYTE *mkvp, *mkvp2;
+    CK_BBOOL new_mk, new_mk2;
     CK_OBJECT_CLASS class;
     CK_KEY_TYPE ktype;
     DL_NODE *node;
-    CK_ATTRIBUTE *attr;
+    CK_ATTRIBUTE *attr, *reenc_attr;
     CK_ULONG key_size;
     CK_RV rc;
 
@@ -12760,6 +12878,7 @@ CK_RV token_specific_set_attribute_values(STDLL_TokData_t *tokdata,
         return rc;
     }
 
+retry:
     USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
     RETRY_NEW_MK_BLOB_START()
         key_len = key_size;
@@ -12824,24 +12943,66 @@ CK_RV token_specific_set_attribute_values(STDLL_TokData_t *tokdata,
         }
 
         if (analyse_cca_key_token((CK_BYTE *)attr->pValue + key_size, key_size,
-                                  &keytype, &keybitsize, &mkvp) == FALSE ||
-            mkvp == NULL) {
+                                  &keytype2, &keybitsize2, &mkvp2) == FALSE ||
+            mkvp2 == NULL) {
             TRACE_ERROR("Invalid/unknown cca token has been generated\n");
             rc = CKR_FUNCTION_FAILED;
             goto out;
         }
 
-        if (check_expected_mkvp(tokdata, keytype, mkvp, &new_mk) != CKR_OK) {
+        if (check_expected_mkvp(tokdata, keytype2, mkvp2, &new_mk2) != CKR_OK) {
             TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
             rc = CKR_DEVICE_ERROR;
             goto out;
         }
 
+        if (new_mk == FALSE && new_mk2 == TRUE) {
+            /*
+             * Key 2 was created with new MK, key 1 with old MK.
+             * Key 2 will have CKA_IBM_OPAQUE and CKA_IBM_OPAQUE_REENC both
+             * with new MK (will be set by cca_reencipher_created_key() below).
+             * Key 1 has CKA_IBM_OPAQUE with old MK, and CKA_IBM_OPAQUE_REENC
+             * with new MK (it was re-enciphered by cca_reencipher_created_key()
+             * above). Supply CKA_IBM_OPAQUE_REENC with new MK in CKA_IBM_OPAQUE
+             * for key 1 also, so that both, CKA_IBM_OPAQUE and
+             * CKA_IBM_OPAQUE_REENC have new MK only for both key parts.
+             */
+            rc = template_attribute_get_non_empty(obj->template,
+                                                  CKA_IBM_OPAQUE_REENC,
+                                                  &reenc_attr);
+            if (rc != CKR_OK || reenc_attr == NULL ||
+                reenc_attr->ulValueLen != key_size) {
+                TRACE_ERROR("No CKA_IBM_OPAQUE_REENC attr found\n");
+                return CKR_TEMPLATE_INCOMPLETE;
+            }
+
+            memcpy(attr->pValue, reenc_attr->pValue, key_size);
+        } else if (new_mk == TRUE && new_mk2 == FALSE) {
+            /*
+             * Key 1 was created with new MK, but key 2 with old MK.
+             * This can happen when an APQN with new MK went offline
+             * and another APQN with old MK is selected after creating
+             * key 1 but before creating key 2. Since there is no key 1 blob
+             * with old MK in CKA_IBM_OPAQUE, we need to re-create both keys
+             * (both with old MK now).
+             */
+            memset(attr->pValue, 0, sizeof(key_size));
+            goto retry;
+        }
+
         rc = cca_reencipher_created_key(tokdata, obj->template,
                                         (CK_BYTE *)attr->pValue + key_size,
-                                        key_size, new_mk, keytype, TRUE);
+                                        key_size, new_mk2, keytype2, TRUE);
         if (rc != CKR_OK) {
             TRACE_ERROR("cca_reencipher_created_key failed: 0x%lx\n", rc);
+            goto out;
+        }
+
+        if (keytype != keytype2 ||
+            memcmp(mkvp, mkvp2, CCA_MKVP_LENGTH) != 0 ||
+            keybitsize != keybitsize2) {
+            TRACE_ERROR("CCA AES XTS keys attribute value mismatch\n");
+            rc = CKR_ATTRIBUTE_VALUE_INVALID;
             goto out;
         }
     }
