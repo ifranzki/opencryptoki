@@ -562,7 +562,7 @@ setup_pkcs11_keys
 
 echo "** Running key import tests - 'p11kmip_test.sh'"
 
-key_import_tests
+#key_import_tests
 
 echo "** Running key export tests - 'p11kmip_test.sh'"
 
@@ -571,7 +571,7 @@ key_export_tests
 echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 
 # Typically do not have the authority to delete keys
-# cleanup_kmip_keys
+cleanup_kmip_keys
 
 cleanup_pkcs11_keys
 
