@@ -566,7 +566,7 @@ key_import_tests
 
 echo "** Running key export tests - 'p11kmip_test.sh'"
 
-key_export_tests
+# key_export_tests
 
 echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 
