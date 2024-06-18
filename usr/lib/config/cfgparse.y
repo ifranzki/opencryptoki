@@ -76,14 +76,14 @@ typedef void (*error_hook_f)(int line, int col, const char *msg);
 %destructor { confignode_deepfree($$); } <node>
 %define api.pure full
 %locations
-%define api.prefix {config}
+%define api.prefix "config"
 %lex-param   { configscan_t scanner }
 %parse-param   { configscan_t scanner }
 %parse-param   { struct ConfigBaseNode **res }
 %parse-param   { error_hook_f error_hook }
 %parse-param   { int trackComments }
-%define parse.trace
-%define parse.error verbose
+/* %define parse.trace
+%define parse.error verbose */
 %define parse.lac full
 %%
 
