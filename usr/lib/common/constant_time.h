@@ -16,6 +16,7 @@
 
 # include <stdlib.h>
 # include <string.h>
+# include <stdint.h>
 
 /* ossl_inline: portable inline definition usable in public headers */
 # if !defined(inline) && !defined(__cplusplus)
