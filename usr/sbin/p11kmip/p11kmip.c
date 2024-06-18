@@ -4859,7 +4859,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
         *get_attr_req = NULL, *get_attr_resp = NULL,
-        *attr_ref = NULL;
+        *attr_ref = NULL, *digest_attr = NULL;
     CK_LONG num_attr_refs = 0, i = 0;
     enum kmip_tag attr_tag = 0;
     enum kmip_result_status attr_list_status, get_attr_status = 0;
@@ -4936,13 +4936,35 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         goto out;
     }
 
-    kmip_node_dump(get_attr_resp, true);
+    rc = kmip_get_get_attributes_response_payload(get_attr_resp, NULL, &num_attr_refs, 0, digest_attr);
 
+    if (rc) {
+        // Handle Failure
+        rc = CKR_FUNCTION_FAILED;
+        warnx("Failed to get KMIP object attribute");
+        goto out;
+    }
+    
+    // We should have recieved exactly 1 attribute reference
+    if (num_attr_refs != 1) {
+        rc = CKR_FUNCTION_FAILED;
+        warnx("Unexpected number of attributes returned from get attributes request");
+        goto out;
+    }
+
+    rc = kmip_get_digest(digest_attr, digest_alg, digest, digest_len);
+
+    if (rc) {
+        rc = CKR_FUNCTION_FAILED;
+        warnx("Failed to get digest value from digest attribute");
+        goto out;
+    }
 out:
     kmip_node_free(attr_list_req);
     kmip_node_free(attr_list_resp);
     kmip_node_free(get_attr_req);
     kmip_node_free(get_attr_resp);
+    kmip_node_free(digest_attr);
 
     return rc;
 }
