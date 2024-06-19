@@ -634,7 +634,7 @@ static const CK_MECHANISM_TYPE get_p11_hash_mech_from_kmip_hash_algo(enum
             
         }
 
-        return p11_hash_mech
+        return p11_hash_mech;
     }
 
 static const enum kmip_crypto_usage_mask get_kmip_usage_mask_p11(struct
