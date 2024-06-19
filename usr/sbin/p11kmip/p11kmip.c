@@ -2955,21 +2955,20 @@ static CK_RV p11kmip_import_key(void)
 
 done:
     if (!opt_quiet) {
-        local_key_digest = malloc(32);
-        remote_key_digest = malloc(32);
-
-        digest_mech.mechanism = CKM_SHA256;
-
-        // rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
-        //     &unwrapped_key_handle, &digest_mech);
+        remote_key_digest_len = 64;
+        remote_key_digest = malloc(remote_key_digest_len);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, &remote_key_digest, &remote_key_digest_len);
+
+        // rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
+        //     &unwrapped_key_handle, &digest_mech);
 
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
         // printf("     PKCS#11 Digest..%s\n", local_key_digest);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+        printf("     KMIP Digest.....%s\n", remote_key_digest);
 
         printf("  Public Key\n");
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
@@ -4853,6 +4852,24 @@ out:
     return rc;
 }
 
+/**
+ * @brief 
+ * 
+ * @param key_uid       the UUID of the key to retrieve the buffer
+ *                      for. Required.
+ * @param digest_alg    on output, the hashing algorithm used by
+ *                      the digest. May be set to NULL.
+ * @param digest        the buffer to write the digest
+ *                      into. Must be allocated by the caller.
+ *                      May be set to NULL.
+ * @param digest_len    on input, the length of the digest buffer.
+ *                      On output, the length of the digest
+ *                      copied to the buffer.
+ * 
+ * Returns an error if the buffer is not large enough.
+ * 
+ * @return CK_RV 
+ */
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     enum kmip_crypto_algo *digest_alg, CK_BYTE **digest,
     CK_ULONG_PTR digest_len)
@@ -4860,7 +4877,8 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
         *get_attr_req = NULL, *get_attr_resp = NULL,
         *attr_ref = NULL, *digest_attr = NULL;
-    CK_LONG num_attr_refs = 0, i = 0;
+    CK_BYTE *l_digest;
+    CK_LONG num_attr_refs = 0, i = 0, l_digest_len = 0;
     enum kmip_tag attr_tag = 0;
     enum kmip_result_status attr_list_status, get_attr_status = 0;
     enum kmip_result_reason attr_list_reason, get_attr_reason = 0;
@@ -4952,13 +4970,28 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         goto out;
     }
 
-    rc = kmip_get_digest(digest_attr, digest_alg, digest, digest_len);
+    rc = kmip_get_digest(digest_attr, digest_alg, &l_digest, &l_digest_len);
 
     if (rc) {
         rc = CKR_FUNCTION_FAILED;
-        warnx("Failed to get digest value from digest attribute");
+        warnx("Failed to get digest from KMIP digest attribute");
         goto out;
     }
+
+    if (digest != NULL) {
+        // Confirm the caller provided us a large enough buffer
+        if (l_digest_len > digest_len) {
+            rc = CKR_BUFFER_TOO_SMALL;
+            warnx("Digest buffer could not contain digest value");
+            goto out;
+        }
+
+        // Now we can safely copy
+        memcpy(*digest, l_digest, l_digest_len);
+    }
+
+    *digest_len = l_digest_len;
+
 out:
     kmip_node_free(attr_list_req);
     kmip_node_free(attr_list_resp);
