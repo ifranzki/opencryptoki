@@ -158,7 +158,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                 struct kmip_node
                                                 **secret_key_uid);
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
-    enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
+    enum kmip_hashing_algo *digest_alg, CK_BYTE *digest,
     uint_32 *digest_len);
 
 /* PKCS#11 Local Function Prototypes*/
@@ -2841,7 +2841,7 @@ static CK_RV p11kmip_import_key(void)
     CK_ULONG wrapped_key_num_attrs = 0, local_key_digest_len = 0;
     u_int16_t remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
-    enum kmip_crypto_algo digest_alg = 0;
+    enum kmip_hashing_algo digest_alg = 0;
     struct CK_MECHANISM digest_mech = { 0 };
 
     // Until we support algorithms beyond RSA and AES,
@@ -3039,7 +3039,7 @@ static CK_RV p11kmip_export_key(void)
     CK_ULONG wrapping_key_num_attrs = 0, local_key_digest_len = 0,
         remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
-    enum kmip_crypto_algo digest_alg = 0;
+    enum kmip_hashing_algo digest_alg = 0;
     struct CK_MECHANISM digest_mech = { 0 };
 
     // Until we support algorithms beyond RSA and AES,
@@ -4920,7 +4920,7 @@ out:
  * @return CK_RV 
  */
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
-    enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
+    enum kmip_hashing_algo *digest_alg, CK_BYTE *digest,
     uint_32 *digest_len)
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
