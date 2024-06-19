@@ -2839,7 +2839,7 @@ static CK_RV p11kmip_import_key(void)
     unsigned long wrapped_key_length = 0;
     CK_ATTRIBUTE *wrapped_key_attrs = NULL;
     CK_ULONG wrapped_key_num_attrs = 0, local_key_digest_len = 0;
-    u_int16_t remote_key_digest_len = 0;
+    u_int32_t remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_hashing_algo digest_alg = 0;
     struct CK_MECHANISM digest_mech = { 0 };
@@ -5032,7 +5032,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
 
     if (digest != NULL) {
         // Confirm the caller provided us a large enough buffer
-        if (l_digest_len > digest_len) {
+        if (l_digest_len > *digest_len) {
             rc = CKR_BUFFER_TOO_SMALL;
             warnx("Digest buffer could not contain digest value");
             goto out;
