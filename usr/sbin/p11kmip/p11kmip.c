@@ -2955,7 +2955,7 @@ static CK_RV p11kmip_import_key(void)
 
 done:
     if (!opt_quiet) {
-        remote_key_digest_len = 64;
+        remote_key_digest_len = 32;
         remote_key_digest = malloc(remote_key_digest_len);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
@@ -2974,7 +2974,7 @@ done:
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
 
-        free(local_key_digest);
+        // free(local_key_digest);
         free(remote_key_digest);
     }
 

@@ -570,9 +570,8 @@ echo "** Running key export tests - 'p11kmip_test.sh'"
 
 echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 
-# Typically do not have the authority to delete keys
-cleanup_kmip_keys
+# cleanup_kmip_keys
 
 cleanup_pkcs11_keys
 
-cleanup_kmip_client
+# cleanup_kmip_client
