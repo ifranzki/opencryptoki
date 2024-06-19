@@ -4928,6 +4928,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         *attr_ref = NULL, *digest_attr = NULL;
     CK_BYTE *l_digest = NULL;
     u_int32_t l_digest_len = 0;
+    enum kmip_hashing_algo l_digest_alg = 0;
     unsigned int num_attr_refs = 0, i = 0;
     enum kmip_tag attr_tag = 0;
     enum kmip_result_status attr_list_status, get_attr_status = 0;
@@ -5021,7 +5022,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         goto out;
     }
 
-    rc = kmip_get_digest(digest_attr, digest_alg, &l_digest, &l_digest_len);
+    rc = kmip_get_digest(digest_attr, &l_digest_alg, &l_digest, &l_digest_len);
 
     if (rc) {
         rc = CKR_FUNCTION_FAILED;
@@ -5042,6 +5043,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     }
 
     *digest_len = l_digest_len;
+    *digest_alg = l_digest_alg;
 
 out:
     kmip_node_free(attr_list_req);
