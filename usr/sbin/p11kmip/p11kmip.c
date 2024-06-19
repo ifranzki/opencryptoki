@@ -2809,9 +2809,9 @@ static CK_RV p11kmip_import_key(void)
     struct p11kmip_keytype pubkey_keytype, privkey_keytype, secret_keytype;
     struct kmip_node *wrap_pubkey_uid = NULL, *secret_key_uid = NULL;
     char *wrapped_key_blob = NULL;
-    unsigned long wrapped_key_length;
+    unsigned long wrapped_key_length = 0;
     CK_ATTRIBUTE *wrapped_key_attrs = NULL;
-    CK_ULONG wrapped_key_num_attrs, local_key_digest_len = 0,
+    CK_ULONG wrapped_key_num_attrs = 0, local_key_digest_len = 0,
         remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_crypto_algo digest_alg = 0;
@@ -2953,7 +2953,7 @@ static CK_RV p11kmip_import_key(void)
         goto done;
     }
 
-done:
+    // Display digests of the retrieved keys
     if (!opt_quiet) {
         remote_key_digest_len = 32;
         remote_key_digest = malloc(remote_key_digest_len);
@@ -2977,7 +2977,7 @@ done:
         // free(local_key_digest);
         free(remote_key_digest);
     }
-
+done:
     kmip_node_free(wrap_pubkey_uid);
     kmip_node_free(secret_key_uid);
 
@@ -4954,7 +4954,8 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         goto out;
     }
 
-    rc = kmip_get_get_attributes_response_payload(get_attr_resp, NULL, &num_attr_refs, 0, digest_attr);
+    num_attr_refs = 0;
+    rc = kmip_get_get_attributes_response_payload(get_attr_resp, NULL, &num_attr_refs, 0, &digest_attr);
 
     if (rc) {
         // Handle Failure
