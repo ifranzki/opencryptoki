@@ -189,8 +189,8 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
 static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                     const char *label, const char *id,
                                     CK_OBJECT_HANDLE * key);
-static CK_RV p11kmip_digest_local_key(CK_BYTE *digest, 
-    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE *key, 
+static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest, 
+    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE key, 
     CK_MECHANISM_PTR digestMech);
 
 /* P11 function prototypes */
@@ -2999,7 +2999,7 @@ static CK_RV p11kmip_import_key(void)
         digest_mech.mechanism = get_p11_hash_mech_from_kmip_hash_algo(digest_alg);
 
         rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
-            &unwrapped_key_handle, &digest_mech);
+            unwrapped_key_handle, &digest_mech);
 
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
@@ -3011,12 +3011,14 @@ static CK_RV p11kmip_import_key(void)
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
 
-        // free(local_key_digest);
-        free(remote_key_digest);
     }
 done:
     kmip_node_free(wrap_pubkey_uid);
     kmip_node_free(secret_key_uid);
+    if (local_key_digest != NULL)
+        free(local_key_digest);
+    if (remote_key_digest != NULL)
+        free(remote_key_digest);
 
     return rc;
 }
@@ -3770,15 +3772,25 @@ done:
     return rc;
 }
 
-static CK_RV p11kmip_digest_local_key(CK_BYTE *digest, 
-    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE *key, 
+static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest, 
+    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE key, 
     CK_MECHANISM_PTR digestMech)
 {
     CK_RV rc;
 
     rc = pkcs11_funcs->C_DigestInit(pkcs11_session, digestMech);
 
-    rc = pkcs11_funcs->C_DigestKey(pkcs11_session, *key);
+    if (rc) {
+        warnx("Failed to initialize PKCS#11 digest");
+        return rc;
+    }
+
+    rc = pkcs11_funcs->C_DigestKey(pkcs11_session, key);
+
+    if (rc) {
+        warnx("Failed to digest PKCS#11 key");
+        return rc;
+    }
 
     rc = pkcs11_funcs->C_DigestFinal(pkcs11_session, digest, digestLen);
 
