@@ -4878,7 +4878,8 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         *get_attr_req = NULL, *get_attr_resp = NULL,
         *attr_ref = NULL, *digest_attr = NULL;
     CK_BYTE *l_digest;
-    CK_LONG num_attr_refs = 0, i = 0, l_digest_len = 0;
+    CK_LONG l_digest_len = 0;
+    unsigned int num_attr_refs = 0, i = 0;
     enum kmip_tag attr_tag = 0;
     enum kmip_result_status attr_list_status, get_attr_status = 0;
     enum kmip_result_reason attr_list_reason, get_attr_reason = 0;
