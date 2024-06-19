@@ -159,7 +159,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                 **secret_key_uid);
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
-    uint_32_t *digest_len);
+    uint_32 *digest_len);
 
 /* PKCS#11 Local Function Prototypes*/
 static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE
@@ -4872,7 +4872,7 @@ out:
  */
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
-    uint_32_t *digest_len)
+    uint_32 *digest_len)
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
         *get_attr_req = NULL, *get_attr_resp = NULL,
