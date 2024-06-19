@@ -159,7 +159,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                 **secret_key_uid);
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
-    CK_ULONG_PTR digest_len);
+    uint_32_t *digest_len);
 
 /* PKCS#11 Local Function Prototypes*/
 static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE
@@ -2811,8 +2811,8 @@ static CK_RV p11kmip_import_key(void)
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length = 0;
     CK_ATTRIBUTE *wrapped_key_attrs = NULL;
-    CK_ULONG wrapped_key_num_attrs = 0, local_key_digest_len = 0,
-        remote_key_digest_len = 0;
+    CK_ULONG wrapped_key_num_attrs = 0, local_key_digest_len = 0;
+    u_int16_t remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_crypto_algo digest_alg = 0;
     struct CK_MECHANISM digest_mech = { 0 };
@@ -4872,13 +4872,13 @@ out:
  */
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
-    CK_ULONG_PTR digest_len)
+    uint_32_t *digest_len)
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
         *get_attr_req = NULL, *get_attr_resp = NULL,
         *attr_ref = NULL, *digest_attr = NULL;
     CK_BYTE *l_digest = NULL;
-    CK_LONG l_digest_len = 0;
+    u_int32_t l_digest_len = 0;
     unsigned int num_attr_refs = 0, i = 0;
     enum kmip_tag attr_tag = 0;
     enum kmip_result_status attr_list_status, get_attr_status = 0;
@@ -4964,8 +4964,6 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         warnx("Failed to get KMIP object attribute");
         goto out;
     }
-
-
     
     // We should have recieved exactly 1 attribute reference
     if (num_attr_refs != 1) {
