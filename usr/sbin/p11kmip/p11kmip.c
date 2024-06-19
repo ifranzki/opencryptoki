@@ -158,7 +158,7 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                 struct kmip_node
                                                 **secret_key_uid);
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
-    enum kmip_crypto_algo *digest_alg, CK_BYTE **digest,
+    enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
     CK_ULONG_PTR digest_len);
 
 /* PKCS#11 Local Function Prototypes*/
@@ -189,7 +189,7 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
 static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                     const char *label, const char *id,
                                     CK_OBJECT_HANDLE * key);
-static CK_RV p11kmip_digest_local_key(CK_BYTE **digest, 
+static CK_RV p11kmip_digest_local_key(CK_BYTE *digest, 
     CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE *key, 
     CK_MECHANISM_PTR digestMech);
 
@@ -2959,9 +2959,9 @@ static CK_RV p11kmip_import_key(void)
         remote_key_digest = malloc(remote_key_digest_len);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
-            &digest_alg, &remote_key_digest, &remote_key_digest_len);
+            &digest_alg, remote_key_digest, &remote_key_digest_len);
 
-        // rc = p11kmip_digest_local_key(&local_key_digest, &local_key_digest_len,
+        // rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
         //     &unwrapped_key_handle, &digest_mech);
 
         printf("  Secret Key\n");
@@ -3124,7 +3124,7 @@ done:
         //     &secret_key_handle, &digest_mech);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
-            &digest_alg, &remote_key_digest, &remote_key_digest_len);
+            &digest_alg, remote_key_digest, &remote_key_digest_len);
 
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
@@ -3733,7 +3733,7 @@ done:
     return rc;
 }
 
-static CK_RV p11kmip_digest_local_key(CK_BYTE **digest, 
+static CK_RV p11kmip_digest_local_key(CK_BYTE *digest, 
     CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE *key, 
     CK_MECHANISM_PTR digestMech)
 {
@@ -4871,13 +4871,13 @@ out:
  * @return CK_RV 
  */
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
-    enum kmip_crypto_algo *digest_alg, CK_BYTE **digest,
+    enum kmip_crypto_algo *digest_alg, CK_BYTE *digest,
     CK_ULONG_PTR digest_len)
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
         *get_attr_req = NULL, *get_attr_resp = NULL,
         *attr_ref = NULL, *digest_attr = NULL;
-    CK_BYTE *l_digest;
+    CK_BYTE *l_digest = NULL;
     CK_LONG l_digest_len = 0;
     unsigned int num_attr_refs = 0, i = 0;
     enum kmip_tag attr_tag = 0;
@@ -4964,6 +4964,8 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         warnx("Failed to get KMIP object attribute");
         goto out;
     }
+
+
     
     // We should have recieved exactly 1 attribute reference
     if (num_attr_refs != 1) {
@@ -4989,7 +4991,7 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         }
 
         // Now we can safely copy
-        memcpy(*digest, l_digest, l_digest_len);
+        memcpy(digest, l_digest, l_digest_len);
     }
 
     *digest_len = l_digest_len;
