@@ -610,6 +610,33 @@ static const enum kmip_object_type get_kmip_obj_class_from_p11(CK_OBJECT_CLASS
     return P11KMIP_P11_TO_KMIP_OBJ_TABLE[p11_obj];
 }
 
+static const CK_MECHANISM_TYPE get_p11_hash_mech_from_kmip_hash_algo(enum
+    kmip_hashing_algo kmip_hash_alg)
+    {
+        CK_MECHANISM_TYPE p11_hash_mech = P11KMIP_P11_UNKNOWN_ALG;
+
+        switch(kmip_hash_alg) {
+            case KMIP_HASHING_ALGO_SHA_1:
+                p11_hash_mech = CKM_SHA_1;
+                break;
+            case KMIP_HASHING_ALGO_SHA_224:
+                p11_hash_mech = CKM_SHA224;
+                break;
+            case KMIP_HASHING_ALGO_SHA_256:
+                p11_hash_mech = CKM_SHA256;
+                break;
+            case KMIP_HASHING_ALGO_SHA_384:
+                p11_hash_mech = CKM_SHA384;
+                break;
+            case KMIP_HASHING_ALGO_SHA_512:
+                p11_hash_mech = CKM_SHA512;
+                break;
+            
+        }
+
+        return p11_hash_mech
+    }
+
 static const enum kmip_crypto_usage_mask get_kmip_usage_mask_p11(struct
                                                                  p11kmip_keytype
                                                                  *keytype)
@@ -2961,12 +2988,22 @@ static CK_RV p11kmip_import_key(void)
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, remote_key_digest, &remote_key_digest_len);
 
-        // rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
-        //     &unwrapped_key_handle, &digest_mech);
+        if (rc) {
+            // KMIP changed the default digest size of their keys
+        }
+
+        // The same hashing algorithm should produce a digest of the same
+        // length
+        local_key_digest_len = remote_key_digest_len;
+        local_key_digest = malloc(local_key_digest_len);
+        digest_mech.mechanism = get_p11_hash_mech_from_kmip_hash_algo(digest_alg);
+
+        rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
+            &unwrapped_key_handle, &digest_mech);
 
         printf("  Secret Key\n");
         printf("     PKCS#11 Label...%s\n", opt_target_label);
-        // printf("     PKCS#11 Digest..%s\n", local_key_digest);
+        printf("     PKCS#11 Digest..%s\n", local_key_digest);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
         printf("     KMIP Digest.....%s\n", remote_key_digest);
 
