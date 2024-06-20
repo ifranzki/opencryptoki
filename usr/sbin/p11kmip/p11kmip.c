@@ -3040,7 +3040,7 @@ static CK_RV p11kmip_export_key(void)
     unsigned long wrapped_key_length;
     EVP_PKEY *pub_key;
     CK_ATTRIBUTE *wrapping_key_attrs = NULL;
-    CK_ULONG wrapped_key_num_attrs = 0, local_key_digest_len = 0;
+    CK_ULONG wrapping_key_num_attrs = 0, local_key_digest_len = 0;
     u_int32_t remote_key_digest_len = 0;
     CK_BYTE_PTR local_key_digest = NULL, remote_key_digest = NULL;
     enum kmip_hashing_algo digest_alg = 0;
