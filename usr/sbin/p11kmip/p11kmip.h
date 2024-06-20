@@ -502,10 +502,6 @@ static const struct kmip_enum_name kmip_result_reasons[] = {
             int i; \
             for (i = 0; i < y; i++) { \
                 printf("%02x", hex[i]); \
-                if (((i+1) % 32) == 0) \
-                    printf("\n"); \
-                else if (((i+1) % 4) == 0) \
-                    printf(" "); \
             } \
         } while (0)
 
