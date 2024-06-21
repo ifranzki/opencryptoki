@@ -1059,6 +1059,14 @@ static CK_RV policy_is_mech_allowed(policy_t p, CK_MECHANISM_PTR mech,
                 break;
             }
             break;
+        case CKM_RSA_AES_KEY_WRAP:
+            /*
+             *  No policy check for mechanism parameter here, will be done
+             *  during execution of the mechanism. The key size (and thus its
+             *  strength) of the temporary AES key is not known at the policy
+             *  check point in time, but only during unwrap processing.
+             */
+            break;
         default:
             break;
         }
@@ -1189,6 +1197,7 @@ static CK_RV policy_update_mech_info(policy_t p, CK_MECHANISM_TYPE mech,
         case CKM_SHA3_384_RSA_PKCS_PSS:
         case CKM_SHA3_512_RSA_PKCS:
         case CKM_SHA3_512_RSA_PKCS_PSS:
+        case CKM_RSA_AES_KEY_WRAP:
             if (policy_update_modexp(pp, info) != CKR_OK) {
                 TRACE_DEVEL("Mechanism 0x%lx blocked by policy!\n", mech);
                 return CKR_MECHANISM_INVALID;
@@ -1471,6 +1480,16 @@ static CK_RV policy_check_token_store(policy_t p, CK_BBOOL newversion,
     return CKR_OK;
 }
 
+static CK_ULONG policy_get_sym_key_strength(policy_t p, CK_ULONG sym_key_bits)
+{
+    struct policy_private *pp = p->priv;
+    struct objstrength s;
+
+    policy_compute_strength(pp, &s, sym_key_bits, COMPARE_SYMMETRIC);
+
+   return s.strength;
+}
+
 /* Policy loading support (internal functions) */
 static CK_RV policy_check_cfg_file(FILE *fp, const char *name)
 {
@@ -1524,6 +1543,7 @@ void policy_init_policy(struct policy *p)
     p->is_mech_allowed = policy_is_mech_allowed;
     p->update_mech_info = policy_update_mech_info;
     p->check_token_store = policy_check_token_store;
+    p->get_sym_key_strength = policy_get_sym_key_strength;
     p->active = CK_FALSE;
 }
 
