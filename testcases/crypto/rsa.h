@@ -295,13 +295,19 @@ struct RSA_GENERATED_TEST_VECTOR rsa_oaep_generated_tv[] = {
     }
 };
 
-#define NUM_OF_GENERATED_OAEP_TESTSUITES 1
+#define NUM_OF_GENERATED_OAEP_TESTSUITES 2
 struct GENERATED_TEST_SUITE_INFO generated_oaep_test_suites[] = {
     {
         .name = "RSA PKCS OAEP",
         .tvcount = 25,
         .tv = rsa_oaep_generated_tv,
         .mech = {CKM_RSA_PKCS_OAEP, 0, 0},
+    },
+    {
+        .name = "RSA AES KEY WRAP",
+        .tvcount = 25,
+        .tv = rsa_oaep_generated_tv,
+        .mech = {CKM_RSA_AES_KEY_WRAP, 0, 0},
     }
 };
 
