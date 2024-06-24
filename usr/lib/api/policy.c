@@ -1060,6 +1060,7 @@ static CK_RV policy_is_mech_allowed(policy_t p, CK_MECHANISM_PTR mech,
             }
             break;
         case CKM_RSA_AES_KEY_WRAP:
+        case CKM_ECDH_AES_KEY_WRAP:
             /*
              *  No policy check for mechanism parameter here, will be done
              *  during execution of the mechanism. The key size (and thus its
@@ -1219,6 +1220,7 @@ static CK_RV policy_update_mech_info(policy_t p, CK_MECHANISM_TYPE mech,
         case CKM_IBM_ED448_SHA3:
         case CKM_IBM_ECDSA_OTHER:
         case CKM_IBM_BTC_DERIVE:
+        case CKM_ECDH_AES_KEY_WRAP:
             if (policy_update_ec(pp, info) != CKR_OK) {
                 TRACE_DEVEL("Mechanism 0x%lx blocked by policy!\n", mech);
                 return CKR_MECHANISM_INVALID;
