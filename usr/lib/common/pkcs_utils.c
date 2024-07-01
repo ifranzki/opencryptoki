@@ -442,14 +442,17 @@ done:
 
 #ifndef OCK_NO_SET_PERM
 
-void set_perm(int file)
+void set_perm(int file, const char *group)
 {
     struct group *grp;
+
+    if (group == NULL || group[0] == '\0')
+        group = PKCS_GROUP;
 
     // Set absolute permissions or rw-rw----
     fchmod(file, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
-    grp = getgrnam(PKCS_GROUP); // Obtain the group id
+    grp = getgrnam(group); // Obtain the group id
     if (grp) {
         // set ownership to pkcs11 group
         if (fchown(file, -1, grp->gr_gid) != 0) {

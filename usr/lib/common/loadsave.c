@@ -42,7 +42,7 @@
 #include "ock_syslog.h"
 #include "slotmgr.h" // for ock_snprintf
 
-extern void set_perm(int);
+extern void set_perm(int, const char *group);
 
 CK_RV restore_private_token_object_old(STDLL_TokData_t *tokdata, CK_BYTE *data,
                                        CK_ULONG len, OBJECT *pObj,
@@ -118,9 +118,12 @@ char *get_pk_dir(STDLL_TokData_t *tokdata, char *fname, size_t len)
     return snres != 0 ? NULL : fname;
 }
 
-void set_perm(int file)
+void set_perm(int file, const char *group)
 {
     struct group *grp;
+
+    if (group == NULL || group[0] == '\0')
+        group = PKCS_GROUP;
 
     if (token_specific.data_store.per_user) {
         /* In the TPM token, with per user data stores, we don't share
@@ -131,7 +134,7 @@ void set_perm(int file)
         // Set absolute permissions or rw-rw----
         fchmod(file, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
-        grp = getgrnam(PKCS_GROUP);       // Obtain the group id
+        grp = getgrnam(group);       // Obtain the group id
         if (grp) {
             // set ownership to pkcs11 group
             if (fchown(file, -1, grp->gr_gid) != 0) {
@@ -170,7 +173,7 @@ CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
     // update the index file if it exists
     fp = open_token_object_index(fname, sizeof(fname), tokdata, "r");
     if (fp) {
-        set_perm(fileno(fp));
+        set_perm(fileno(fp), tokdata->tokgroup);
         while (fgets(line, 50, fp)) {
             line[strlen(line) - 1] = 0;
             if (strcmp(line, (char *)obj->name) == 0) {
@@ -190,7 +193,7 @@ CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
         return CKR_FUNCTION_FAILED;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
     fprintf(fp, "%s\n", obj->name);
     fclose(fp);
 
@@ -224,7 +227,7 @@ CK_RV delete_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
         return CKR_FUNCTION_FAILED;
     }
 
-    set_perm(fileno(fp2));
+    set_perm(fileno(fp2), tokdata->tokgroup);
 
     while (fgets(line, 50, fp1)) {
         line[strlen(line) - 1] = 0;
@@ -247,7 +250,7 @@ CK_RV delete_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
         return CKR_FUNCTION_FAILED;
     }
 
-    set_perm(fileno(fp2));
+    set_perm(fileno(fp2), tokdata->tokgroup);
 
     while (fgets(line, 50, fp1)) {
         fprintf(fp2, "%s", line);
@@ -540,7 +543,7 @@ CK_RV load_token_data_old(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
             goto out_unlock;
         }
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     /* Load generic token data */
     if (fread(&td, sizeof(TOKEN_DATA_OLD), 1, fp) != 1) {
@@ -598,7 +601,7 @@ CK_RV save_token_data_old(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     /* Write generic token data */
     memcpy(&td, tokdata->nv_token_data, sizeof(TOKEN_DATA_OLD));
@@ -736,7 +739,7 @@ static CK_RV save_private_token_object_old(STDLL_TokData_t *tokdata, OBJECT *obj
         goto error;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     total_len = sizeof(CK_ULONG_32) + sizeof(CK_BBOOL) + cipher_len;
 
@@ -928,7 +931,7 @@ CK_RV load_masterkey_so_old(STDLL_TokData_t *tokdata)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     rc = fread(cipher, cipher_len, 1, fp);
     if (rc != 1) {
@@ -1053,7 +1056,7 @@ CK_RV load_masterkey_user_old(STDLL_TokData_t *tokdata)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     rc = fread(cipher, cipher_len, 1, fp);
     if (rc != 1) {
@@ -1170,7 +1173,7 @@ CK_RV save_masterkey_so_old(STDLL_TokData_t *tokdata)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     rc = fwrite(cipher, cipher_len, 1, fp);
     if (rc != 1) {
@@ -1252,7 +1255,7 @@ CK_RV save_masterkey_user_old(STDLL_TokData_t *tokdata)
         goto done;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
     rc = fwrite(cipher, cipher_len, 1, fp);
     if (rc != 1) {
         TRACE_ERROR("fwrite failed.\n");
@@ -1489,7 +1492,7 @@ CK_RV reload_token_object_old(STDLL_TokData_t *tokdata, OBJECT *obj)
         goto done;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     if (fread(&size, sizeof(CK_ULONG_32), 1, fp) != 1) {
         OCK_SYSLOG(LOG_ERR, "Cannot read size\n");
@@ -1578,7 +1581,7 @@ CK_RV save_public_token_object_old(STDLL_TokData_t *tokdata, OBJECT * obj)
         goto error;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     total_len = clear_len + sizeof(CK_ULONG_32) + sizeof(CK_BBOOL);
 
@@ -1918,7 +1921,7 @@ CK_RV save_masterkey_so(STDLL_TokData_t *tokdata)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     rc = fwrite(outbuf, sizeof(outbuf), 1, fp);
     if (rc != 1) {
@@ -1955,7 +1958,7 @@ CK_RV load_masterkey_so(STDLL_TokData_t *tokdata)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     rc = fread(inbuf, sizeof(inbuf), 1, fp);
     if (rc != 1) {
@@ -2009,7 +2012,7 @@ CK_RV save_masterkey_user(STDLL_TokData_t *tokdata)
         goto done;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
     rc = fwrite(outbuf, sizeof(outbuf), 1, fp);
     if (rc != 1) {
         TRACE_ERROR("fwrite failed.\n");
@@ -2046,7 +2049,7 @@ CK_RV load_masterkey_user(STDLL_TokData_t *tokdata)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     rc = fread(inbuf, sizeof(inbuf), 1, fp);
     if (rc != 1) {
@@ -2091,7 +2094,7 @@ CK_RV save_token_data(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     /* Write generic token data */
     memcpy(&td, tokdata->nv_token_data, sizeof(TOKEN_DATA));
@@ -2193,7 +2196,7 @@ CK_RV load_token_data(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
             goto out_unlock;
         }
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     /* Load generic token data */
     if (fread(&td, sizeof(TOKEN_DATA), 1, fp) != 1) {
@@ -2459,7 +2462,7 @@ do_work:
         goto done;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     if (fwrite(data, total_len, 1, fp) != 1) {
         TRACE_ERROR("fwrite(%s): %s\n", fname, strerror(errno));
@@ -2656,7 +2659,7 @@ CK_RV reload_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
         goto done;
     }
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
 
     if (fread(header, HEADER_COMMON_LEN, 1, fp) != 1) {
         OCK_SYSLOG(LOG_ERR, "Cannot read header\n");
@@ -2772,7 +2775,7 @@ CK_RV save_public_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
     tmp = htobe32(tokdata->version);
     be_len = htobe32(len);
 
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), tokdata->tokgroup);
     if (fwrite(&tmp, 4, 1, fp) != 1
         || fwrite(&flag, 1, 1, fp) != 1
         || fwrite(reserved, 7, 1, fp) != 1

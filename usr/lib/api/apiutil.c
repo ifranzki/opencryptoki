@@ -37,6 +37,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/file.h>
+#include <grp.h>
+#include <pwd.h>
 
 static int xplfd = -1;
 pthread_rwlock_t xplfd_rwlock = PTHREAD_RWLOCK_INITIALIZER;
@@ -67,7 +69,8 @@ CK_RV CreateProcLock(void)
         xplfd = open(OCK_API_LOCK_FILE, OPEN_MODE);
 
         if (xplfd == -1) {
-            OCK_SYSLOG(LOG_ERR, "Could not open %s\n", OCK_API_LOCK_FILE);
+            OCK_SYSLOG(LOG_ERR, "Could not open %s: %s\n", OCK_API_LOCK_FILE,
+                       strerror(errno));
             return CKR_FUNCTION_FAILED;
         }
     }
@@ -635,6 +638,120 @@ void DL_Unload(API_Slot_t *sltp)
     sltp->pSTcloseall = NULL;
 }
 
+static CK_RV check_token_group(const char *usergroup)
+{
+    struct group grp_buf, *pkcs11_grp, *tok_grp;
+    struct passwd *epw;
+    uid_t euid;
+    int i, k, err, found;
+    long buf_size;
+    char *buff = NULL;
+    CK_RV rc = CKR_OK;
+
+    /* No further check if token group is 'pkcs11' (or default) */
+    if (usergroup[0] == '\0' || strcmp(usergroup, PKCS_GROUP) == 0)
+        return CKR_OK;
+
+    tok_grp = getgrnam(usergroup);
+    if (tok_grp == NULL) {
+        err = (errno != 0 ? errno : ENOENT);
+        OCK_SYSLOG(LOG_ERR, "getgrnam(%s) failed: %s\n", usergroup,
+                   strerror(err));
+        TRACE_ERROR("getgrnam(%s) failed: %s\n", usergroup, strerror(err));
+        return CKR_FUNCTION_FAILED;
+    }
+
+    /*
+     * Must use getgrnam_r() here, because above getgrnam() returns a pointer
+     * to a static area that would be reused/overwritten by subsequent calls
+     * to getgrnam().
+     */
+    buf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
+    if (buf_size <= 0) {
+        err = errno;
+        OCK_SYSLOG(LOG_ERR, "sysconf(_SC_GETGR_R_SIZE_MAX) failed: %s\n",
+                   strerror(err));
+        TRACE_ERROR("gsysconf(_SC_GETGR_R_SIZE_MAX) failed: %s\n",
+                    strerror(err));
+        return CKR_FUNCTION_FAILED;
+    }
+
+    buff = calloc(1, buf_size);
+    if (buff == NULL) {
+        OCK_SYSLOG(LOG_ERR, "Failed to allocate a buffer of %ld bytes.\n",
+                   buf_size);
+        TRACE_ERROR("Failed to allocate a buffer of %ld bytes.\n", buf_size);
+        return CKR_HOST_MEMORY;
+    }
+
+    if (getgrnam_r(PKCS_GROUP, &grp_buf, buff, buf_size, &pkcs11_grp) != 0) {
+        err = (errno != 0 ? errno : ENOENT);
+        OCK_SYSLOG(LOG_ERR, "getgrnam_r(%s) failed: %s\n", PKCS_GROUP,
+                   strerror(err));
+        TRACE_ERROR("getgrnam_r(%s) failed: %s\n", PKCS_GROUP, strerror(err));
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    /* Check if effective user is member of the token group */
+    euid = geteuid();
+    if (euid != 0 && getegid() != tok_grp->gr_gid) {
+        epw = getpwuid(euid);
+        if (epw == NULL) {
+            err = (errno != 0 ? errno : ENOENT);
+            OCK_SYSLOG(LOG_ERR, "getpwuid(%d) failed: %s\n", euid,
+                       strerror(err));
+            TRACE_ERROR("getpwuid(%d) failed: %s\n", euid, strerror(err));
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
+
+        for (i = 0, found = 0; tok_grp->gr_mem[i]; i++) {
+            if (strcmp(epw->pw_name, tok_grp->gr_mem[i]) == 0) {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            /*
+             * No Syslog message here, this is an expected situation that a user
+             * does not have access to all tokens. Loading and initializing the
+             * token will just silently skipped.
+             */
+            TRACE_INFO("Current user '%s' is not member of the token group "
+                       "'%s'.\n", epw->pw_name, usergroup);
+            rc = CKR_TOKEN_NOT_PRESENT;
+            goto done;
+        }
+    }
+
+    /* Check that all group members are also a member of the 'pkcs11' group */
+    for (i = 0; tok_grp->gr_mem[i] != NULL; i++) {
+        for (k = 0, found = 0; pkcs11_grp->gr_mem[k] != NULL; k++) {
+            if (strcmp(tok_grp->gr_mem[i], pkcs11_grp->gr_mem[k]) == 0) {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            OCK_SYSLOG(LOG_ERR, "User '%s' is member of the token group '%s', "
+                       "but is not a member of the '%s' group.\n",
+                       tok_grp->gr_mem[i], tok_grp->gr_name, PKCS_GROUP);
+            TRACE_ERROR("User '%s' is member of the token group '%s', but "
+                        "is not a member of the '%s' group.\n",
+                        tok_grp->gr_mem[i], tok_grp->gr_name, PKCS_GROUP);
+            rc = CKR_FUNCTION_FAILED;
+            /* Continue to display all missing users */
+        }
+    }
+
+done:
+    free(buff);
+    return rc;
+}
+
 int DL_Load_and_Init(API_Slot_t *sltp, CK_SLOT_ID slotID, policy_t policy,
                      statistics_t statistics)
 {
@@ -665,6 +782,12 @@ int DL_Load_and_Init(API_Slot_t *sltp, CK_SLOT_ID slotID, policy_t policy,
         return FALSE;
     }
 
+    if (check_token_group(sinfp->usergroup) != CKR_OK) {
+        TRACE_DEVEL("check_token_group failed for slot %lu, token will not "
+                    "be available.\n", slotID);
+        return FALSE;
+    }
+
     /*
      * Create separate memory area for each token specific data
      */
@@ -677,6 +800,9 @@ int DL_Load_and_Init(API_Slot_t *sltp, CK_SLOT_ID slotID, policy_t policy,
     sltp->TokData->real_pid = Anchor->ClientCred.real_pid;
     sltp->TokData->real_uid = Anchor->ClientCred.real_uid;
     sltp->TokData->real_gid = Anchor->ClientCred.real_gid;
+    strncpy(sltp->TokData->tokgroup, sinfp->usergroup,
+            sizeof(sltp->TokData->tokgroup) - 1);
+    sltp->TokData->tokgroup[sizeof(sltp->TokData->tokgroup) - 1] = '\0';
     sltp->TokData->tokspec_counter.get_tokspec_count = get_tokspec_count;
     sltp->TokData->tokspec_counter.incr_tokspec_count = incr_tokspec_count;
     sltp->TokData->tokspec_counter.decr_tokspec_count = decr_tokspec_count;

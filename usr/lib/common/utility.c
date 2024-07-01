@@ -47,7 +47,11 @@ CK_RV CreateXProcLock(char *tokname, STDLL_TokData_t *tokdata)
     struct group *grp;
     struct stat statbuf;
     int ret = -1;
-    char *toklockname;
+    char *toklockname, *group;
+
+    group = tokdata->tokgroup;
+    if (group == NULL || group[0] == '\0')
+        group = PKCS_GROUP;
 
     if (tokdata->spinxplfd == -1) {
 
@@ -80,9 +84,10 @@ CK_RV CreateXProcLock(char *tokname, STDLL_TokData_t *tokdata)
                            lockdir, strerror(errno));
                 goto err;
             }
-            grp = getgrnam(PKCS_GROUP);
+
+            grp = getgrnam(group);
             if (grp == NULL) {
-                fprintf(stderr, "getgrname(%s): %s", PKCS_GROUP,
+                fprintf(stderr, "getgrname(%s): %s", group,
                         strerror(errno));
                 goto err;
             }
@@ -121,7 +126,7 @@ CK_RV CreateXProcLock(char *tokname, STDLL_TokData_t *tokdata)
                     goto err;
                 }
 
-                grp = getgrnam(PKCS_GROUP);
+                grp = getgrnam(group);
                 if (grp != NULL) {
                     if (fchown(tokdata->spinxplfd, -1, grp->gr_gid) == -1) {
                         OCK_SYSLOG(LOG_ERR,
@@ -597,7 +602,8 @@ CK_RV attach_shm(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
         rc = CKR_FUNCTION_FAILED;
         goto err;
     }
-    ret = sm_open(buf, 0660, (void **) shm, sizeof(**shm), 0);
+    ret = sm_open(buf, 0660, (void **) shm, sizeof(**shm), 0,
+                  tokdata->tokgroup);
     if (ret < 0) {
         TRACE_DEVEL("sm_open failed.\n");
         rc = CKR_FUNCTION_FAILED;

@@ -206,7 +206,7 @@ static CK_RV migrate_public_token_object(const char *data_store, const char *nam
         ret = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), NULL);
 
     /* Save new object */
     if (fwrite(obj_new, obj_new_len, 1, fp) != 1) {
@@ -469,7 +469,7 @@ static CK_RV migrate_private_token_object(const char *data_store, const char *na
         ret = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), NULL);
 
     /* Save new object */
     if (fwrite(obj_new, obj_new_len, 1, fp) != 1) {
@@ -1488,7 +1488,7 @@ static CK_RV create_MK_USER_312(const char *data_store, const char *userpin,
         ret = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), NULL);
 
     rv = fwrite(outbuf, sizeof(outbuf), 1, fp);
     if (rv != 1) {
@@ -1544,7 +1544,7 @@ static CK_RV create_MK_SO_312(const char *data_store, const char *sopin,
         ret = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), NULL);
 
     rv = fwrite(outbuf, sizeof(outbuf), 1, fp);
     if (rv != 1) {
@@ -1712,7 +1712,7 @@ static CK_RV create_NVTOK_DAT_312(const char *data_store, const char *sopin,
         ret = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp));
+    set_perm(fileno(fp), NULL);
 
     /* Get contents from old NVTOK.DAT */
     ret = read_NVTOK_DAT_00(data_store, tokdata);
@@ -2214,7 +2214,7 @@ static CK_RV file_copy(char *dst, const char *src, const char *name)
         ret = CKR_FUNCTION_FAILED;
         goto done;
     }
-    set_perm(fileno(fp_w));
+    set_perm(fileno(fp_w), NULL);
 
     while (!feof(fp_r)) {
         size_t bytes = fread(buf, 1, sizeof(buf), fp_r);
