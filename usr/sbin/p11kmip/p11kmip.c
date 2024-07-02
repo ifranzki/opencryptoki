@@ -4326,8 +4326,8 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     
     reg_req = kmip_new_register_request_payload_va(NULL,
                                                    KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
-                                                   kobj, NULL, 2, name_attr,
-                                                   umask_attr);
+                                                   kobj, NULL, 3, name_attr,
+                                                   umask_attr, cparams_attr);
     if (reg_req == NULL) {
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
