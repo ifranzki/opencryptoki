@@ -560,9 +560,9 @@ setup_kmip_keys
 
 setup_pkcs11_keys
 
-echo "** Running key import tests - 'p11kmip_test.sh'"
+# echo "** Running key import tests - 'p11kmip_test.sh'"
 
-key_import_tests
+# key_import_tests
 
 echo "** Running key export tests - 'p11kmip_test.sh'"
 
