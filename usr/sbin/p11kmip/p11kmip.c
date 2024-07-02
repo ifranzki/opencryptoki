@@ -3016,6 +3016,7 @@ static CK_RV p11kmip_import_key(void)
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
 
     }
+
 done:
     kmip_node_free(wrap_pubkey_uid);
     kmip_node_free(secret_key_uid);
@@ -3156,7 +3157,7 @@ static CK_RV p11kmip_export_key(void)
         goto done;
     }
 
-done:
+    // Display digests of the retrieved keys
     if (!opt_quiet) {
         remote_key_digest_len = 32;
         remote_key_digest = malloc(remote_key_digest_len);
@@ -3191,6 +3192,8 @@ done:
         printf("     PKCS#11 Label...%s\n", opt_wrap_label);
         printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
     }
+
+done:
 
     return rc;
 }
