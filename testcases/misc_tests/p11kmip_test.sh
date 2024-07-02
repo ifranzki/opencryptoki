@@ -399,6 +399,18 @@ cleanup_kmip_keys() {
 	fi
 }
 
+compare_digests() {
+	TEST_BASE="$1"
+	TEST_STDOUT="${TEST_BASE}_stdout"
+
+	cat "$TEST_STDOUT" | grep -A 5 "Secret Key" | grep "PKCS#11 Digest" | cut -c 22- > "${TEST_BASE}_pkcs_digest"
+	cat "$TEST_STDOUT" | grep -A 5 "Secret Key" | grep "KMIP Digest" | cut -c 22- > "${TEST_BASE}_kmip_digest"
+
+	diff -q "${TEST_BASE}_pkcs_digest" "${TEST_BASE}_kmip_digest"
+
+	return $?
+}
+
 key_import_tests() {
 	################################################################
 	# Using configuration file options                             #
@@ -422,7 +434,9 @@ key_import_tests() {
     echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
-	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_conf_test"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \ 
 	p11kmip import-key \
 		--send-wrapkey \
 		--gen-targkey \
@@ -430,7 +444,7 @@ key_import_tests() {
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
-		>$P11KMIP_TMP/p11kmip_import_key_conf_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_conf_test_stderr
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
 
 	RC=$?
 	echo "rc = $RC"
@@ -469,18 +483,19 @@ key_import_tests() {
     echo "}                                                " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using environment variables"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_env_test"
 
-	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
-	PKCS11_USER_PIN="$PKCS11_USER_PIN" \
-	PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \
-	KMIP_HOSTNAME="$KMIP_HOSTNAME" \
-	KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \
-	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \ 
+	PKCS11_USER_PIN="$PKCS11_USER_PIN" \ 
+	PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \ 
+	KMIP_HOSTNAME="$KMIP_HOSTNAME" \ 
+	KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \ 
+	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \ 
 	p11kmip import-key \
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
-		>$P11KMIP_TMP/p11kmip_import_key_env_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_env_test_stderr
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
 
 	echo "rc = $?"
 	echo "stdout:"
@@ -497,6 +512,7 @@ key_import_tests() {
 	################################################################
 
 	echo "*** Running test using command line options"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_opt_test"
 
 	p11kmip import-key \
 		--slot $PKCS11_SLOT_ID \
@@ -507,7 +523,7 @@ key_import_tests() {
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
-		>$P11KMIP_TMP/p11kmip_import_key_opt_test_stdout 2>$P11KMIP_TMP/p11kmip_import_key_opt_test_stderr
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
 	
 	echo "rc = $?"
 	echo "stdout:"
@@ -521,6 +537,10 @@ key_import_tests() {
 }
 
 key_export_tests() {
+	################################################################
+	# Using configuration file options                             #
+	################################################################
+
 	# Build a standard configuration
 	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
     echo "kmip {                                              " >> $P11KMIP_CONF_FILE
@@ -539,15 +559,102 @@ key_export_tests() {
     echo "}                                                   " >> $P11KMIP_CONF_FILE
 
 	echo "*** Running test using configuration options"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_conf_test"
 
-	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \ 
 	p11kmip export-key \
 		--retr-wrapkey \
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
-		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+	
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat $P11KMIP_TMP/p11kmip_export_key_conf_test_stdout
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat $P11KMIP_TMP/p11kmip_export_key_conf_test_stderr
+		return
+	fi
+
+	# Store the UID of the PKCS#11 public key just retrieved
+	KMIP_RETR_WRAPKEY_UID=$(cat $P11KMIP_TMP/p11kmip_export_key_conf_test_stdout | grep -A 2 "Public Key" | tail -n 1 | cut -d . -f 9)
+
+    ################################################################
+	# Using environment variables                                  #
+	################################################################
+
+	# Fill the configuration file with bogus values
+	[[ -f $P11KMIP_CONF_FILE ]] && rm $P11KMIP_CONF_FILE
+    echo "kmip {                                           " >> $P11KMIP_CONF_FILE
+    echo "    host = \"255.255.255.255:0\"                 " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_cert = \"/dev/null\"              " >> $P11KMIP_CONF_FILE
+    echo "    tls_client_key = \"/dev/null\"               " >> $P11KMIP_CONF_FILE
+    echo "                                                 " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_format = \"PKCS1\"                  " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_algorithm = \"RSA\"                 " >> $P11KMIP_CONF_FILE
+    echo "    wrap_key_size = 2048                         " >> $P11KMIP_CONF_FILE
+    echo "    wrap_padding_method = \"PKCS1.5\"            " >> $P11KMIP_CONF_FILE
+    echo "    wrap_hashing_algorithm = \"SHA-1\"           " >> $P11KMIP_CONF_FILE
+    echo "}                                                " >> $P11KMIP_CONF_FILE
+    echo "pkcs11 {                                         " >> $P11KMIP_CONF_FILE
+    echo "    slot_number = 0                              " >> $P11KMIP_CONF_FILE
+    echo "}                                                " >> $P11KMIP_CONF_FILE
+
+	echo "*** Running test using environment variables"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_env_test"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \ 
+	PKCS11_USER_PIN="$PKCS11_USER_PIN" \ 
+	PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \ 
+	KMIP_HOSTNAME="$KMIP_HOSTNAME" \ 
+	KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \ 
+	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \ 
+	p11kmip export-key \
+		--targkey-label $PKCS11_SECRET_KEY_LABEL \
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+
+	echo "rc = $?"
+	echo "stdout:"
+	cat $P11KMIP_TMP/p11kmip_export_key_env_test_stdout
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat $P11KMIP_TMP/p11kmip_export_key_env_test_stderr
+		return
+	fi
+
+	################################################################
+	# Using only commandline options                               #
+	################################################################
+
+	echo "*** Running test using command line options"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_opt_test"
+
+	p11kmip export-key \
+		--slot $PKCS11_SLOT_ID \
+		--pin $PKCS11_USER_PIN  \
+		--kmip-host $KMIP_HOSTNAME \
+		--kmip-client-cert $KMIP_CLIENT_CERT \
+		--kmip-client-key $KMIP_CLIENT_KEY \
+		--targkey-label $PKCS11_SECRET_KEY_LABEL \
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
 	
 	echo "rc = $?"
+	echo "stdout:"
+	cat $P11KMIP_TMP/p11kmip_export_key_opt_test_stdout
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat $P11KMIP_TMP/p11kmip_export_key_opt_test_stderr
+		return
+	fi
 }
 
 echo "** Setting up KMIP client on KMIP server - 'p11kmip_test.sh'"

@@ -3024,6 +3024,8 @@ done:
         free(local_key_digest);
     if (remote_key_digest != NULL)
         free(remote_key_digest);
+    if (wrapped_key_blob != NULL)
+        free(wrapped_key_blob);
 
     return rc;
 }
@@ -3035,8 +3037,7 @@ static CK_RV p11kmip_export_key(void)
     CK_OBJECT_HANDLE wrapping_pubkey, secret_key_handle;
     struct p11kmip_keytype pubkey_keytype, privkey_keytype,
         secret_keytype;
-    struct kmip_node *wrap_pubkey_uid = NULL, *wrap_privkey_uuid = NULL,
-        *secret_key_uid = NULL;
+    struct kmip_node *wrap_pubkey_uid = NULL, *secret_key_uid = NULL;
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length;
     EVP_PKEY *pub_key;
@@ -3194,6 +3195,14 @@ static CK_RV p11kmip_export_key(void)
     }
 
 done:
+    kmip_node_free(wrap_pubkey_uid);
+    kmip_node_free(secret_key_uid);
+    if (local_key_digest != NULL)
+        free(local_key_digest);
+    if (remote_key_digest != NULL)
+        free(remote_key_digest);
+    if (wrapped_key_blob != NULL)
+        free(wrapped_key_blob);
 
     return rc;
 }
