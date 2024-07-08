@@ -4250,7 +4250,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         goto out;
     }
 
-    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, NULL);
+    enc_kinfo = kmip_new_key_info(false, wrapkey_uid, enc_cparams);
     if (enc_kinfo == NULL) {
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;

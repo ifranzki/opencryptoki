@@ -257,7 +257,7 @@ cleanup_kmip_client() {
 
 		# Delete the client certificate from SKLM
 		if [[ $DELETE_CERT_DONE -eq 0 ]] ; then
-			curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/certificates/$P11KMIP_UNIQUE_NAME" \
+			curl --fail-with-body --location --request DELETE "$KMIP_REST_URL/SKLM/rest/v1/certificates/$KMIP_CERT_ALIAS" \
 				--header "accept: application/json" \
 				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_delete_cert_stdout 2>$P11KMIP_TMP/curl_delete_cert_stderr
