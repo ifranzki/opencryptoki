@@ -495,8 +495,7 @@ key_import_tests() {
 	PKCS11_SLOT_ID="$PKCS11_SLOT_ID" \ 
 	KMIP_HOSTNAME="$KMIP_HOSTNAME" \ 
 	KMIP_CLIENT_CERT="$KMIP_CLIENT_CERT" \ 
-	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" \ 
-	p11kmip import-key \
+	KMIP_CLIENT_KEY="$KMIP_CLIENT_KEY" p11kmip import-key \
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
@@ -566,8 +565,7 @@ key_export_tests() {
 	echo "*** Running test using configuration options"
 	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_conf_test"
 
-	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \ 
-	p11kmip export-key \
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" p11kmip export-key \
 		--retr-wrapkey \
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label $PKCS11_SECRET_KEY_LABEL \
