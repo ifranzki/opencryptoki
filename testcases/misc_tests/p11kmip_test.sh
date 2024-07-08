@@ -19,7 +19,8 @@ echo "** Now executing 'p11kmip_test.sh'"
 P11KMIP_TMP="/tmp/p11kmip"
 P11KMIP_UNIQUE_NAME="$(uname -n)-$(date +%s)"
 P11KMIP_UNIQUE_NAME="${P11KMIP_UNIQUE_NAME^^}"
-KMIP_CLIENT_NAME=$(echo ${P11KMIP_UNIQUE_NAME^^} | sed -r 's/[ .,;:#+*$%-]+/_/g')
+KMIP_CLIENT_NAME="$(echo ${P11KMIP_UNIQUE_NAME^^} | sed -r 's/[ .,;:#+*$%-]+/_/g')_CLIENT"
+KMIP_CERT_ALIAS="$(echo ${P11KMIP_UNIQUE_NAME^^} | sed -r 's/[ .,;:#+*$%-]+/_/g')_CERT"
 
 KMIP_SECRET_KEY_LABEL="remote-secret-key-${P11KMIP_UNIQUE_NAME}"
 PKCS11_SECRET_KEY_LABEL="local-secret-key-${P11KMIP_UNIQUE_NAME}"
@@ -41,8 +42,8 @@ echo "** Setting KMIP_REST_URL=https://\${KMIP_IP}:19443 unless otherwise set - 
 echo "** Setting KMIP_SERVER=\${KMIP_IP}:5696 unless otherwise set - 'p11kmip_test.sh'"
 
 echo "Dirpath: $DIR"
-KMIP_CLIENT_CERT=$DIR/p11kmip_client_cert.pem
-KMIP_CLIENT_KEY=$DIR/p11kmip_client_key.pem
+KMIP_CLIENT_CERT=$P11KMIP_TMP/p11kmip_client_cert.pem
+KMIP_CLIENT_KEY=$P11KMIP_TMP/p11kmip_client_key.pem
 
 KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
 KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
@@ -50,6 +51,10 @@ KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
 echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER and KMIP_REST_PASSWORD ************"
 
 mkdir -p $P11KMIP_TMP
+
+generate_certificates() {
+	openssl req -x509 -newkey rsa:4096 -keyout "$KMIP_CLIENT_KEY" -out "$KMIP_CLIENT_CERT" -nodes -days 3650
+}
 
 setup_kmip_client() {
   RETRY_COUNT=0
@@ -156,7 +161,7 @@ setup_kmip_client() {
 		if [[ $ASSIGN_CERT_DONE -eq 0 ]] ; then
 			curl --fail-with-body --location --request PUT "$KMIP_REST_URL/SKLM/rest/v1/clients/$KMIP_CLIENT_NAME/assignCertificate" \
 				--header "Content-Type: application/json" \
-				--data "{\"certUseOption\":\"IMPORT_CERT\",\"certAlias\":\"$P11KMIP_UNIQUE_NAME\",\"importPath\":\"$(basename $KMIP_CLIENT_CERT)\"}" \
+				--data "{\"certUseOption\":\"IMPORT_CERT\",\"certAlias\":\"$KMIP_CERT_ALIAS\",\"importPath\":\"$(basename $KMIP_CLIENT_CERT)\"}" \
 				--header "Authorization:SKLMAuth userAuthId=$AUTHID" \
 				--insecure --silent --show-error >$P11KMIP_TMP/curl_assign_cert_stdout 2>$P11KMIP_TMP/curl_assign_cert_stderr
 			RC=$?
@@ -656,6 +661,10 @@ key_export_tests() {
 		return
 	fi
 }
+
+echo "** Generating test certificates - 'p11kmip_test.sh'"
+
+generate_certificates
 
 echo "** Setting up KMIP client on KMIP server - 'p11kmip_test.sh'"
 
