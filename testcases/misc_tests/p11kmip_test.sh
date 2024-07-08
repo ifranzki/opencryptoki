@@ -42,8 +42,8 @@ echo "** Setting KMIP_REST_URL=https://\${KMIP_IP}:19443 unless otherwise set - 
 echo "** Setting KMIP_SERVER=\${KMIP_IP}:5696 unless otherwise set - 'p11kmip_test.sh'"
 
 echo "Dirpath: $DIR"
-KMIP_CLIENT_CERT=$P11KMIP_TMP/p11kmip_client_cert.pem
-KMIP_CLIENT_KEY=$P11KMIP_TMP/p11kmip_client_key.pem
+KMIP_CLIENT_CERT=$P11KMIP_TMP/${P11KMIP_UNIQUE_NAME}_p11kmip_client_cert.pem
+KMIP_CLIENT_KEY=$P11KMIP_TMP/${P11KMIP_UNIQUE_NAME}_p11kmip_client_key.pem
 
 KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
 KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
