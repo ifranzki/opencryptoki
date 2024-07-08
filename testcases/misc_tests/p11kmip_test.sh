@@ -677,8 +677,8 @@ key_export_tests
 
 # echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 
-# cleanup_kmip_keys
+cleanup_kmip_keys
 
 cleanup_pkcs11_keys
 
-# cleanup_kmip_client
+cleanup_kmip_client
