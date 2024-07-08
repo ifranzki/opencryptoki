@@ -53,7 +53,7 @@ echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER an
 mkdir -p $P11KMIP_TMP
 
 generate_certificates() {
-	openssl req -x509 -newkey rsa:4096 -keyout "$KMIP_CLIENT_KEY" -out "$KMIP_CLIENT_CERT" -nodes -days 3650
+	openssl req -x509 -newkey rsa:4096 -keyout "$KMIP_CLIENT_KEY" -out "$KMIP_CLIENT_CERT" -nodes -days 3650 -subj '/CN=www.mydom.com/O=My Company Name LTD./C=US'
 }
 
 setup_kmip_client() {
