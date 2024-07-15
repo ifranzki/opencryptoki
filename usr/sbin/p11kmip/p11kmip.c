@@ -297,7 +297,7 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
      .arg = {.type = ARG_TYPE_PLAIN,.required = false,
              .value.plain = &opt_quiet,},
      .description = "Suppress messages."},
-    {.short_opt = 't',.long_opt = "short",.required = false,
+    {.short_opt = 'r',.long_opt = "short",.required = false,
      .arg = {.type = ARG_TYPE_PLAIN,.required = false,
              .value.plain = &opt_short,},
      .description = "Print shortened results."},
