@@ -91,6 +91,7 @@ static char *env_kmip_client_key = NULL;
 static bool opt_help = false;
 static bool opt_version = false;
 static bool opt_verbose = false;
+static bool opt_short = false;
 static bool opt_quiet = false;
 static CK_SLOT_ID opt_slot = (CK_SLOT_ID) - 1;
 static char *opt_pin = NULL;
@@ -294,6 +295,10 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
      .arg = {.type = ARG_TYPE_PLAIN,.required = false,
              .value.plain = &opt_quiet,},
      .description = "Suppress messages."},
+    {.short_opt = 's',.long_opt = "short",.required = false,
+     .arg = {.type = ARG_TYPE_PLAIN,.required = false,
+             .value.plain = &opt_short,},
+     .description = "Print shortened results."},
     {.short_opt = 0,.long_opt = NULL,},
     
 };
@@ -2988,8 +2993,9 @@ static CK_RV p11kmip_import_key(void)
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, remote_key_digest, &remote_key_digest_len);
 
-        if (rc) {
-            // KMIP changed the default digest size of their keys
+        if (rc != CKR_OK) {
+            warnx("Obtaining digest of KMIP key failed");
+            goto done;
         }
 
         // The same hashing algorithm should produce a digest of the same
@@ -3001,19 +3007,29 @@ static CK_RV p11kmip_import_key(void)
         rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
             unwrapped_key_handle, &digest_mech);
 
-        printf("  Secret Key\n");
-        printf("     PKCS#11 Label...%s\n", opt_target_label);
-        printf("     PKCS#11 Digest..");
-        print_hex(local_key_digest, local_key_digest_len);
-        printf("\n");
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
-        printf("     KMIP Digest.....");
-        print_hex(remote_key_digest, remote_key_digest_len);
-        printf("\n");
+        if(opt_short) {
+            printf("%s:", opt_target_label);
+            print_hex(local_key_digest, local_key_digest_len);
+            printf("\n");
 
-        printf("  Public Key\n");
-        printf("     PKCS#11 Label...%s\n", opt_wrap_label);
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+            printf("%s:", kmip_node_get_text_string(secret_key_uid));
+            print_hex(remote_key_digest, remote_key_digest_len);
+            printf("\n");
+        } else {
+            printf("  Secret Key\n");
+            printf("     PKCS#11 Label...%s\n", opt_target_label);
+            printf("     PKCS#11 Digest..");
+            print_hex(local_key_digest, local_key_digest_len);
+            printf("\n");
+            printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+            printf("     KMIP Digest.....");
+            print_hex(remote_key_digest, remote_key_digest_len);
+            printf("\n");
+
+            printf("  Public Key\n");
+            printf("     PKCS#11 Label...%s\n", opt_wrap_label);
+            printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+        }
 
     }
 
@@ -3026,6 +3042,7 @@ done:
         free(remote_key_digest);
     if (wrapped_key_blob != NULL)
         free(wrapped_key_blob);
+    free_attributes(wrapped_key_attrs, wrapped_key_num_attrs);
 
     return rc;
 }
@@ -3166,8 +3183,9 @@ static CK_RV p11kmip_export_key(void)
         rc = p11kmip_digest_remote_key(secret_key_uid,
             &digest_alg, remote_key_digest, &remote_key_digest_len);
 
-        if (rc) {
-            // KMIP changed the default digest size of their keys
+        if (rc != CKR_OK) {
+            warnx("Obtaining digest of KMIP key failed");
+            goto done;
         }
 
         // The same hashing algorithm should produce a digest of the same
@@ -3179,30 +3197,43 @@ static CK_RV p11kmip_export_key(void)
         rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
             secret_key_handle, &digest_mech);
 
-        printf("  Secret Key\n");
-        printf("     PKCS#11 Label...%s\n", opt_target_label);
-        printf("     PKCS#11 Digest..");
-        print_hex(local_key_digest, local_key_digest_len);
-        printf("\n");
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
-        printf("     KMIP Digest.....");
-        print_hex(remote_key_digest, remote_key_digest_len);
-        printf("\n");
+        if(opt_short) {
+            printf("%s:", opt_target_label);
+            print_hex(local_key_digest, local_key_digest_len);
+            printf("\n");
 
-        printf("  Public Key\n");
-        printf("     PKCS#11 Label...%s\n", opt_wrap_label);
-        printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+            printf("%s:", kmip_node_get_text_string(secret_key_uid));
+            print_hex(remote_key_digest, remote_key_digest_len);
+            printf("\n");
+        } else {
+            printf("  Secret Key\n");
+            printf("     PKCS#11 Label...%s\n", opt_target_label);
+            printf("     PKCS#11 Digest..");
+            print_hex(local_key_digest, local_key_digest_len);
+            printf("\n");
+            printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+            printf("     KMIP Digest.....");
+            print_hex(remote_key_digest, remote_key_digest_len);
+            printf("\n");
+
+            printf("  Public Key\n");
+            printf("     PKCS#11 Label...%s\n", opt_wrap_label);
+            printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+        }
     }
 
 done:
     kmip_node_free(wrap_pubkey_uid);
     kmip_node_free(secret_key_uid);
+    if (wrapped_key_blob != NULL)
+        free(wrapped_key_blob);
     if (local_key_digest != NULL)
         free(local_key_digest);
     if (remote_key_digest != NULL)
         free(remote_key_digest);
-    if (wrapped_key_blob != NULL)
-        free(wrapped_key_blob);
+    if (pub_key != NULL)
+        EVP_PKEY_free(pub_key);
+    free_attributes(wrapping_key_attrs, wrapping_key_num_attrs);
 
     return rc;
 }
