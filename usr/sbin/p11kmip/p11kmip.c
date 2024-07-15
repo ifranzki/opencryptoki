@@ -145,7 +145,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
 static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
                                                 *keytype,
                                                 struct kmip_node *pubkey_uid,
-                                                EVP_PKEY **pub_key);
+                                                EVP_PKEY ** pub_key);
 static CK_RV p11kmip_retrieve_remote_wrapped_key(const struct p11kmip_keytype
                                                  *wrapping_keytype, const struct kmip_node
                                                  *wrapping_key_uid, const struct p11kmip_keytype
@@ -159,8 +159,9 @@ static CK_RV p11kmip_generate_remote_secret_key(const struct p11kmip_keytype
                                                 struct kmip_node
                                                 **secret_key_uid);
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
-    enum kmip_hashing_algo *digest_alg, CK_BYTE *digest,
-    u_int32_t *digest_len);
+                                       enum kmip_hashing_algo *digest_alg,
+                                       CK_BYTE * digest,
+                                       u_int32_t * digest_len);
 
 /* PKCS#11 Local Function Prototypes*/
 static CK_RV p11kmip_unwrap_local_secret_key(CK_OBJECT_HANDLE
@@ -178,10 +179,10 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
                                            wrapping_key_handle,
                                            CK_OBJECT_HANDLE secret_key_handle,
                                            CK_ULONG_PTR wrapped_key_length,
-                                           CK_BYTE **wrapped_key_blob);
+                                           CK_BYTE ** wrapped_key_blob);
 static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
                                              *public_keytype,
-                                             EVP_PKEY *pub_key,
+                                             EVP_PKEY * pub_key,
                                              const char *public_key_label,
                                              CK_ATTRIBUTE_PTR public_key_attrs,
                                              CK_ULONG public_key_num_attrs,
@@ -190,9 +191,10 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
 static CK_RV p11kmip_find_local_key(const struct p11kmip_keytype *keytype,
                                     const char *label, const char *id,
                                     CK_OBJECT_HANDLE * key);
-static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest, 
-    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE key, 
-    CK_MECHANISM_PTR digestMech);
+static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest,
+                                      CK_ULONG_PTR digestLen,
+                                      CK_OBJECT_HANDLE key,
+                                      CK_MECHANISM_PTR digestMech);
 
 /* P11 function prototypes */
 static bool opt_slot_is_set(const struct p11kmip_arg *arg);
@@ -300,7 +302,7 @@ static const struct p11kmip_opt p11kmip_generic_opts[] = {
              .value.plain = &opt_short,},
      .description = "Print shortened results."},
     {.short_opt = 0,.long_opt = NULL,},
-    
+
 };
 
 #define PKCS11_OPTS                                                            \
@@ -401,7 +403,7 @@ static const struct p11kmip_opt p11kmip_import_key_opts[] = {
              .value.plain = &opt_gen_targkey,},
      .description = "If specified, the secret key to be imported is "
      "first created on the KMIP server. Currently only" " supports AES-256.",},
-     { .short_opt = 0, .long_opt = NULL, },
+    {.short_opt = 0,.long_opt = NULL,},
 };
 
 static const struct p11kmip_opt p11kmip_export_key_opts[] = {
@@ -444,7 +446,7 @@ static const struct p11kmip_opt p11kmip_export_key_opts[] = {
      .description = "The value to be set for the CKA_ID attribute of"
      "the imported wrapping key. Only compatible with the "
      "'--retr-wrapkey' option.",},
-     { .short_opt = 0, .long_opt = NULL, },
+    {.short_opt = 0,.long_opt = NULL,},
 };
 
 static const struct p11kmip_cmd p11kmip_commands[] = {
@@ -616,31 +618,32 @@ static const enum kmip_object_type get_kmip_obj_class_from_p11(CK_OBJECT_CLASS
 }
 
 static const CK_MECHANISM_TYPE get_p11_hash_mech_from_kmip_hash_algo(enum
-    kmip_hashing_algo kmip_hash_alg)
-    {
-        CK_MECHANISM_TYPE p11_hash_mech = P11KMIP_P11_UNKNOWN_ALG;
+                                                                     kmip_hashing_algo
+                                                                     kmip_hash_alg)
+{
+    CK_MECHANISM_TYPE p11_hash_mech = P11KMIP_P11_UNKNOWN_ALG;
 
-        switch(kmip_hash_alg) {
-            case KMIP_HASHING_ALGO_SHA_1:
-                p11_hash_mech = CKM_SHA_1;
-                break;
-            case KMIP_HASHING_ALGO_SHA_224:
-                p11_hash_mech = CKM_SHA224;
-                break;
-            case KMIP_HASHING_ALGO_SHA_256:
-                p11_hash_mech = CKM_SHA256;
-                break;
-            case KMIP_HASHING_ALGO_SHA_384:
-                p11_hash_mech = CKM_SHA384;
-                break;
-            case KMIP_HASHING_ALGO_SHA_512:
-                p11_hash_mech = CKM_SHA512;
-                break;
-            
-        }
+    switch (kmip_hash_alg) {
+    case KMIP_HASHING_ALGO_SHA_1:
+        p11_hash_mech = CKM_SHA_1;
+        break;
+    case KMIP_HASHING_ALGO_SHA_224:
+        p11_hash_mech = CKM_SHA224;
+        break;
+    case KMIP_HASHING_ALGO_SHA_256:
+        p11_hash_mech = CKM_SHA256;
+        break;
+    case KMIP_HASHING_ALGO_SHA_384:
+        p11_hash_mech = CKM_SHA384;
+        break;
+    case KMIP_HASHING_ALGO_SHA_512:
+        p11_hash_mech = CKM_SHA512;
+        break;
 
-        return p11_hash_mech;
     }
+
+    return p11_hash_mech;
+}
 
 static const enum kmip_crypto_usage_mask get_kmip_usage_mask_p11(struct
                                                                  p11kmip_keytype
@@ -1366,7 +1369,7 @@ static CK_RV parse_config_file(void)
     char *file_loc = getenv(P11KMIP_CONF_FILE_ENV_NAME);
     char pathname[PATH_MAX];
     struct passwd *pw;
-    
+
     if (file_loc != NULL) {
         fp = fopen(file_loc, "r");
         if (fp == NULL) {
@@ -1441,10 +1444,10 @@ static CK_RV build_kmip_config(void)
 {
     CK_RV rc;
     int f;
-    struct ConfigBaseNode *c = NULL, *host = NULL, 
+    struct ConfigBaseNode *c = NULL, *host = NULL,
         *tls_client_cert = NULL, *tls_client_key = NULL,
-        *wrap_key_format = NULL, *wrap_key_algorithm = NULL, *wrap_key_size = NULL,
-        *wrap_pad_method = NULL, *wrap_hash_algo = NULL;
+        *wrap_key_format = NULL, *wrap_key_algorithm = NULL, *wrap_key_size =
+        NULL, *wrap_pad_method = NULL, *wrap_hash_algo = NULL;
     struct ConfigStructNode *structnode = NULL;
     bool found;
     char *tls_client_key_path = NULL;
@@ -1688,8 +1691,7 @@ for key word '%s's\n", confignode_to_stringval(wrap_hash_algo)->value,
     tls_client_key_bio = BIO_new_file(tls_client_key_path, "r");
 
     if (tls_client_key_bio == NULL) {
-        warnx("Unable to open '%s' for TLS client key",
-              tls_client_key_path);
+        warnx("Unable to open '%s' for TLS client key", tls_client_key_path);
         //ERR_print_errors_cb(openssl_err_cb, NULL);
         return CKR_FUNCTION_FAILED;
     }
@@ -2213,7 +2215,7 @@ static CK_RV load_pkcs11_lib(void)
     const char *libname;
 
     libname = secure_getenv(P11KMIP_PKCSLIB_ENV_NAME);
-    
+
     if (libname == NULL || strlen(libname) < 1)
         libname = P11KMIP_DEFAULT_PKCS11_LIB;
 
@@ -2321,7 +2323,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
         return CKR_FUNCTION_FAILED;
 
     // If not set by option, fallback to env variable
-    if (slot == (CK_SLOT_ID) - 1) 
+    if (slot == (CK_SLOT_ID) - 1)
         slot = env_pkcs_slot;
     // If not set by env variable, fallback to conf file
     if (slot == (CK_SLOT_ID) - 1) {
@@ -2359,7 +2361,7 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
             }
         }
     }
-    
+
     rc = load_pkcs11_lib();
     if (rc != CKR_OK)
         goto done;
@@ -2698,7 +2700,7 @@ static CK_RV get_attribute(CK_OBJECT_HANDLE key, CK_ATTRIBUTE *attr)
     return rc;
 }
 
-static CK_RV add_bignum_attr(CK_ATTRIBUTE_TYPE type, const BIGNUM* bn,
+static CK_RV add_bignum_attr(CK_ATTRIBUTE_TYPE type, const BIGNUM *bn,
                              CK_ATTRIBUTE **attrs, CK_ULONG *num_attrs)
 {
     int len;
@@ -2872,7 +2874,8 @@ static CK_RV p11kmip_import_key(void)
     }
 
     if (opt_target_id != NULL) {
-        rc = parse_id(opt_target_id, &wrapped_key_attrs, &wrapped_key_num_attrs);
+        rc = parse_id(opt_target_id, &wrapped_key_attrs,
+                      &wrapped_key_num_attrs);
 
         if (rc != CKR_OK) {
             warnx("Failed to parse ID for target key\n");
@@ -2984,30 +2987,30 @@ static CK_RV p11kmip_import_key(void)
         warnx("Failed to unwrap and import key");
         goto done;
     }
-
     // Display digests of the retrieved keys
     if (!opt_quiet) {
         remote_key_digest_len = 32;
         remote_key_digest = malloc(remote_key_digest_len);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
-            &digest_alg, remote_key_digest, &remote_key_digest_len);
+                                       &digest_alg, remote_key_digest,
+                                       &remote_key_digest_len);
 
         if (rc != CKR_OK) {
             warnx("Obtaining digest of KMIP key failed");
             goto done;
         }
-
         // The same hashing algorithm should produce a digest of the same
         // length
         local_key_digest_len = remote_key_digest_len;
         local_key_digest = malloc(local_key_digest_len);
-        digest_mech.mechanism = get_p11_hash_mech_from_kmip_hash_algo(digest_alg);
+        digest_mech.mechanism =
+            get_p11_hash_mech_from_kmip_hash_algo(digest_alg);
 
         rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
-            unwrapped_key_handle, &digest_mech);
+                                      unwrapped_key_handle, &digest_mech);
 
-        if(opt_short) {
+        if (opt_short) {
             printf("%s:", opt_target_label);
             print_hex(local_key_digest, local_key_digest_len);
             printf("\n");
@@ -3021,14 +3024,16 @@ static CK_RV p11kmip_import_key(void)
             printf("     PKCS#11 Digest..");
             print_hex(local_key_digest, local_key_digest_len);
             printf("\n");
-            printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+            printf("     KMIP UID........%s\n",
+                   kmip_node_get_text_string(secret_key_uid));
             printf("     KMIP Digest.....");
             print_hex(remote_key_digest, remote_key_digest_len);
             printf("\n");
 
             printf("  Public Key\n");
             printf("     PKCS#11 Label...%s\n", opt_wrap_label);
-            printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+            printf("     KMIP UID........%s\n",
+                   kmip_node_get_text_string(wrap_pubkey_uid));
         }
 
     }
@@ -3052,8 +3057,7 @@ static CK_RV p11kmip_export_key(void)
 {
     CK_RV rc;
     CK_OBJECT_HANDLE wrapping_pubkey, secret_key_handle;
-    struct p11kmip_keytype pubkey_keytype, privkey_keytype,
-        secret_keytype;
+    struct p11kmip_keytype pubkey_keytype, privkey_keytype, secret_keytype;
     struct kmip_node *wrap_pubkey_uid = NULL, *secret_key_uid = NULL;
     char *wrapped_key_blob = NULL;
     unsigned long wrapped_key_length;
@@ -3085,19 +3089,19 @@ static CK_RV p11kmip_export_key(void)
     }
 
     if (opt_target_id != NULL) {
-        rc = parse_id(opt_target_id, &wrapping_key_attrs, &wrapping_key_num_attrs);
+        rc = parse_id(opt_target_id, &wrapping_key_attrs,
+                      &wrapping_key_num_attrs);
 
         if (rc != CKR_OK) {
             warnx("Failed to parse ID for wrapping key\n");
             goto done;
         }
     }
-
     // We must locate the KMIP public key to obtain its UID, even if
     // we intend to utilize a local PKCS#11 public key for the actual
     // wrapping.
     rc = p11kmip_locate_remote_key(opt_wrap_label, &pubkey_keytype,
-                                    &wrap_pubkey_uid);
+                                   &wrap_pubkey_uid);
 
     if (rc != CKR_OK) {
         warnx("Error while locating target key on KMIP server\n");
@@ -3115,20 +3119,18 @@ static CK_RV p11kmip_export_key(void)
         // go through the process of importing the key
         // material into the PKCS#11 repository
         rc = p11kmip_retrieve_remote_public_key(&pubkey_keytype,
-                                        wrap_pubkey_uid,
-                                        &pub_key);
+                                                wrap_pubkey_uid, &pub_key);
 
         if (rc != CKR_OK) {
             warnx("Failed to retrieve public key from KMIP server\n");
             goto done;
         }
-
         // TODO: should be created with the specified attributes
         rc = p11kmip_create_local_public_key(&pubkey_keytype,
-                                            pub_key, opt_wrap_label,
-                                            wrapping_key_attrs, 
-                                            wrapping_key_num_attrs,
-                                            &wrapping_pubkey);
+                                             pub_key, opt_wrap_label,
+                                             wrapping_key_attrs,
+                                             wrapping_key_num_attrs,
+                                             &wrapping_pubkey);
 
         if (rc != CKR_OK) {
             warnx("Failed to create public key '%s'\n", opt_wrap_label);
@@ -3138,8 +3140,9 @@ static CK_RV p11kmip_export_key(void)
         // Else we expect it to already exist in the repository
         // with the same label as the remote key
         rc = p11kmip_find_local_key(&pubkey_keytype,
-                opt_wrap_label, opt_wrap_id, &wrapping_pubkey);
-        
+                                    opt_wrap_label, opt_wrap_id,
+                                    &wrapping_pubkey);
+
         if (rc != CKR_OK) {
             warnx("Failed to locate public key '%s'\n", opt_wrap_label);
             goto done;
@@ -3165,39 +3168,38 @@ static CK_RV p11kmip_export_key(void)
 
     rc = p11kmip_register_remote_wrapped_key(&secret_keytype,
                                              wrapped_key_length,
-                                             wrapped_key_blob, 
+                                             wrapped_key_blob,
                                              opt_target_label,
-                                             wrap_pubkey_uid,
-                                             &secret_key_uid);
+                                             wrap_pubkey_uid, &secret_key_uid);
 
     if (rc != CKR_OK) {
         warnx("Failed to register wrapped secret key with server\n");
         goto done;
     }
-
     // Display digests of the retrieved keys
     if (!opt_quiet) {
         remote_key_digest_len = 32;
         remote_key_digest = malloc(remote_key_digest_len);
 
         rc = p11kmip_digest_remote_key(secret_key_uid,
-            &digest_alg, remote_key_digest, &remote_key_digest_len);
+                                       &digest_alg, remote_key_digest,
+                                       &remote_key_digest_len);
 
         if (rc != CKR_OK) {
             warnx("Obtaining digest of KMIP key failed");
             goto done;
         }
-
         // The same hashing algorithm should produce a digest of the same
         // length
         local_key_digest_len = remote_key_digest_len;
         local_key_digest = malloc(local_key_digest_len);
-        digest_mech.mechanism = get_p11_hash_mech_from_kmip_hash_algo(digest_alg);
+        digest_mech.mechanism =
+            get_p11_hash_mech_from_kmip_hash_algo(digest_alg);
 
         rc = p11kmip_digest_local_key(local_key_digest, &local_key_digest_len,
-            secret_key_handle, &digest_mech);
+                                      secret_key_handle, &digest_mech);
 
-        if(opt_short) {
+        if (opt_short) {
             printf("%s:", opt_target_label);
             print_hex(local_key_digest, local_key_digest_len);
             printf("\n");
@@ -3211,14 +3213,16 @@ static CK_RV p11kmip_export_key(void)
             printf("     PKCS#11 Digest..");
             print_hex(local_key_digest, local_key_digest_len);
             printf("\n");
-            printf("     KMIP UID........%s\n", kmip_node_get_text_string(secret_key_uid));
+            printf("     KMIP UID........%s\n",
+                   kmip_node_get_text_string(secret_key_uid));
             printf("     KMIP Digest.....");
             print_hex(remote_key_digest, remote_key_digest_len);
             printf("\n");
 
             printf("  Public Key\n");
             printf("     PKCS#11 Label...%s\n", opt_wrap_label);
-            printf("     KMIP UID........%s\n", kmip_node_get_text_string(wrap_pubkey_uid));
+            printf("     KMIP UID........%s\n",
+                   kmip_node_get_text_string(wrap_pubkey_uid));
         }
     }
 
@@ -3597,11 +3601,11 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
         warnx("Unsupported padding method: %d");
         return -EINVAL;
     }
-    
+
     // wrap key (length only)
     rc = pkcs11_funcs->C_WrapKey(pkcs11_session,
-                                &mech, wrapping_key_handle, secret_key_handle,
-                                NULL, wrapped_key_length);
+                                 &mech, wrapping_key_handle, secret_key_handle,
+                                 NULL, wrapped_key_length);
 
     if (rc != CKR_OK) {
         warnx("Unable to determine length of wrapped key object");
@@ -3613,7 +3617,6 @@ static CK_RV p11kmip_wrap_local_secret_key(CK_OBJECT_HANDLE
         warnx("Unable to allocated storage for wrapped key blob");
         return CKR_HOST_MEMORY;
     }
-
     // Wrap key blob
     rc = pkcs11_funcs->C_WrapKey(pkcs11_session,
                                  &mech, wrapping_key_handle, secret_key_handle,
@@ -3650,27 +3653,26 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         warnx("Failed to key size of wrapped key");
         goto done;
     }
-
 #if !OPENSSL_VERSION_PREREQ(3, 0)
-        rsa = EVP_PKEY_get0_RSA(pub_key);
-        if (rsa == NULL) {
-            warnx("Failed to get public key params");
-            rc = CKR_FUNCTION_FAILED;
-            goto done;
-        }
-        RSA_get0_key(rsa, &bn_n, &bn_e, NULL);
-        if (bn_n == NULL || bn_e == NULL) {
-            warnx("Failed to get public key params");
-            rc = CKR_FUNCTION_FAILED;
-            goto done;
-        }
+    rsa = EVP_PKEY_get0_RSA(pub_key);
+    if (rsa == NULL) {
+        warnx("Failed to get public key params");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    RSA_get0_key(rsa, &bn_n, &bn_e, NULL);
+    if (bn_n == NULL || bn_e == NULL) {
+        warnx("Failed to get public key params");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
 #else
-        if(!EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_N, &bn_n) ||
-           !EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_E, &bn_e)) {
-            warnx("Failged to get public key params");
-            rc = CKR_FUNCTION_FAILED;
-            goto done;
-        }
+    if (!EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_N, &bn_n) ||
+        !EVP_PKEY_get_bn_param(pub_key, OSSL_PKEY_PARAM_RSA_E, &bn_e)) {
+        warnx("Failged to get public key params");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
 #endif
 
     // Build the template for the default attribute
@@ -3701,13 +3703,15 @@ static CK_RV p11kmip_create_local_public_key(const struct p11kmip_keytype
         public_template[public_default_templatecount + i] = public_key_attrs[i];
     }
 
-    rc = add_bignum_attr(CKA_MODULUS, bn_n, &public_template, &public_templatecount);
+    rc = add_bignum_attr(CKA_MODULUS, bn_n, &public_template,
+                         &public_templatecount);
     if (rc != CKR_OK)
-       goto done;
+        goto done;
 
-    rc = add_bignum_attr(CKA_PUBLIC_EXPONENT, bn_e, &public_template, &public_templatecount);
+    rc = add_bignum_attr(CKA_PUBLIC_EXPONENT, bn_e, &public_template,
+                         &public_templatecount);
     if (rc != CKR_OK)
-       goto done;
+        goto done;
 
     rc = pkcs11_funcs->C_CreateObject(pkcs11_session,
                                       public_template, public_templatecount,
@@ -3829,9 +3833,10 @@ done:
     return rc;
 }
 
-static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest, 
-    CK_ULONG_PTR digestLen, CK_OBJECT_HANDLE key, 
-    CK_MECHANISM_PTR digestMech)
+static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest,
+                                      CK_ULONG_PTR digestLen,
+                                      CK_OBJECT_HANDLE key,
+                                      CK_MECHANISM_PTR digestMech)
 {
     CK_RV rc;
 
@@ -3994,7 +3999,7 @@ static CK_RV p11kmip_activate_remote_key(struct kmip_node **obj_uid)
     enum kmip_result_reason act_reason = 0;
     CK_RV rc = CKR_OK;
 
-    act_req = kmip_new_activate_request_payload(obj_uid);  /* ID placeholder */
+    act_req = kmip_new_activate_request_payload(obj_uid);       /* ID placeholder */
     if (act_req == NULL) {
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
@@ -4002,7 +4007,7 @@ static CK_RV p11kmip_activate_remote_key(struct kmip_node **obj_uid)
 
     rc = perform_kmip_request(KMIP_OPERATION_ACTIVATE, act_req,
                               &act_resp, &act_status, &act_reason);
-    
+
     if (rc) {
         // We will get this reason code if we are attempting to activate
         // a key which is already active. This is fine for our purposes.
@@ -4248,8 +4253,8 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
 {
     struct kmip_node *kobj = NULL, *name_attr = NULL, *unique_id = NULL;
     struct kmip_node *reg_req = NULL, *reg_resp = NULL, *descr_attr = NULL;
-    struct kmip_node *key = NULL, *kval = NULL, *enc_cparams = NULL, *enc_kinfo =
-        NULL, *kblock = NULL, *wrap_data = NULL;
+    struct kmip_node *key = NULL, *kval = NULL, *enc_cparams =
+        NULL, *enc_kinfo = NULL, *kblock = NULL, *wrap_data = NULL;
     struct kmip_node *umask_attr = NULL, *cparams_attr = NULL;
     struct kmip_node *act_req = NULL, *act_resp = NULL;
     char *description = NULL;
@@ -4257,7 +4262,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     enum kmip_result_status reg_status = 0, act_status = 0;
     enum kmip_result_reason reg_reason = 0, act_reason = 0;
     int rc;
-    
+
     enc_cparams = kmip_new_cryptographic_parameters(NULL, 0,
                                                     kmip_wrap_padding_method,
                                                     kmip_wrap_padding_method ==
@@ -4299,7 +4304,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
     }
 
     kval = kmip_node_new_byte_string(KMIP_TAG_KEY_VALUE, NULL, wrapped_key_blob,
-					 wrapped_key_length);
+                                     wrapped_key_length);
     if (kval == NULL) {
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
@@ -4338,7 +4343,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         rc = CKR_HOST_MEMORY;
         goto out;
     }
-    
+
     cparams_attr = kmip_new_cryptographic_parameters(NULL, 0, 0, 0,
                                                      0,
                                                      0, KMIP_CRYPTO_ALGO_AES,
@@ -4366,7 +4371,7 @@ static CK_RV p11kmip_register_remote_wrapped_key(const struct p11kmip_keytype
         rc = CKR_HOST_MEMORY;
         goto out;
     }
-    
+
     reg_req = kmip_new_register_request_payload_va(NULL,
                                                    KMIP_OBJECT_TYPE_SYMMETRIC_KEY,
                                                    kobj, NULL, 3, name_attr,
@@ -4694,8 +4699,7 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
     int rc = 0;
 
     req_pl = kmip_new_get_request_payload(NULL, pubkey_uid,
-                                          kmip_wrap_key_format,
-                                          0, 0, NULL);
+                                          kmip_wrap_key_format, 0, 0, NULL);
     if (req_pl == NULL) {
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
@@ -4791,7 +4795,7 @@ static CK_RV p11kmip_retrieve_remote_public_key(const struct p11kmip_keytype
             rc = CKR_FUNCTION_FAILED;
             goto out;
         }
-        
+
         if (EVP_PKEY_set1_RSA(pub_key, rsa_key)) {
             warnx("RSA_PKEY_set1_RSA failed.");
             rc = CKR_FUNCTION_FAILED;
@@ -4977,8 +4981,8 @@ out:
  * @return CK_RV 
  */
 static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
-    enum kmip_hashing_algo *digest_alg, CK_BYTE *digest,
-    u_int32_t *digest_len)
+                                       enum kmip_hashing_algo *digest_alg,
+                                       CK_BYTE *digest, u_int32_t *digest_len)
 {
     struct kmip_node *attr_list_req = NULL, *attr_list_resp = NULL,
         *get_attr_req = NULL, *get_attr_resp = NULL,
@@ -5001,8 +5005,8 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     }
 
     rc = perform_kmip_request(KMIP_OPERATION_GET_ATTRIBUTE_LIST, attr_list_req,
-                            &attr_list_resp, &attr_list_status, 
-                            &attr_list_reason);
+                              &attr_list_resp, &attr_list_status,
+                              &attr_list_reason);
 
     if (rc) {
         // Handle Failure
@@ -5010,12 +5014,12 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         warnx("Failed to KMIP object get attribute list");
         goto out;
     }
-
     // Confirm there's a "digest" attribute in the list
     num_attr_refs = kmip_node_get_structure_element_count(attr_list_resp);
 
-    for(i=0;i<num_attr_refs;i++){
-        attr_ref = kmip_node_get_structure_element_by_index(attr_list_resp, i + 1);
+    for (i = 0; i < num_attr_refs; i++) {
+        attr_ref =
+            kmip_node_get_structure_element_by_index(attr_list_resp, i + 1);
 
         if (attr_ref == NULL) {
             warnx("Retrieving KMIP attribute failed.");
@@ -5040,20 +5044,19 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         rc = CKR_ARGUMENTS_BAD;
         goto out;
     }
-
     // Get the digest attribute
-    get_attr_req = kmip_new_get_attributes_request_payload_va(
-        NULL, key_uid, 1, attr_ref);
+    get_attr_req =
+        kmip_new_get_attributes_request_payload_va(NULL, key_uid, 1, attr_ref);
 
     if (get_attr_req == NULL) {
         warnx("Allocate KMIP node failed");
         rc = CKR_HOST_MEMORY;
         goto out;
     }
-    
+
     rc = perform_kmip_request(KMIP_OPERATION_GET_ATTRIBUTES, get_attr_req,
-            &get_attr_resp, &get_attr_status, 
-            &get_attr_reason);
+                              &get_attr_resp, &get_attr_status,
+                              &get_attr_reason);
 
     if (rc) {
         // Handle Failure
@@ -5063,7 +5066,9 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
     }
 
     num_attr_refs = 0;
-    rc = kmip_get_get_attributes_response_payload(get_attr_resp, NULL, &num_attr_refs, 0, &digest_attr);
+    rc = kmip_get_get_attributes_response_payload(get_attr_resp, NULL,
+                                                  &num_attr_refs, 0,
+                                                  &digest_attr);
 
     if (rc) {
         // Handle Failure
@@ -5071,11 +5076,11 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
         warnx("Failed to get KMIP object attribute");
         goto out;
     }
-    
     // We should have recieved exactly 1 attribute reference
     if (num_attr_refs != 1) {
         rc = CKR_FUNCTION_FAILED;
-        warnx("Unexpected number of attributes returned from get attributes request");
+        warnx
+            ("Unexpected number of attributes returned from get attributes request");
         goto out;
     }
 
@@ -5094,7 +5099,6 @@ static CK_RV p11kmip_digest_remote_key(struct kmip_node *key_uid,
             warnx("Digest buffer could not contain digest value");
             goto out;
         }
-
         // Now we can safely copy
         memcpy(digest, l_digest, l_digest_len);
     }
@@ -5120,7 +5124,7 @@ int main(int argc, char *argv[])
 {
     const struct p11kmip_cmd *command = NULL;
     CK_RV rc = CKR_OK;
-    
+
     /* Get p11kmip command (if any) */
     if (argc >= 2 && strncmp(argv[1], "-", 1) != 0) {
         command = find_command(argv[1]);
@@ -5133,17 +5137,17 @@ int main(int argc, char *argv[])
         argc--;
         argv = &argv[1];
     }
-    
+
     /* Get command arguments (if any) */
     rc = parse_cmd_arguments(command, &argc, &argv);
     if (rc != CKR_OK)
         goto done;
-    
+
     /* Get generic and command specific options (if any) */
     rc = parse_cmd_options(command, argc, argv);
     if (rc != CKR_OK)
         goto done;
-    
+
     if (opt_help) {
         if (command == NULL)
             print_help();
@@ -5163,31 +5167,31 @@ int main(int argc, char *argv[])
         rc = CKR_ARGUMENTS_BAD;
         goto done;
     }
-    
+
     rc = check_required_args(command->args);
     if (rc != CKR_OK)
         goto done;
-    
+
     rc = check_required_cmd_opts(command->opts);
     if (rc != CKR_OK)
         goto done;
-    
+
     rc = parse_env_vars();
     if (rc != CKR_OK)
         goto done;
-    
+
     rc = parse_config_file();
     if (rc != CKR_OK)
         goto done;
-    
+
     rc = init_kmip();
     if (rc != CKR_OK)
         goto done;
-    
+
     rc = init_pkcs11(command);
     if (rc != CKR_OK)
         goto done;
-    
+
     /* Run the command */
     rc = command->func();
     if (rc != CKR_OK) {
