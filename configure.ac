@@ -169,6 +169,12 @@ AC_ARG_ENABLE([p11sak],
 	AS_HELP_STRING([--enable-p11sak],[build p11sak tool @<:@default=enabled@:>@]),
 	[],
 	[enable_p11sak=yes])
+	
+dnl --- p11kmip tool
+AC_ARG_ENABLE([p11kmip],
+	AS_HELP_STRING([--enable-p11kmip],[build p11kmip tool @<:@default=enabled if required libraries are available@:>@]),
+	[],
+	[enable_p11kmip=check])
 
 dnl --- pkcstok_migrate
 AC_ARG_ENABLE([pkcstok_migrate],
@@ -695,6 +701,31 @@ AM_CONDITIONAL([ENABLE_PKCSEP11_SESSION], [test "x$enable_pkcsep11_session" = "x
 dnl --- enable_p11sak
 AM_CONDITIONAL([ENABLE_P11SAK], [test "x$enable_p11sak" = "xyes"])
 
+dnl --- enable_p11kmip
+if test "x$enable_p11kmip" = "xyes"; then
+	AC_CHECK_HEADER([kmipclient/kmipclient.h], [], [
+		AC_MSG_ERROR(['libkmipclient' library is missing on your system. Please install 's390tools-devel'.])
+	])
+	AC_CHECK_LIB([kmipclient], [kmip_connection_new], [
+		enable_p11kmip=yes
+	], [
+		AC_MSG_ERROR(['libkmipclient' library is missing on your system. Please install 's390tools-devel'.])
+	])
+fi
+if test "x$enable_p11kmip" != "xno"; then
+	AC_CHECK_HEADER([kmipclient/kmipclient.h], [], [
+		enable_p11kmip=no
+	])
+	AC_CHECK_LIB([kmipclient], [kmip_connection_new], [
+		enable_p11kmip=yes
+	], [
+		enable_p11kmip=no
+	])
+else
+	enable_p11kmip=no
+fi
+AM_CONDITIONAL([ENABLE_P11KMIP], [test "x$enable_p11kmip" = "xyes"])
+
 dnl --- enable_pkcstok_migrate
 AM_CONDITIONAL([ENABLE_PKCSTOK_MIGRATE], [test "x$enable_pkcstok_migrate" = "xyes"])
 
@@ -771,6 +802,8 @@ AM_COND_IF([ENABLE_PKCSSTATS],
            [AC_CONFIG_FILES([man/man1/pkcsstats.1])])
 AM_COND_IF([ENABLE_P11SAK],
            [AC_CONFIG_FILES([man/man1/p11sak.1])])
+# AM_COND_IF([ENABLE_P11KMIP],
+#            [AC_CONFIG_FILES([man/man1/p11kmip.1])])
 AM_COND_IF([ENABLE_PKCSEP11_MIGRATE],
            [AC_CONFIG_FILES([man/man1/pkcsep11_migrate.1])])
 AM_COND_IF([ENABLE_PKCSEP11_SESSION],
@@ -799,6 +832,7 @@ echo "	Library build:		$enable_library"
 echo "	Systemd service:	$enable_systemd"
 echo "	Build with libudev:	$with_libudev"
 echo "	Build p11sak tool:	$enable_p11sak"
+echo "	Build p11kmip tool:	$enable_p11kmip"
 echo "	token migrate tool:	$enable_pkcstok_migrate"
 echo "	statistics tool:	$enable_pkcsstats"
 echo "	HSM MK change tool:	$enable_pkcshsm_mk_change"
