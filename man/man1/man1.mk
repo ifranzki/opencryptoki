@@ -46,4 +46,9 @@ man/man1/pkcstok_admin.1: man/man1/pkcstok_admin.1.in
 endif
 
 EXTRA_DIST += man/man1/pkcstok_admin.1.in
+
+# if ENABLE_P11KMIP
+# man1_MANS += man/man1/p11kmip.1
+# endif
+
 CLEANFILES += man/man1/*.1
