@@ -174,7 +174,7 @@ dnl --- p11kmip tool
 AC_ARG_ENABLE([p11kmip],
 	AS_HELP_STRING([--enable-p11kmip],[build p11kmip tool @<:@default=enabled if required libraries are available@:>@]),
 	[],
-	[enable_p11kmip=check])
+	[enable_p11kmip=yes])
 
 dnl --- pkcstok_migrate
 AC_ARG_ENABLE([pkcstok_migrate],
@@ -708,28 +708,6 @@ dnl --- enable_p11sak
 AM_CONDITIONAL([ENABLE_P11SAK], [test "x$enable_p11sak" = "xyes"])
 
 dnl --- enable_p11kmip
-if test "x$enable_p11kmip" = "xyes"; then
-	AC_CHECK_HEADER([kmipclient/kmipclient.h], [], [
-		AC_MSG_ERROR(['libkmipclient' library is missing on your system. Please install 's390tools-devel'.])
-	])
-	AC_CHECK_LIB([kmipclient], [kmip_connection_new], [
-		enable_p11kmip=yes
-	], [
-		AC_MSG_ERROR(['libkmipclient' library is missing on your system. Please install 's390tools-devel'.])
-	])
-fi
-if test "x$enable_p11kmip" != "xno"; then
-	AC_CHECK_HEADER([kmipclient/kmipclient.h], [], [
-		enable_p11kmip=no
-	])
-	AC_CHECK_LIB([kmipclient], [kmip_connection_new], [
-		enable_p11kmip=yes
-	], [
-		enable_p11kmip=no
-	])
-else
-	enable_p11kmip=no
-fi
 AM_CONDITIONAL([ENABLE_P11KMIP], [test "x$enable_p11kmip" = "xyes"])
 
 dnl --- enable_pkcstok_migrate
