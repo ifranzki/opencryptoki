@@ -1355,3 +1355,19 @@ typedef void (*CSNDEDH_t)(long *return_code,
                           unsigned char *output_KEK_key_identifier,
                           long *output_key_identifier_length,
                           unsigned char *output_key_identifier);
+
+/* PKA Key Translate */
+typedef void (*CSNDPKT_t)(long *return_code,
+                          long *reason_code,
+                          long *exit_data_length,
+                          unsigned char *exit_data,
+                          long *rule_array_count,
+                          unsigned char *rule_array,
+                          long *source_key_length,
+                          unsigned char *source_key,
+                          long *source_transport_key_length,
+                          unsigned char *source_transport_key,
+                          long *target_transport_key_length,
+                          unsigned char *target_transport_key,
+                          long *target_key_token_length,
+                          unsigned char *target_key_token);
