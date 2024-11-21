@@ -231,7 +231,13 @@ struct cca_role_data {
 } __attribute__ ((__packed__));
 
 struct cca_acp_info {
+    CK_BBOOL acp_03B6; /* PKA Key Translate - From CCA RSA to CKM-RAKW format */
+    CK_BBOOL acp_03B7; /* PKA Key Translate - From CCA ECC to CKM-RAKW format */
     CK_BBOOL acp_03B8; /* Symmetric Key Export - AES, CKM-RAKW */
+    CK_BBOOL acp_03CB; /* Permit import of an RSA key token from a PKCS#11
+                          CKM_RSA_AES_KEY_WRAP object */
+    CK_BBOOL acp_03CC; /* Permit import of an ECC key token from a PKCS#11
+                          CKM_RSA_AES_KEY_WRAP object */
     CK_BBOOL acp_03CD; /* Permit import of an AES key token from a PKCS#11
                           CKM_RSA_AES_KEY_WRAP object */
 };
