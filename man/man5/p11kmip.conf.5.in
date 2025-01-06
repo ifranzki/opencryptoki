@@ -1,6 +1,6 @@
 .TH P11KMIP.CONF 5 "August 2023" "@PACKAGE_VERSION@" "openCryptoki"
 .SH NAME
-p11kmip.conf \- Configuration file for \fBp11kmip\fP
+p11kmip.conf \- Configuration file for the \fBp11kmip\fP
 command.
 .
 .
@@ -9,7 +9,7 @@ command.
 The
 .B p11kmip
 tool uses the configuration file \fB/etc/opencryptoki/p11kmip.conf\fP to read information about
-how to connect with a KMIP server and interact with a PKCS\~#11 token repository.
+how to connect to a KMIP server and interact with a PKCS\~#11 token repository.
 .PP
 A custom file path can be set with  environment variable
 \fBP11KMIP_DEFAULT_CONF_FILE\fP. If the environment variable is not set, then
@@ -95,7 +95,7 @@ The
 value is the hashing algorithm used when "OAEP" is specified. Currently hashing algorithms
 "SHA-1" and "SHA-256" are supported.
 
-The second section configures interaction with the PKCS\~#11 token repository.It contains
+The second section configures interaction with the PKCS\~#11 token repository. It contains
 the following keyword: 
 .B slot .
 
