@@ -9,10 +9,48 @@
 
 # sudo -E ./p11kmip_test.sh
 
+# In order to invoke this test script, the following required environment variables 
+# must be specified:
+# - PKCS11_USER_PIN		: the user PIN number for the chosen PKCS#11 slot (default slot 30)
+# - PKCSLIB				: path to the PKCS#11 library
+# - KMIP_IP				: the IP address of the KMIP server to use for testing
+# - KMIP_REST_USER		: the username to use for authenticating to the 
+#                         KMIP server REST interface
+# - KMIP_REST_PASSWORD	: the password to use for authenticating to the 
+#                         KMIP server REST inferface
+#
+# Additionally, the following optional environment variables may be specified to
+# override certain default values:
+# - PKCS11_SLOT_ID		: the PKCS#11 slot number to use for testing. Defaults to 30.
+# - KMIP_REST_URL		: the fully-qualified URL to use for the KMIP server REST 
+#                         interface. Defaults to https://${KMIP_IP}:19443
+# - KMIP_HOSTNAME		: the hostname to be used for the KMIP protocol connection.
+#                         Defaults to ${KMIP_IP}:5696
+
 DIR=$(dirname "$0")
 
 status=0
 
+# Validate required environment variables
+if [[ -z "${PKCS11_USER_PIN}" ]]; then
+	echo "Please set the PKCS11_USER_PIN environment variable"
+fi
+
+if [[ -z "${PKCSLIB}" ]]; then
+	echo "Please set the PKCSLIB environment variable"
+fi
+
+if [[ -z "${KMIP_IP}" ]]; then
+	echo "Please set the KMIP_IP environment variable"
+fi
+
+if [[ -z "${KMIP_REST_USER}" ]]; then
+	echo "Please set the KMIP_REST_USER environment variable"
+fi
+
+if [[ -z "${KMIP_REST_PASSWORD}" ]]; then
+	echo "Please set the KMIP_REST_PASSWORD environment variable"
+fi
 
 echo "** Now executing 'p11kmip_test.sh'"
 
@@ -32,21 +70,20 @@ P11KMIP_CONF_FILE="${P11KMIP_TMP}/p11kmip.conf"
 # Prepare PKCS11 variables
 echo "** Setting SLOT=30 to the Softtoken unless otherwise set - 'p11kmip_test.sh'"
 
-SLOT=${SLOT:-30}
+PKCS11_SLOT_ID=${PKCS11_SLOT_ID:-30}
 
-echo "** Using Slot $SLOT with PKCS11_USER_PIN $PKCS11_USER_PIN and PKCSLIB $PKCSLIB - 'p11sak_test.sh'"
+echo "** Using Slot $PKCS11_SLOT_ID with PKCS11_USER_PIN $PKCS11_USER_PIN and PKCSLIB $PKCSLIB - 'p11sak_test.sh'"
 
 # Prepare KMIP variables
-
 echo "** Setting KMIP_REST_URL=https://\${KMIP_IP}:19443 unless otherwise set - 'p11kmip_test.sh'"
 echo "** Setting KMIP_SERVER=\${KMIP_IP}:5696 unless otherwise set - 'p11kmip_test.sh'"
+
+KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
+KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
 
 echo "Dirpath: $DIR"
 KMIP_CLIENT_CERT=$P11KMIP_TMP/${P11KMIP_UNIQUE_NAME}_p11kmip_client_cert.pem
 KMIP_CLIENT_KEY=$P11KMIP_TMP/${P11KMIP_UNIQUE_NAME}_p11kmip_client_key.pem
-
-KMIP_REST_URL="${KMIP_REST_URL:-https://${KMIP_IP}:19443}"
-KMIP_HOSTNAME="${KMIP_SERVER:-${KMIP_IP}:5696}"
 
 echo "** Using KMIP server $KMIP_REST_URL with KMIP_REST_USER $KMIP_REST_USER and KMIP_REST_PASSWORD ************"
 
@@ -108,9 +145,9 @@ setup_kmip_client() {
 			echo "rc:" $RC
 
 			# Expected to return: {"code":"0","status":"CTGKM3465I File xxxx is uploaded.","messageId":"CTGKM3465I"}
-			RC=`jq .code $P11KMIP_TMP/curl_upload_cert_stdout -r`
+			RSN=`jq .code $P11KMIP_TMP/curl_upload_cert_stdout -r`
 			MSG=`jq .status $P11KMIP_TMP/curl_upload_cert_stdout -r`
-			if [[ "$RC" == "CTGKM6004E" ]]; then
+			if [[ "$RSN" == "CTGKM6004E" ]]; then
 				echo "warning: Login token expired, re-login and retry"
 				continue
 			fi
@@ -191,6 +228,10 @@ setup_pkcs11_keys() {
 	# AES key for exporting
 	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf" --file $DIR/aes.key --attr sX
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
+	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.2" --file $DIR/aes-128.key --attr sX
+	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
+	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.3" --file $DIR/aes-192.key --attr sX
+	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
 	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-env" --file $DIR/aes.key --attr sX
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
 	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-opt" --file $DIR/aes.key --attr sX
@@ -210,6 +251,10 @@ cleanup_pkcs11_keys() {
 	# AES key for exporting
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf"
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.2"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.3"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-env"
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-opt"
@@ -224,8 +269,14 @@ cleanup_pkcs11_keys() {
 	# Keys imported during test
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $KMIP_SECRET_KEY_LABEL
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$KMIP_SECRET_KEY_LABEL.2"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$KMIP_SECRET_KEY_LABEL.3"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $KMIP_PUBLIC_KEY_LABEL
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+
+
 }
 
 setup_kmip_keys() {
@@ -306,6 +357,8 @@ key_import_tests() {
 		--gen-targkey \
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
+		--targkey-id "012345678" \
+		--targkey-attrs "sX" \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
 		--tls-no-verify-server-cert \
@@ -326,6 +379,64 @@ key_import_tests() {
 	# Store the UID of the KMIP public and secret key just created
 	KMIP_GEND_TARGKEY_UID=$(cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
 	KMIP_SENT_WRAPKEY_UID=$(cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout | grep -A 2 "Public Key" | tail -n 1 | cut -d . -f 9)
+
+	echo "*** Running import test using configuration options with 128-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_conf_test_128"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	p11kmip import-key \
+		--gen-targkey \
+		--targkey-length 128 \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$KMIP_SECRET_KEY_LABEL.2" \
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
+
+	# Store the UID of the KMIP public and secret key just created
+	KMIP_GEND_TARGKEY2_UID=$(cat "${TEST_BASE}_stdout" | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
+
+	echo "*** Running import test using configuration options with 192-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_conf_test_192"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	p11kmip import-key \
+		--gen-targkey \
+		--targkey-length 192 \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$KMIP_SECRET_KEY_LABEL.3" \
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
+
+	# Store the UID of the KMIP public and secret key just created
+	KMIP_GEND_TARGKEY3_UID=$(cat "${TEST_BASE}_stdout" | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
 
 	################################################################
 	# Using environment variables                                  #
@@ -437,6 +548,8 @@ key_export_tests() {
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label "$PKCS11_SECRET_KEY_LABEL-conf" \
 		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--wrapkey-id "012345678" \
+		--wrapkey-attrs "H" \
 		--tls-no-verify-server-cert \
 		--tls-trust-server-cert \
 		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
@@ -454,6 +567,50 @@ key_export_tests() {
 
 	# Store the UID of the PKCS#11 public key just retrieved
 	KMIP_RETR_WRAPKEY_UID=$(cat $P11KMIP_TMP/p11kmip_export_key_conf_test_stdout | grep -A 2 "Public Key" | tail -n 1 | cut -d . -f 9)
+
+	echo "*** Running test using configuration options with 128-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_conf_test_128"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" p11kmip export-key \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$PKCS11_SECRET_KEY_LABEL-conf.2" \
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+	
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
+
+	echo "*** Running test using configuration options with 192-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_conf_test_192"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" p11kmip export-key \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$PKCS11_SECRET_KEY_LABEL-conf.3" \
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+	
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
 
     ################################################################
 	# Using environment variables                                  #
@@ -542,11 +699,26 @@ echo "** Setting up KMIP client on KMIP server - 'p11kmip_test.sh'"
 
 setup_kmip_client
 
+if [[ $RC -ne 0 ]] ; then
+	echo "Failed setting up KMIP client"
+	exit $RC
+fi
+
 echo "** Setting up remote and local test keys - 'p11kmip_test.sh'"
 
 setup_kmip_keys
 
+if [[ $RC_PKMIP_GENERATE -ne 0 ]]; then
+	echo "Failed setting up KMIP keys"
+	exit $RC_PKMIP_GENERATE
+fi
+
 setup_pkcs11_keys
+
+if [[ $RC_P11SAK_IMPORT -ne 0 ]]; then
+	echo "Failed setting up PKCS#11 keys"
+	exit $RC_PKMIP_GENERATE
+fi
 
 echo "** Running key import tests - 'p11kmip_test.sh'"
 
@@ -559,3 +731,10 @@ key_export_tests
 echo "** Cleaning up remote and local test keys - 'p11kmip_test.sh'"
 
 cleanup_pkcs11_keys
+
+if [[ $RC_P11SAK_REMOVE -ne 0 ]]; then
+	echo "Failed setting up PKCS#11 keys"
+	exit $RC_P11SAK_REMOVE
+fi
+
+exit $RC
