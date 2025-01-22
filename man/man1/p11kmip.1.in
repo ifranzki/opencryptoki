@@ -59,8 +59,8 @@ option specifies the KMIP name attribute of the symmetric key to be imported.
 Once imported into the PKCS\~#11 token repository, the
 .B CKA_LABEL
 attribute of the symmetric key will be set to the same value as
-.I TARGKEY\-LABEL 
-. The 
+.IR TARGKEY\-LABEL .
+The 
 .BR \-\-wrapkey\-label | \-w
 .I WRAPKEY\-LABEL
 option species the KMIP name attribute of the 2048-bit RSA public key
@@ -84,15 +84,15 @@ When the
 option is specified, the 
 .BR \-\-wrapkey\-label | \-w
 .I WRAPKEY\-LABEL
-option instead will instead be used to identify a public key 
+option will instead be used to identify a public key 
 located in the PKCS\~#11 token repository, with a 
 .B CKA_LABEL
 attribute value that is the same as 
 .IR WRAPKEY\-LABEL .
 This public key will be registered on the KMIP server with a KMIP name attribute
-of the same value,
+of the same value as
 .IR WRAPKEY\-LABEL
-as and then be used for wrapping.
+The public key will then be used for wrapping.
 
 After the import operation has been completed successfully, information will be displayed
 about the keys involved. This includes the 
@@ -161,8 +161,8 @@ option specifies the
 attribute value of the symmetric key to be exported.
 Once exported to the KMIP server, the KMIP name attribute of the 
 symmetric key will be set to the same value as
-.I TARGKEY\-LABEL 
-. The 
+.IR TARGKEY\-LABEL .
+The 
 .BR \-\-wrapkey\-label | \-w
 .I WRAPKEY\-LABEL
 option species the 
@@ -180,7 +180,7 @@ When the
 option is specified, the 
 .BR \-\-wrapkey\-label | \-w
 .I WRAPKEY\-LABEL
-option instead will instead be used to identify a public key 
+option will instead be used to identify a public key 
 located on the KMIP server with a KMIP name attribute that is the
 same as 
 .IR WRAPKEY\-LABEL .
@@ -357,7 +357,7 @@ elsewhere)
 .
 .
 .TP 8
-.BR \-\-kmip\-host\~\fHOSTNAME\fP
+.BR \-\-kmip\-host\~\fIHOSTNAME\fP
 The hostname of the KMIP server with which to connect.
 .PP
 .RS 8
@@ -373,7 +373,7 @@ When none are set, an error occurs.
 .
 .
 .TP 8
-.BR \-\-kmip\-client\-cert\~\fCERT\-\PATH\fP
+.BR \-\-kmip\-client\-cert\~\fICERT\-\PATH\fP
 A path to the TLS client certificate to use for the KMIP connection.
 .PP
 .RS 8
@@ -389,7 +389,7 @@ When none are set, an error occurs.
 .
 .
 .TP 8
-.BR \-\-kmip\-client\-key\~\fKEY\-\PATH\fP
+.BR \-\-kmip\-client\-key\~\fIKEY\-\PATH\fP
 A path to the TLS client key to use for the KMIP connection.
 .PP
 .RS 8
@@ -405,7 +405,7 @@ When none are set, an error occurs.
 .
 .
 .TP 8
-.BR \-\-pem\-password\~\fPEM\-\PASSWORD\fP
+.BR \-\-pem\-password\~\fIPEM\-\PASSWORD\fP
 The password to use for the TLS client key PEM file, if it is password-protected.
 .PP
 .RS 8
@@ -413,6 +413,7 @@ Alternatively, the PEM password may be specified using the
 .B KMIP_PEM_PASSWORD
 environment variable. When both are set, the option takes higher priority. When
 neither are set, the user is prompted for the password.
+.RE
 .PP
 .
 .
@@ -593,7 +594,7 @@ An argument, option or keyword is not valid.
 .
 .
 .SS CKR_DATA_INVALID (0x00000020):
-The \fBp11kmip_defined_attrs.conf\fP cannot be parsed or its syntax is invalid.
+The \fBp11kmip.conf\fP cannot be parsed or its syntax is invalid.
 .PP
 .
 .
@@ -626,5 +627,5 @@ A subfunction or library call has failed.
 .SH "SEE ALSO"
 .PD 0
 .TP
-\fBp11kmip_defined_attrs.conf\fP(5)
+\fBp11kmip.conf\fP(5)
 .PD

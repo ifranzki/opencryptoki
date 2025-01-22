@@ -102,6 +102,7 @@ man/man1/pkcsconf.1
 man/man1/pkcsstats.1
 man/man1/pkcshsm_mk_change.1
 man/man5/policy.conf.5
+man/man5/p11kmip.conf.5
 man/man5/p11sak_defined_attrs.conf.5
 man/man5/opencryptoki.conf.5
 man/man5/strength.conf.5

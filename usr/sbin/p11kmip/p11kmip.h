@@ -67,6 +67,11 @@
 #define OPT_TLS_VERIFY_HOSTNAME 266
 #define OPT_TLS_NO_VERIFY_CERT  267
 #define OPT_TLS_TRUST_CERT      268
+#define OPT_TARGKEY_ATTRS       269
+#define OPT_TARGKEY_ID          270
+#define OPT_TARGKEY_LEN         271
+#define OPT_WRAPKEY_ATTRS       272
+#define OPT_WRAPKEY_ID          273
 
 #define MAX_PRINT_LINE_LENGTH   80
 #define PRINT_INDENT_POS        45
@@ -75,6 +80,8 @@
 #define LIST_KEYTYPE_CELL_SIZE  22
 
 #define MAX_SYM_CLEAR_KEY_SIZE  64
+
+#define P11KMIP_DEFAULT_AES_KEY_LENGTH 32
 
 /* CLI Struct definitions */
 
@@ -176,6 +183,7 @@ struct p11kmip_keytype {
     CK_ATTRIBUTE_TYPE filter_attr;
     CK_ULONG filter_value;
     CK_ATTRIBUTE_TYPE keysize_attr;
+    CK_ULONG keysize_value;
     bool keysize_attr_value_len;
      CK_ULONG(*key_keysize_adjust) (const struct p11kmip_keytype * keytype,
                                     CK_ULONG keysize);
