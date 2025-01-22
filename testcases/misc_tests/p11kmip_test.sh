@@ -191,6 +191,10 @@ setup_pkcs11_keys() {
 	# AES key for exporting
 	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf" --file $DIR/aes.key --attr sX
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
+	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.2" --file $DIR/aes-128.key --attr sX
+	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
+	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.3" --file $DIR/aes-192.key --attr sX
+	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
 	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-env" --file $DIR/aes.key --attr sX
 	RC_P11SAK_IMPORT=$((RC_P11SAK_IMPORT + $?))
 	p11sak import-key aes --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-opt" --file $DIR/aes.key --attr sX
@@ -210,6 +214,10 @@ cleanup_pkcs11_keys() {
 	# AES key for exporting
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf"
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.2"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-conf.3"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-env"
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$PKCS11_SECRET_KEY_LABEL-opt"
@@ -223,6 +231,10 @@ cleanup_pkcs11_keys() {
 
 	# Keys imported during test
 	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $KMIP_SECRET_KEY_LABEL
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$KMIP_SECRET_KEY_LABEL.2"
+	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+	p11sak remove-key aes --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label "$KMIP_SECRET_KEY_LABEL.3"
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 	p11sak remove-key rsa --force --slot $PKCS11_SLOT_ID --pin $PKCS11_USER_PIN --label $KMIP_PUBLIC_KEY_LABEL
 	RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
@@ -306,6 +318,8 @@ key_import_tests() {
 		--gen-targkey \
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label $KMIP_SECRET_KEY_LABEL \
+		--targkey-id "012345678" \
+		--targkey-attrs "sX" \
 		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
 		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
 		--tls-no-verify-server-cert \
@@ -326,6 +340,64 @@ key_import_tests() {
 	# Store the UID of the KMIP public and secret key just created
 	KMIP_GEND_TARGKEY_UID=$(cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
 	KMIP_SENT_WRAPKEY_UID=$(cat $P11KMIP_TMP/p11kmip_import_key_conf_test_stdout | grep -A 2 "Public Key" | tail -n 1 | cut -d . -f 9)
+
+	echo "*** Running import test using configuration options with 128-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_conf_test_128"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	p11kmip import-key \
+		--gen-targkey \
+		--targkey-length 128 \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$KMIP_SECRET_KEY_LABEL.2" \
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
+
+	# Store the UID of the KMIP public and secret key just created
+	KMIP_GEND_TARGKEY2_UID=$(cat "${TEST_BASE}_stdout" | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
+
+	echo "*** Running import test using configuration options with 192-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_import_key_conf_test_192"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" \
+	p11kmip import-key \
+		--gen-targkey \
+		--targkey-length 192 \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$KMIP_SECRET_KEY_LABEL.3" \
+		--wrapkey-label $PKCS11_PUBLIC_KEY_LABEL \
+		--unwrapkey-label $PKCS11_PRIVATE_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
+
+	# Store the UID of the KMIP public and secret key just created
+	KMIP_GEND_TARGKEY3_UID=$(cat "${TEST_BASE}_stdout" | grep -A 2 "Secret Key" | tail -n 1 | cut -d . -f 9)
 
 	################################################################
 	# Using environment variables                                  #
@@ -437,6 +509,8 @@ key_export_tests() {
 		--pin $PKCS11_USER_PIN  \
 		--targkey-label "$PKCS11_SECRET_KEY_LABEL-conf" \
 		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--wrapkey-id "012345678" \
+		--wrapkey-attrs "H" \
 		--tls-no-verify-server-cert \
 		--tls-trust-server-cert \
 		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
@@ -454,6 +528,50 @@ key_export_tests() {
 
 	# Store the UID of the PKCS#11 public key just retrieved
 	KMIP_RETR_WRAPKEY_UID=$(cat $P11KMIP_TMP/p11kmip_export_key_conf_test_stdout | grep -A 2 "Public Key" | tail -n 1 | cut -d . -f 9)
+
+	echo "*** Running test using configuration options with 128-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_conf_test_128"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" p11kmip export-key \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$PKCS11_SECRET_KEY_LABEL-conf.2" \
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+	
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
+
+	echo "*** Running test using configuration options with 192-bit key"
+	TEST_BASE="$P11KMIP_TMP/p11kmip_export_key_conf_test_192"
+
+	P11KMIP_CONF_FILE="$P11KMIP_CONF_FILE" p11kmip export-key \
+		--pin $PKCS11_USER_PIN  \
+		--targkey-label "$PKCS11_SECRET_KEY_LABEL-conf.3" \
+		--wrapkey-label $KMIP_PUBLIC_KEY_LABEL \
+		--tls-no-verify-server-cert \
+		--tls-trust-server-cert \
+		>"${TEST_BASE}_stdout" 2>"${TEST_BASE}_stderr"
+	
+	RC=$?
+	echo "rc = $RC"
+	echo "stdout:"
+	cat "${TEST_BASE}_stdout"
+
+	if [[ $RC -ne 0 ]] ; then
+		echo "stderr:"
+		cat "${TEST_BASE}_stderr"
+		return
+	fi
 
     ################################################################
 	# Using environment variables                                  #
