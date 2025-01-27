@@ -1347,10 +1347,9 @@ static CK_RV parse_config_file(void)
     if (file_loc != NULL) {
         fp = fopen(file_loc, "r");
         if (fp == NULL) {
-            warnx
-                ("Cannot read config file '%s' "
-                 "(specified via env variable %s): %s",
-                 file_loc, P11KMIP_CONF_FILE_ENV_NAME, strerror(errno));
+            warnx("Cannot read config file '%s' "
+                  "(specified via env variable %s): %s",
+                  file_loc, P11KMIP_CONF_FILE_ENV_NAME, strerror(errno));
             return CKR_GENERAL_ERROR;
         }
     } else {
@@ -1435,10 +1434,9 @@ static CK_RV build_kmip_config(void)
                 strcmp(c->key, P11KMIP_CONFIG_KEYWORD_KMIP) != 0) {
                 continue;
             } else if (found) {
-                warnx
-                    ("Syntax error in config file:"
-                     "'%s' specified multiple times\n",
-                     P11KMIP_CONFIG_KEYWORD_KMIP);
+                warnx("Syntax error in config file:"
+                      "'%s' specified multiple times\n",
+                      P11KMIP_CONFIG_KEYWORD_KMIP);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
@@ -1466,73 +1464,65 @@ static CK_RV build_kmip_config(void)
              *  with the right combinations 
              */ 
             if (host != NULL && !confignode_hastype(host, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file: "
-                     "Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_HOST, c->line);
+                warnx("Syntax error in config file: "
+                      "Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_HOST, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (tls_client_cert != NULL
                 && !confignode_hastype(tls_client_cert, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_CLIENT_CERT, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_CLIENT_CERT, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (tls_client_key != NULL
                 && !confignode_hastype(tls_client_key, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_CLIENT_KEY, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_CLIENT_KEY, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_key_format != NULL
                 && !confignode_hastype(wrap_key_format, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_WRAP_KEY_FMT, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_key_algorithm != NULL
                 && !confignode_hastype(wrap_key_algorithm, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_WRAP_KEY_ALG, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_key_size != NULL
                 && !confignode_hastype(wrap_key_size, CT_INTVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_pad_method != NULL
                 && !confignode_hastype(wrap_pad_method, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_WRAP_PAD_MTHD, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
             if (wrap_hash_algo != NULL
                 && !confignode_hastype(wrap_hash_algo, CT_STRINGVAL)) {
-                warnx
-                    ("Syntax error in config file:"
-                     " Missing '%s' in attribute at line %hu\n",
-                     P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG, c->line);
+                warnx("Syntax error in config file:"
+                      " Missing '%s' in attribute at line %hu\n",
+                      P11KMIP_CONFIG_KEYWORD_WRAP_HASH_ALG, c->line);
                 rc = CKR_ARGUMENTS_BAD;
                 goto done;
             }
@@ -1702,9 +1692,8 @@ static CK_RV build_kmip_config(void)
 
     if (kmip_conf->tls_client_key == NULL && 
         kmip_conf->tls_client_cert == NULL) {
-        warnx
-            ("TLS client key or client certificate was not"
-             " provided through configuration or commandline options");
+        warnx("TLS client key or client certificate was not"
+              " provided through configuration or commandline options");
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -2328,10 +2317,9 @@ static CK_RV load_pkcs11_lib(void)
 
     rc = getfunclist(&pkcs11_funcs);
     if (rc != CKR_OK) {
-        warnx
-            ("C_GetFunctionList() on "
-             "PKCS#11 library '%s' failed with 0x%lX: %s)\n",
-             libname, rc, p11_get_ckr(rc));
+        warnx("C_GetFunctionList() on "
+              "PKCS#11 library '%s' failed with 0x%lX: %s)\n",
+              libname, rc, p11_get_ckr(rc));
         return CKR_FUNCTION_FAILED;
     }
 
@@ -2429,10 +2417,9 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
                     strcmp(c->key, P11KMIP_CONFIG_KEYWORD_PKCS11) != 0) {
                     continue;
                 } else if (found) {
-                    warnx
-                        ("Syntax error in config file:"
-                         " '%s' specified multiple times\n",
-                         P11KMIP_CONFIG_KEYWORD_PKCS11);
+                    warnx("Syntax error in config file:"
+                          " '%s' specified multiple times\n",
+                          P11KMIP_CONFIG_KEYWORD_PKCS11);
                     rc = CKR_ARGUMENTS_BAD;
                     goto done;
                 }
@@ -2443,10 +2430,9 @@ static CK_RV init_pkcs11(const struct p11kmip_cmd *command)
 
                 if (cfg_slot != NULL
                     && !confignode_hastype(cfg_slot, CT_INTVAL)) {
-                    warnx
-                        ("Syntax error in config file:"
-                         " Missing '%s' in attribute at line %hu\n",
-                         P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
+                    warnx("Syntax error in config file:"
+                          " Missing '%s' in attribute at line %hu\n",
+                          P11KMIP_CONFIG_KEYWORD_WRAP_KEY_SIZE, c->line);
                     rc = CKR_ARGUMENTS_BAD;
                     goto done;
                 }
@@ -2839,22 +2825,22 @@ static void free_attributes(CK_ATTRIBUTE *attrs, CK_ULONG num_attrs)
 /*****************************************************************************/
 
 static CK_RV get_key_size(const struct p11kmip_keytype *keytype,
-                              void *private, CK_ULONG *keysize)
+                          void *private, CK_ULONG *keysize)
 {
     CK_OBJECT_HANDLE key_handle;
     CK_ATTRIBUTE keysize_attr;
     CK_RV rc = CKR_OK;
 
     if (private == NULL) {
-        // If we are not provided with a key handle,
-        // we have to rely on the keysize set in the keytype
-        // structure itself
+        /*
+         * If we are not provided with a key handle, we have to rely on the
+         * keysize set in the keytype structure itself
+         */
         *keysize = keytype->keysize_value;
         return CKR_OK;
     
     }
 
-    // User must pass in the key handle
     key_handle = (CK_OBJECT_HANDLE)private;
 
     keysize_attr.type = keytype->keysize_attr;
@@ -2886,18 +2872,6 @@ static bool aes_is_attr_applicable(const struct p11kmip_keytype *keytype,
 /*****************************************************************************/
 /* PKCS#11 Crypto Adapter Utility Functions                                  */
 /*****************************************************************************/
-
-static int is_cca_token(CK_SLOT_ID slot_id)
-{
-    CK_RV rc;
-    CK_TOKEN_INFO tokinfo;
-
-    rc = pkcs11_funcs->C_GetTokenInfo(slot_id, &tokinfo);
-    if (rc != CKR_OK)
-        return FALSE;
-
-    return strstr((const char *) tokinfo.model, "CCA") != NULL;
-}
 
 /* Commands */
 
@@ -3112,7 +3086,7 @@ static CK_RV p11kmip_import_key(void)
                                       unwrapped_key_handle, &digest_mech);
 
         if (rc != CKR_OK && rc != CKR_KEY_INDIGESTIBLE) {
-            warnx("Obtaining digest of KMIP key failed");
+            warnx("Obtaining digest of PKCS#11 key failed");
             goto done;
         }
 
@@ -3120,6 +3094,7 @@ static CK_RV p11kmip_import_key(void)
             printf("%s:", opt_target_label);
             if (rc == CKR_KEY_INDIGESTIBLE) {
                 printf("<key digest not available>");
+                rc = CKR_OK;
             } else {
                 print_hex(local_key_digest, (int) local_key_digest_len);
             }
@@ -3134,6 +3109,7 @@ static CK_RV p11kmip_import_key(void)
             printf("     PKCS#11 Digest..");
             if (rc == CKR_KEY_INDIGESTIBLE) {
                 printf("<key digest not available>");
+                rc = CKR_OK;
             } else {
                 print_hex(local_key_digest, (int) local_key_digest_len);
             }
@@ -3320,7 +3296,7 @@ static CK_RV p11kmip_export_key(void)
                                       secret_key_handle, &digest_mech);
 
         if (rc != CKR_OK && rc != CKR_KEY_INDIGESTIBLE) {
-            warnx("Obtaining digest of KMIP key failed");
+            warnx("Obtaining digest of PKCS#11 key failed");
             goto done;
         }
 
@@ -3328,6 +3304,7 @@ static CK_RV p11kmip_export_key(void)
             printf("%s:", opt_target_label);
             if (rc == CKR_KEY_INDIGESTIBLE) {
                 printf("<key digest not available>");
+                rc = CKR_OK;
             } else {
                 print_hex(local_key_digest, (int) local_key_digest_len);
             }
@@ -3342,6 +3319,7 @@ static CK_RV p11kmip_export_key(void)
             printf("     PKCS#11 Digest..");
             if (rc == CKR_KEY_INDIGESTIBLE) {
                 printf("<key digest not available>");
+                rc = CKR_OK;
             } else {
                 print_hex(local_key_digest, (int) local_key_digest_len);
             }
@@ -3604,11 +3582,10 @@ static CK_RV p11kmip_unwrap_local_secret_key(
     CK_RV rc;
     size_t i = 0;
 
-    int iscca = is_cca_token(opt_slot);
     CK_OBJECT_CLASS key_class = wrapped_keytype->class;
     CK_KEY_TYPE key_type = wrapped_keytype->type;
     CK_ATTRIBUTE_PTR unwrapped_template = NULL;
-    CK_ULONG key_size = 0, unwrapped_templatecount = 0;
+    CK_ULONG unwrapped_templatecount = 0;
 
     /* Build the template for the default attribute */
     rc = add_attribute(CKA_TOKEN, &ck_true, sizeof(ck_true), 
@@ -3688,11 +3665,6 @@ static CK_RV p11kmip_unwrap_local_secret_key(
         warnx("Unsupported padding method: %d", (int) kmip_wrap_padding_method);
         return CKR_ARGUMENTS_BAD;
     }
-
-    if (iscca)
-        rc += add_attribute(CKA_VALUE_LEN, &key_size, sizeof(key_size),
-            &unwrapped_template, &unwrapped_templatecount);   /* For CCA only */
-
 
     rc = pkcs11_funcs->C_UnwrapKey(pkcs11_session, &mech,
                                    wrapping_key_handle,
@@ -3787,12 +3759,12 @@ static CK_RV p11kmip_create_local_public_key(
     BIGNUM *bn_n = NULL, *bn_e = NULL;
 #endif
 
-    int iscca = is_cca_token(opt_slot);
     CK_OBJECT_CLASS key_class = public_keytype->class;
     CK_KEY_TYPE key_type = public_keytype->type;
     CK_ULONG key_size = 0;
     CK_ULONG public_templatecount = 0;
     CK_ATTRIBUTE_PTR public_template = NULL;
+
     rc = public_keytype->keygen_get_key_size(public_keytype, NULL, &key_size);
     if (rc) {
         warnx("Failed to key size of wrapped key");
@@ -3830,10 +3802,6 @@ static CK_RV p11kmip_create_local_public_key(
     rc += add_attribute(CKA_LABEL, public_key_label, 
                         strlen((char *) public_key_label),
                         &public_template, &public_templatecount);
-    
-    if (iscca)
-        rc += add_attribute(CKA_VALUE_LEN, &key_size, sizeof(key_size),
-            &public_template, &public_templatecount);    /* For CCA only */
     
     if (rc != CKR_OK)
             goto done;
@@ -3944,10 +3912,9 @@ static CK_RV p11kmip_find_local_key(
 
     rc = pkcs11_funcs->C_FindObjectsInit(pkcs11_session, attrs, num_attrs);
     if (rc != CKR_OK) {
-        warnx
-            ("Failed to initialize the find operation:"
-             " C_FindObjectsInit: 0x%lX: %s",
-             rc, p11_get_ckr(rc));
+        warnx("Failed to initialize the find operation:"
+              " C_FindObjectsInit: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
         goto done;
     }
 
@@ -3964,10 +3931,9 @@ static CK_RV p11kmip_find_local_key(
 
     rc = pkcs11_funcs->C_FindObjectsFinal(pkcs11_session);
     if (rc != CKR_OK) {
-        warnx
-            ("Failed to finalize the find operation:"
-             " C_FindObjectsFinal: 0x%lX: %s",
-             rc, p11_get_ckr(rc));
+        warnx("Failed to finalize the find operation:"
+              " C_FindObjectsFinal: 0x%lX: %s",
+              rc, p11_get_ckr(rc));
 
         goto done;
     }
@@ -4000,16 +3966,15 @@ static CK_RV p11kmip_digest_local_key(CK_BYTE_PTR digest,
     CK_RV rc;
 
     rc = pkcs11_funcs->C_DigestInit(pkcs11_session, digestMech);
-
-    if (rc) {
+    if (rc != CKR_OK) {
         warnx("Failed to initialize PKCS#11 digest");
         return rc;
     }
 
     rc = pkcs11_funcs->C_DigestKey(pkcs11_session, key);
-
-    if (rc != CKR_OK && rc != CKR_KEY_INDIGESTIBLE) {
-        warnx("Failed to digest PKCS#11 key");
+    if (rc != CKR_OK) {
+        if (rc != CKR_KEY_INDIGESTIBLE)
+            warnx("Failed to digest PKCS#11 key");
         return rc;
     }
 

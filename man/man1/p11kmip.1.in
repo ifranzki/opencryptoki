@@ -91,7 +91,7 @@ attribute value that is the same as
 .IR WRAPKEY\-LABEL .
 This public key will be registered on the KMIP server with a KMIP name attribute
 of the same value as
-.IR WRAPKEY\-LABEL
+.IR WRAPKEY\-LABEL .
 The public key will then be used for wrapping.
 
 After the import operation has been completed successfully, information will be displayed
