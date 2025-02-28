@@ -1,5 +1,5 @@
 /*
- * COPYRIGHT (c) International Business Machines Corp. 2001-2022
+ * COPYRIGHT (c) International Business Machines Corp. 2001-2025
  *
  * This program is provided under the terms of the Common Public License,
  * version 1.0 (CPL-1.0). Any use, reproduction or distribution for this
@@ -11,7 +11,7 @@
 #ifndef P11SAK_H_
 #define P11SAK_H_
 
-#include "pkcs11types.h"
+#include "p11tool.h"
 #include "ec_curves.h"
 
 #define P11SAK_DEFAULT_PKCS11_LIB           OCK_API_LIBNAME;
@@ -43,7 +43,6 @@
 #define OPT_URI_PIN_SOURCE      261
 #define OPT_OQSPROVIDER_PEM     262
 
-#define MAX_PRINT_LINE_LENGTH   80
 #define PRINT_INDENT_POS        35
 
 #define FIND_OBJECTS_COUNT      64
@@ -57,61 +56,6 @@
 
 #define PKCS11_URI_PEM_NAME     "PKCS#11 PROVIDER URI"
 #define PKCS11_URI_DESCRIPTION  "PKCS#11 Provider URI v1.0"
-
-enum p11sak_arg_type {
-    ARG_TYPE_PLAIN = 0, /* no argument */
-    ARG_TYPE_STRING = 1,
-    ARG_TYPE_ENUM = 2,
-    ARG_TYPE_NUMBER = 3,
-};
-
-struct p11sak_enum_value {
-    const char *value;
-    const struct p11sak_arg *args;
-    union {
-        const void *ptr;
-        CK_ULONG num;
-    } private;
-    char **any_value; /* if this is not NULL then this enum value matches to
-                         any string, and the string is set into any_value */
-};
-
-struct p11sak_arg {
-    const char *name;
-    enum p11sak_arg_type type;
-    bool required;
-    bool case_sensitive;
-    const struct p11sak_enum_value *enum_values;
-    union {
-        bool *plain;
-        char **string;
-        struct p11sak_enum_value **enum_value;
-        CK_ULONG *number;
-    } value;
-    bool (*is_set)(const struct p11sak_arg *arg);
-    const char *description;
-};
-
-struct p11sak_opt {
-    char short_opt; /* 0 if no short option is used */
-    const char *long_opt; /* NULL if no long option */
-    int long_opt_val; /* Used only if short_opt is 0 */
-    bool required;
-    struct p11sak_arg arg;
-    const char *description;
-};
-
-struct p11sak_cmd {
-    const char *cmd;
-    const char *cmd_short1;
-    const char *cmd_short2;
-    CK_RV (*func)(void);
-    const struct p11sak_opt *opts;
-    const struct p11sak_arg *args;
-    const char *description;
-    void (*help)(void);
-    CK_FLAGS session_flags;
-};
 
 struct p11sak_attr {
     const char *name;

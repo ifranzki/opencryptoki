@@ -104,14 +104,14 @@ static char *opt_pin = NULL;
 static bool opt_force_pin_prompt = false;
 static bool opt_no_login = false;
 static bool opt_so = false;
-static struct p11sak_enum_value *opt_keytype = NULL;
-static struct p11sak_enum_value *opt_certtype = NULL;
+static struct p11tool_enum_value *opt_keytype = NULL;
+static struct p11tool_enum_value *opt_certtype = NULL;
 static CK_ULONG opt_keybits_num = 0;
-static struct p11sak_enum_value *opt_keybits = NULL;
-static struct p11sak_enum_value *opt_group = NULL;
+static struct p11tool_enum_value *opt_keybits = NULL;
+static struct p11tool_enum_value *opt_group = NULL;
 static char *opt_pem_file = NULL;
-static struct p11sak_enum_value *opt_curve = NULL;
-static struct p11sak_enum_value *opt_pqc_version = NULL;
+static struct p11tool_enum_value *opt_curve = NULL;
+static struct p11tool_enum_value *opt_pqc_version = NULL;
 static char *opt_label = NULL;
 static bool opt_force = false;
 static CK_ULONG opt_exponent = 0;
@@ -127,7 +127,7 @@ static char *opt_file = NULL;
 static char *opt_pem_password = NULL;
 static bool opt_force_pem_pwd_prompt = false;
 static bool opt_opaque = false;
-static struct p11sak_enum_value *opt_asym_kind = NULL;
+static struct p11tool_enum_value *opt_asym_kind = NULL;
 static bool opt_spki = false;
 static bool opt_der = false;
 static bool opt_cacert = false;
@@ -137,7 +137,7 @@ static char *opt_uri_pin_source = NULL;
 static bool opt_oqsprovider_pem = false;
 static bool opt_hsm_mkvp = false;
 
-static bool opt_slot_is_set(const struct p11sak_arg *arg);
+static bool opt_slot_is_set(const struct p11tool_arg *arg);
 static CK_RV generic_get_key_size(const struct p11sak_objtype *keytype,
                                   void *private, CK_ULONG *keysize);
 static CK_RV generic_add_secret_attrs(const struct p11sak_objtype *keytype,
@@ -976,7 +976,7 @@ static const struct p11sak_class p11sak_classes[] = {
     { .name = NULL, .class = 0, }
 };
 
-static const struct p11sak_opt p11sak_generic_opts[] = {
+static const struct p11tool_opt p11sak_generic_opts[] = {
     { .short_opt = 'h', .long_opt = "help", .required = false,
       .arg = { .type = ARG_TYPE_PLAIN, .required = false,
                .value.plain = &opt_help, },
@@ -1115,7 +1115,7 @@ static const struct p11sak_opt p11sak_generic_opts[] = {
     { .value = "x509", .args = NULL,                                           \
       .private = { .ptr = &p11sak_x509_certtype }, }
 
-static const struct p11sak_opt p11sak_generate_key_opts[] = {
+static const struct p11tool_opt p11sak_generate_key_opts[] = {
     PKCS11_OPTS,
     { .short_opt = 'L', .long_opt = "label", .required = true,
       .arg =  { .type = ARG_TYPE_STRING, .required = true,
@@ -1149,21 +1149,21 @@ static const struct p11sak_opt p11sak_generate_key_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_generic_args[] = {
+static const struct p11tool_arg p11sak_generate_generic_args[] = {
     { .name = "KEYBITS", .type = ARG_TYPE_NUMBER, .required = true,
       .value.number = &opt_keybits_num,
       .description = "Size of the generic key in bits.", },
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_aes_keybits[] = {
+static const struct p11tool_enum_value p11sak_aes_keybits[] = {
     { .value = "128", .args = NULL, .private = { .num = 128 }, },
     { .value = "192", .args = NULL, .private = { .num = 192 }, },
     { .value = "256", .args = NULL, .private = { .num = 256 }, },
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_aes_args[] = {
+static const struct p11tool_arg p11sak_generate_aes_args[] = {
     { .name = "KEYBITS", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_aes_keybits,
       .value.enum_value = &opt_keybits,
@@ -1171,13 +1171,13 @@ static const struct p11sak_arg p11sak_generate_aes_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_aes_xts_keybits[] = {
+static const struct p11tool_enum_value p11sak_aes_xts_keybits[] = {
     { .value = "128", .args = NULL, .private = { .num = 128 * 2 }, },
     { .value = "256", .args = NULL, .private = { .num = 256 * 2 }, },
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_aes_xts_args[] = {
+static const struct p11tool_arg p11sak_generate_aes_xts_args[] = {
     { .name = "KEYBITS", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_aes_xts_keybits,
       .value.enum_value = &opt_keybits,
@@ -1185,7 +1185,7 @@ static const struct p11sak_arg p11sak_generate_aes_xts_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_rsa_keybits[] = {
+static const struct p11tool_enum_value p11sak_rsa_keybits[] = {
     { .value = "512", .args = NULL, .private = { .num = 512 }, },
     { .value = "1024", .args = NULL, .private = { .num = 1024 }, },
     { .value = "2048", .args = NULL, .private = { .num = 2048 }, },
@@ -1193,7 +1193,7 @@ static const struct p11sak_enum_value p11sak_rsa_keybits[] = {
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_rsa_args[] = {
+static const struct p11tool_arg p11sak_generate_rsa_args[] = {
     { .name = "KEYBITS", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_rsa_keybits,
       .value.enum_value = &opt_keybits,
@@ -1204,7 +1204,7 @@ static const struct p11sak_arg p11sak_generate_rsa_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_dh_group[] = {
+static const struct p11tool_enum_value p11sak_dh_group[] = {
     { .value = "ffdhe2048", .args = NULL,
       .private = { .num = NID_ffdhe2048 }, },
     { .value = "ffdhe3072", .args = NULL,
@@ -1245,7 +1245,7 @@ static const struct p11sak_enum_value p11sak_dh_group[] = {
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_dh_args[] = {
+static const struct p11tool_arg p11sak_generate_dh_args[] = {
     { .name = "GROUP", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_dh_group,
       .value.enum_value = &opt_group,
@@ -1257,7 +1257,7 @@ static const struct p11sak_arg p11sak_generate_dh_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_dsa_args[] = {
+static const struct p11tool_arg p11sak_generate_dsa_args[] = {
     { .name = "DSA-PARAM-PEM-FILE", .type = ARG_TYPE_STRING, .required = true,
       .value.string = &opt_pem_file,
       .description = "The name of a DSA parameters PEM file.", },
@@ -1297,7 +1297,7 @@ DECLARE_CURVE_INFO(curve448, 448);
 DECLARE_CURVE_INFO(ed25519, 256);
 DECLARE_CURVE_INFO(ed448, 448);
 
-static const struct p11sak_enum_value p11sak_ec_curves[] = {
+static const struct p11tool_enum_value p11sak_ec_curves[] = {
     DECLARE_CURVE_VALUE(prime256v1),
     DECLARE_CURVE_VALUE(prime192v1),
     DECLARE_CURVE_VALUE(secp224r1),
@@ -1325,7 +1325,7 @@ static const struct p11sak_enum_value p11sak_ec_curves[] = {
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_ec_args[] = {
+static const struct p11tool_arg p11sak_generate_ec_args[] = {
     { .name = "CURVE", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_ec_curves,
       .value.enum_value = &opt_curve,
@@ -1333,7 +1333,7 @@ static const struct p11sak_arg p11sak_generate_ec_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_ibm_dilithium_versions[] = {
+static const struct p11tool_enum_value p11sak_ibm_dilithium_versions[] = {
     { .value = "r2_65", .args = NULL,
       .private = { .num = CK_IBM_DILITHIUM_KEYFORM_ROUND2_65 }, },
     { .value = "r2_87", .args = NULL,
@@ -1347,7 +1347,7 @@ static const struct p11sak_enum_value p11sak_ibm_dilithium_versions[] = {
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_ibm_dilithium_args[] = {
+static const struct p11tool_arg p11sak_generate_ibm_dilithium_args[] = {
     { .name = "VERSION", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_ibm_dilithium_versions,
       .value.enum_value = &opt_pqc_version,
@@ -1355,7 +1355,7 @@ static const struct p11sak_arg p11sak_generate_ibm_dilithium_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_ibm_kyber_versions[] = {
+static const struct p11tool_enum_value p11sak_ibm_kyber_versions[] = {
     { .value = "r2_768", .args = NULL,
       .private = { .num = CK_IBM_KYBER_KEYFORM_ROUND2_768 }, },
     { .value = "r2_1024", .args = NULL,
@@ -1363,7 +1363,7 @@ static const struct p11sak_enum_value p11sak_ibm_kyber_versions[] = {
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_ibm_kyber_args[] = {
+static const struct p11tool_arg p11sak_generate_ibm_kyber_args[] = {
     { .name = "VERSION", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_ibm_kyber_versions,
       .value.enum_value = &opt_pqc_version,
@@ -1371,12 +1371,12 @@ static const struct p11sak_arg p11sak_generate_ibm_kyber_args[] = {
     { .name = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_generate_key_keytypes[] = {
+static const struct p11tool_enum_value p11sak_generate_key_keytypes[] = {
     KEYGEN_KEYTYPES(p11sak_generate),
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_generate_key_args[] = {
+static const struct p11tool_arg p11sak_generate_key_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_generate_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -1384,7 +1384,7 @@ static const struct p11sak_arg p11sak_generate_key_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_opt p11sak_list_key_opts[] = {
+static const struct p11tool_opt p11sak_list_key_opts[] = {
     PKCS11_OPTS,
     KEY_FILTER_OPTS,
     { .short_opt = 'l', .long_opt = "long", .required = false,
@@ -1421,7 +1421,7 @@ static const struct p11sak_opt p11sak_list_key_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_list_cert_opts[] = {
+static const struct p11tool_opt p11sak_list_cert_opts[] = {
     PKCS11_OPTS,
     CERT_FILTER_OPTS,
     { .short_opt = 'l', .long_opt = "long", .required = false,
@@ -1460,14 +1460,14 @@ static const struct p11sak_opt p11sak_list_cert_opts[] = {
 #define null_ibm_dilithium_args     NULL
 #define null_ibm_kyber_args         NULL
 
-static const struct p11sak_enum_value
+static const struct p11tool_enum_value
                         p11sak_list_remove_set_copy_export_key_keytypes[] = {
     KEYGEN_KEYTYPES(null),
     GROUP_KEYTYPES,
     { .value = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_private_key_keytypes[] = {
+static const struct p11tool_enum_value p11sak_private_key_keytypes[] = {
     { .value = "rsa", .args = NULL,
       .private = { .ptr = &p11sak_rsa_keytype }, },
     { .value = "dh", .args = NULL,
@@ -1487,13 +1487,13 @@ static const struct p11sak_enum_value p11sak_private_key_keytypes[] = {
     { .value = NULL, },
 };
 
-static const struct p11sak_enum_value
+static const struct p11tool_enum_value
                         p11sak_list_remove_set_copy_export_cert_certtypes[] = {
     GROUP_CERTTYPES,
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_list_key_args[] = {
+static const struct p11tool_arg p11sak_list_key_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -1502,7 +1502,7 @@ static const struct p11sak_arg p11sak_list_key_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_list_cert_args[] = {
+static const struct p11tool_arg p11sak_list_cert_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_cert_certtypes,
       .value.enum_value = &opt_certtype,
@@ -1513,7 +1513,7 @@ static const struct p11sak_arg p11sak_list_cert_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_opt p11sak_remove_key_opts[] = {
+static const struct p11tool_opt p11sak_remove_key_opts[] = {
     PKCS11_OPTS,
     KEY_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1525,7 +1525,7 @@ static const struct p11sak_opt p11sak_remove_key_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_remove_cert_opts[] = {
+static const struct p11tool_opt p11sak_remove_cert_opts[] = {
     PKCS11_OPTS,
     CERT_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1537,7 +1537,7 @@ static const struct p11sak_opt p11sak_remove_cert_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_arg p11sak_remove_key_args[] = {
+static const struct p11tool_arg p11sak_remove_key_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -1547,7 +1547,7 @@ static const struct p11sak_arg p11sak_remove_key_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_remove_cert_args[] = {
+static const struct p11tool_arg p11sak_remove_cert_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_cert_certtypes,
       .value.enum_value = &opt_certtype,
@@ -1558,7 +1558,7 @@ static const struct p11sak_arg p11sak_remove_cert_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_opt p11sak_set_key_attr_opts[] = {
+static const struct p11tool_opt p11sak_set_key_attr_opts[] = {
     PKCS11_OPTS,
     KEY_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1586,7 +1586,7 @@ static const struct p11sak_opt p11sak_set_key_attr_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_set_cert_attr_opts[] = {
+static const struct p11tool_opt p11sak_set_cert_attr_opts[] = {
     PKCS11_OPTS,
     CERT_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1614,7 +1614,7 @@ static const struct p11sak_opt p11sak_set_cert_attr_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_arg p11sak_set_key_attr_args[] = {
+static const struct p11tool_arg p11sak_set_key_attr_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -1624,7 +1624,7 @@ static const struct p11sak_arg p11sak_set_key_attr_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_set_cert_attr_args[] = {
+static const struct p11tool_arg p11sak_set_cert_attr_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_cert_certtypes,
       .value.enum_value = &opt_certtype,
@@ -1635,7 +1635,7 @@ static const struct p11sak_arg p11sak_set_cert_attr_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_opt p11sak_copy_key_opts[] = {
+static const struct p11tool_opt p11sak_copy_key_opts[] = {
     PKCS11_OPTS,
     KEY_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1662,7 +1662,7 @@ static const struct p11sak_opt p11sak_copy_key_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_copy_cert_opts[] = {
+static const struct p11tool_opt p11sak_copy_cert_opts[] = {
     PKCS11_OPTS,
     CERT_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1691,7 +1691,7 @@ static const struct p11sak_opt p11sak_copy_cert_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_arg p11sak_copy_key_args[] = {
+static const struct p11tool_arg p11sak_copy_key_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -1701,7 +1701,7 @@ static const struct p11sak_arg p11sak_copy_key_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_copy_cert_args[] = {
+static const struct p11tool_arg p11sak_copy_cert_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_cert_certtypes,
       .value.enum_value = &opt_keytype,
@@ -1712,7 +1712,7 @@ static const struct p11sak_arg p11sak_copy_cert_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_opt p11sak_import_key_opts[] = {
+static const struct p11tool_opt p11sak_import_key_opts[] = {
     PKCS11_OPTS,
     { .short_opt = 'L', .long_opt = "label", .required = true,
       .arg =  { .type = ARG_TYPE_STRING, .required = true,
@@ -1780,7 +1780,7 @@ static const struct p11sak_opt p11sak_import_key_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_import_cert_opts[] = {
+static const struct p11tool_opt p11sak_import_cert_opts[] = {
     PKCS11_OPTS,
     { .short_opt = 'L', .long_opt = "label", .required = true,
       .arg =  { .type = ARG_TYPE_STRING, .required = true,
@@ -1813,13 +1813,13 @@ static const struct p11sak_opt p11sak_import_cert_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_enum_value p11sak_import_asym_types[] = {
+static const struct p11tool_enum_value p11sak_import_asym_types[] = {
     { .value = "public", .args = NULL, .private = { .num = false }, },
     { .value = "private", .args = NULL, .private = { .num = true }, },
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_import_asym_args[] = {
+static const struct p11tool_arg p11sak_import_asym_args[] = {
     { .name = "KIND", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_import_asym_types,
       .value.enum_value = &opt_asym_kind,
@@ -1851,7 +1851,7 @@ static const struct p11sak_arg p11sak_import_asym_args[] = {
     { .value = "ibm-kyber", .args = p11sak_import_asym_args,                   \
       .private = { .ptr = &p11sak_ibm_kyber_keytype }, }
 
-static const struct p11sak_enum_value p11sak_import_key_keytypes[] = {
+static const struct p11tool_enum_value p11sak_import_key_keytypes[] = {
     IMPORT_KEYTYPES,
     { .value = NULL, },
 };
@@ -1860,12 +1860,12 @@ static const struct p11sak_enum_value p11sak_import_key_keytypes[] = {
     { .value = "x509", .args = NULL,                                           \
       .private = { .ptr = &p11sak_x509_certtype, }, }
 
-static const struct p11sak_enum_value p11sak_import_cert_certtypes[] = {
+static const struct p11tool_enum_value p11sak_import_cert_certtypes[] = {
     IMPORT_CERTTYPES,
     { .value = NULL, },
 };
 
-static const struct p11sak_arg p11sak_import_key_args[] = {
+static const struct p11tool_arg p11sak_import_key_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_import_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -1873,7 +1873,7 @@ static const struct p11sak_arg p11sak_import_key_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_import_cert_args[] = {
+static const struct p11tool_arg p11sak_import_cert_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = true,
       .enum_values = p11sak_import_cert_certtypes,
       .value.enum_value = &opt_certtype,
@@ -1881,7 +1881,7 @@ static const struct p11sak_arg p11sak_import_cert_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_opt p11sak_export_key_opts[] = {
+static const struct p11tool_opt p11sak_export_key_opts[] = {
     PKCS11_OPTS,
     KEY_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1967,7 +1967,7 @@ static const struct p11sak_opt p11sak_export_key_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_extract_pubkey_opts[] = {
+static const struct p11tool_opt p11sak_extract_pubkey_opts[] = {
     PKCS11_OPTS,
     KEY_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -1997,7 +1997,7 @@ static const struct p11sak_opt p11sak_extract_pubkey_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_export_cert_opts[] = {
+static const struct p11tool_opt p11sak_export_cert_opts[] = {
     PKCS11_OPTS,
     CERT_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -2058,7 +2058,7 @@ static const struct p11sak_opt p11sak_export_cert_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_opt p11sak_extract_cert_pubkey_opts[] = {
+static const struct p11tool_opt p11sak_extract_cert_pubkey_opts[] = {
     PKCS11_OPTS,
     CERT_FILTER_OPTS,
     { .short_opt = 'f', .long_opt = "force", .required = false,
@@ -2088,7 +2088,7 @@ static const struct p11sak_opt p11sak_extract_cert_pubkey_opts[] = {
     { .short_opt = 0, .long_opt = NULL, },
 };
 
-static const struct p11sak_arg p11sak_export_key_args[] = {
+static const struct p11tool_arg p11sak_export_key_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -2098,7 +2098,7 @@ static const struct p11sak_arg p11sak_export_key_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_extract_pubkey_args[] = {
+static const struct p11tool_arg p11sak_extract_pubkey_args[] = {
     { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_private_key_keytypes,
       .value.enum_value = &opt_keytype,
@@ -2108,7 +2108,7 @@ static const struct p11sak_arg p11sak_extract_pubkey_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_export_cert_args[] = {
+static const struct p11tool_arg p11sak_export_cert_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_cert_certtypes,
       .value.enum_value = &opt_certtype,
@@ -2119,7 +2119,7 @@ static const struct p11sak_arg p11sak_export_cert_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_arg p11sak_extract_cert_pubkey_args[] = {
+static const struct p11tool_arg p11sak_extract_cert_pubkey_args[] = {
     { .name = "CERTTYPE", .type = ARG_TYPE_ENUM, .required = false,
       .enum_values = p11sak_list_remove_set_copy_export_cert_certtypes,
       .value.enum_value = &opt_certtype,
@@ -2130,7 +2130,7 @@ static const struct p11sak_arg p11sak_extract_cert_pubkey_args[] = {
     { .name = NULL },
 };
 
-static const struct p11sak_cmd p11sak_commands[] = {
+static const struct p11tool_cmd p11sak_commands[] = {
     { .cmd = "generate-key", .cmd_short1 = "gen-key", .cmd_short2 = "gen",
       .func = p11sak_generate_key,
       .opts = p11sak_generate_key_opts, .args = p11sak_generate_key_args,
@@ -2328,587 +2328,6 @@ static const struct p11sak_token_info *find_known_token(
     return NULL;
 }
 
-static const struct p11sak_cmd *find_command(const char *cmd)
-{
-    unsigned int i;
-
-    for (i = 0; p11sak_commands[i].cmd != NULL; i++) {
-        if (strcasecmp(cmd, p11sak_commands[i].cmd) == 0)
-            return &p11sak_commands[i];
-        if (p11sak_commands[i].cmd_short1 != NULL &&
-            strcasecmp(cmd, p11sak_commands[i].cmd_short1) == 0)
-            return &p11sak_commands[i];
-        if (p11sak_commands[i].cmd_short2 != NULL &&
-            strcasecmp(cmd, p11sak_commands[i].cmd_short2) == 0)
-            return &p11sak_commands[i];
-    }
-
-    return NULL;
-}
-
-static void count_opts(const struct p11sak_opt *opts,
-                       unsigned int *optstring_len,
-                       unsigned int *longopts_count)
-{
-    const struct p11sak_opt *opt;
-
-    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
-        if (opt->short_opt != 0) {
-            (*optstring_len)++;
-            if (opt->arg.type != ARG_TYPE_PLAIN) {
-                (*optstring_len)++;
-                if (!opt->arg.required)
-                    (*optstring_len)++;
-            }
-        }
-
-        if (opt->long_opt != NULL)
-            (*longopts_count)++;
-    }
-}
-
-static CK_RV build_opts(const struct p11sak_opt *opts,
-                        char *optstring,
-                        struct option *longopts)
-{
-    const struct p11sak_opt *opt;
-    unsigned int opts_idx, long_idx;
-
-    opts_idx = strlen(optstring);
-
-    for (long_idx = 0; longopts[long_idx].name != NULL; long_idx++)
-        ;
-
-    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
-        if (opt->short_opt != 0) {
-            optstring[opts_idx++] = opt->short_opt;
-            if (opt->arg.type != ARG_TYPE_PLAIN) {
-                optstring[opts_idx++] = ':';
-                if (!opt->arg.required)
-                    optstring[opts_idx++] = ':';
-            }
-        }
-
-        if (opt->long_opt != NULL) {
-            longopts[long_idx].name = opt->long_opt;
-            longopts[long_idx].has_arg = opt->arg.type != ARG_TYPE_PLAIN ?
-                              (opt->arg.required ?
-                                      required_argument : optional_argument ) :
-                              no_argument;
-            longopts[long_idx].flag = NULL;
-            longopts[long_idx].val = opt->short_opt != 0 ?
-                                        opt->short_opt : opt->long_opt_val;
-            long_idx++;
-        }
-    }
-
-    return CKR_OK;
-}
-
-static CK_RV build_cmd_opts(const struct p11sak_opt *cmd_opts,
-                            char **optstring, struct option **longopts)
-{
-    unsigned int optstring_len = 0, longopts_count = 0;
-    CK_RV rc;
-
-    count_opts(p11sak_generic_opts, &optstring_len, &longopts_count);
-    if (cmd_opts != NULL)
-        count_opts(cmd_opts, &optstring_len, &longopts_count);
-
-    *optstring = calloc(1 + optstring_len + 1, 1);
-    *longopts = calloc(longopts_count + 1, sizeof(struct option));
-    if (*optstring == NULL || *longopts == NULL) {
-        rc = CKR_HOST_MEMORY;
-        goto error;
-    }
-
-    (*optstring)[0] = ':'; /* Let getopt return ':' on missing argument */
-
-    rc = build_opts(p11sak_generic_opts, *optstring, *longopts);
-    if (rc != CKR_OK)
-        goto error;
-
-    if (cmd_opts != NULL) {
-        rc = build_opts(cmd_opts, *optstring, *longopts);
-        if (rc != CKR_OK)
-            goto error;
-    }
-
-    return CKR_OK;
-
-error:
-    if (*optstring != NULL)
-        free(*optstring);
-    *optstring = NULL;
-
-    if (*longopts != NULL)
-        free(*longopts);
-    *longopts = NULL;
-
-    return rc;
-}
-
-static CK_RV process_plain_argument(const struct p11sak_arg *arg)
-{
-    *arg->value.plain = true;
-
-    return CKR_OK;
-}
-
-static CK_RV process_string_argument(const struct p11sak_arg *arg, char *val)
-{
-    *arg->value.string = val;
-
-    return CKR_OK;
-}
-
-static CK_RV process_enum_argument(const struct p11sak_arg *arg, char *val)
-{
-    const struct p11sak_enum_value *enum_val, *any_val = NULL;
-
-    for (enum_val = arg->enum_values; enum_val->value != NULL; enum_val++) {
-
-        if (enum_val->any_value != NULL) {
-            any_val = enum_val;
-        } else if (arg->case_sensitive ?
-                            strcmp(val, enum_val->value) == 0 :
-                            strcasecmp(val, enum_val->value) == 0) {
-
-            *arg->value.enum_value = (struct p11sak_enum_value *)enum_val;
-            return CKR_OK;
-        }
-    }
-
-    /* process ANY enumeration value after all others */
-    if (any_val != NULL) {
-        *any_val->any_value = val;
-        *arg->value.enum_value = (struct p11sak_enum_value *)any_val;
-        return CKR_OK;
-    }
-
-    return CKR_ARGUMENTS_BAD;
-}
-
-static CK_RV process_number_argument(const struct p11sak_arg *arg, char *val)
-{
-    char *endptr;
-
-    errno = 0;
-    *arg->value.number = strtoul(val, &endptr, 0);
-
-    if ((errno == ERANGE && *arg->value.number == ULONG_MAX) ||
-        (errno != 0 && *arg->value.number == 0) ||
-        endptr == val) {
-        return CKR_ARGUMENTS_BAD;
-    }
-
-    return CKR_OK;
-}
-
-static CK_RV processs_argument(const struct p11sak_arg *arg, char *val)
-{
-    switch (arg->type) {
-    case ARG_TYPE_PLAIN:
-        return process_plain_argument(arg);
-    case ARG_TYPE_STRING:
-        return process_string_argument(arg, val);
-    case ARG_TYPE_ENUM:
-        return process_enum_argument(arg, val);
-    case ARG_TYPE_NUMBER:
-        return process_number_argument(arg, val);
-    default:
-        return CKR_ARGUMENTS_BAD;
-    }
-}
-
-static bool argument_is_set(const struct p11sak_arg *arg)
-{
-    if (arg->is_set != NULL)
-       return arg->is_set(arg);
-
-    switch (arg->type) {
-    case ARG_TYPE_PLAIN:
-        return *arg->value.plain;
-    case ARG_TYPE_STRING:
-        return *arg->value.string != NULL;
-    case ARG_TYPE_ENUM:
-        return *arg->value.enum_value != NULL;
-    case ARG_TYPE_NUMBER:
-        return *arg->value.number != 0;
-    default:
-        return false;
-    }
-}
-
-static void option_arg_error(const struct p11sak_opt *opt, const char *arg)
-{
-    if (opt->short_opt != 0 && opt->long_opt != NULL)
-        warnx("Invalid argument '%s' for option '-%c/--%s'", arg,
-             opt->short_opt, opt->long_opt);
-    else if (opt->long_opt != NULL)
-        warnx("Invalid argument '%s' for option '--%s'", arg, opt->long_opt);
-    else
-        warnx("Invalid argument '%s' for option '-%c'", arg, opt->short_opt);
-}
-
-static void option_missing_error(const struct p11sak_opt *opt)
-{
-    if (opt->short_opt != 0 && opt->long_opt != NULL)
-        warnx("Option '-%c/--%s' is required but not specified", opt->short_opt,
-             opt->long_opt);
-    else if (opt->long_opt != NULL)
-        warnx("Option '--%s is required but not specified'", opt->long_opt);
-    else
-        warnx("Option '-%c' is required but not specified", opt->short_opt);
-}
-
-static CK_RV process_option(const struct p11sak_opt *opts, int ch, char *val)
-{
-    const struct p11sak_opt *opt;
-    CK_RV rc;
-
-    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
-        if (ch == (opt->short_opt != 0 ? opt->short_opt : opt->long_opt_val)) {
-            rc = processs_argument(&opt->arg, val);
-            if (rc != CKR_OK) {
-                option_arg_error(opt, val);
-                return rc;
-            }
-
-            return CKR_OK;
-        }
-    }
-
-    return CKR_ARGUMENTS_BAD;
-}
-
-static CK_RV process_cmd_option(const struct p11sak_opt *cmd_opts,
-                                int opt, char *arg)
-{
-    CK_RV rc;
-
-    rc = process_option(p11sak_generic_opts, opt, arg);
-    if (rc == CKR_OK)
-        return CKR_OK;
-
-    if (cmd_opts != NULL) {
-        rc = process_option(cmd_opts, opt, arg);
-        if (rc == CKR_OK)
-            return CKR_OK;
-    }
-
-    return rc;
-}
-
-static CK_RV check_required_opts(const struct p11sak_opt *opts)
-{
-    const struct p11sak_opt *opt;
-    CK_RV rc = CKR_OK;
-
-    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
-        if (opt->required && opt->arg.required &&
-            argument_is_set(&opt->arg) == false) {
-            option_missing_error(opt);
-            rc = CKR_ARGUMENTS_BAD;
-            /* No break, report all missing options */
-        }
-    }
-
-    return rc;
-}
-
-static CK_RV check_required_cmd_opts(const struct p11sak_opt *cmd_opts)
-{
-    CK_RV rc;
-
-    rc = check_required_opts(p11sak_generic_opts);
-    if (rc != CKR_OK)
-        return rc;
-
-    if (cmd_opts != NULL) {
-        rc = check_required_opts(cmd_opts);
-        if (rc != CKR_OK)
-            return rc;
-    }
-
-    return CKR_OK;
-}
-
-static CK_RV parse_cmd_options(const struct p11sak_cmd *cmd,
-                               int argc, char *argv[])
-{
-    char *optstring = NULL;
-    struct option *longopts = NULL;
-    CK_RV rc;
-    int c;
-
-    rc = build_cmd_opts(cmd != NULL ? cmd->opts : NULL, &optstring, &longopts);
-    if (rc != CKR_OK)
-        goto done;
-
-    opterr = 0;
-    while (1) {
-        c = getopt_long(argc, argv, optstring, longopts, NULL);
-        if (c == -1)
-            break;
-
-        switch (c) {
-        case ':':
-            warnx("Option '%s' requires an argument", argv[optind - 1]);
-            rc = CKR_ARGUMENTS_BAD;
-            goto done;
-
-        case '?': /* An invalid option has been specified */
-            if (optopt)
-                warnx("Invalid option '-%c'", optopt);
-            else
-                warnx("Invalid option '%s'", argv[optind - 1]);
-            rc = CKR_ARGUMENTS_BAD;
-            goto done;
-
-        default:
-            rc = process_cmd_option(cmd != NULL ? cmd->opts : NULL, c, optarg);
-            if (rc != CKR_OK)
-                goto done;
-            break;
-        }
-    }
-
-    if (optind < argc) {
-        warnx("Invalid argument '%s'", argv[optind]);
-        rc = CKR_ARGUMENTS_BAD;
-        goto done;
-    }
-
-done:
-    if (optstring != NULL)
-        free(optstring);
-    if (longopts != NULL)
-        free(longopts);
-
-    return rc;
-}
-
-static CK_RV check_required_args(const struct p11sak_arg *args)
-{
-    const struct p11sak_arg *arg;
-    CK_RV rc2, rc = CKR_OK;
-
-    for (arg = args; arg != NULL && arg->name != NULL; arg++) {
-        if (arg->required && argument_is_set(arg) == false) {
-            warnx("Argument '%s' is required but not specified", arg->name);
-            rc = CKR_ARGUMENTS_BAD;
-            /* No break, report all missing arguments */
-        }
-
-        /* Check enumeration value specific arguments (if any) */
-        if (arg->type == ARG_TYPE_ENUM && *arg->value.enum_value != NULL &&
-            (*arg->value.enum_value)->args != NULL) {
-            rc2 = check_required_args((*arg->value.enum_value)->args);
-            if (rc2 != CKR_OK)
-                rc = rc2;
-            /* No break, report all missing arguments */
-        }
-    }
-
-    return rc;
-}
-
-static CK_RV parse_arguments(const struct p11sak_arg *args,
-                             int *argc, char **argv[])
-{
-    const struct p11sak_arg *arg;
-    CK_RV rc = CKR_OK;
-
-    for (arg = args; arg->name != NULL; arg++) {
-        if (*argc < 2 || strncmp((*argv)[1], "-", 1) == 0)
-            break;
-
-        rc = processs_argument(arg, (*argv)[1]);
-        if (rc != CKR_OK) {
-            if (rc == CKR_ARGUMENTS_BAD)
-                warnx("Invalid argument '%s' for '%s'", (*argv)[1], arg->name);
-            break;
-        }
-
-        (*argc)--;
-        (*argv)++;
-
-        /* Process enumeration value specific arguments (if any) */
-        if (arg->type == ARG_TYPE_ENUM && *arg->value.enum_value != NULL &&
-            (*arg->value.enum_value)->args != NULL) {
-            rc = parse_arguments((*arg->value.enum_value)->args, argc, argv);
-            if (rc != CKR_OK)
-                break;
-        }
-    }
-
-    return rc;
-}
-
-static CK_RV parse_cmd_arguments(const struct p11sak_cmd *cmd,
-                                 int *argc, char **argv[])
-{
-    if (cmd == NULL)
-        return CKR_OK;
-
-    return parse_arguments(cmd->args, argc, argv);
-}
-
-static void print_indented(const char *str, int indent)
-{
-    char *word, *line, *desc, *desc_ptr;
-    int word_len, pos = indent;
-
-    desc = desc_ptr = strdup(str);
-    if (desc == NULL)
-        return;
-
-    line = strsep(&desc, "\n");
-    while (line != NULL) {
-        word = strsep(&line, " ");
-        pos = indent;
-        while (word != NULL) {
-            word_len = strlen(word);
-            if (pos + word_len + 1 > MAX_PRINT_LINE_LENGTH) {
-                printf("\n%*s", indent, "");
-                pos = indent;
-            }
-            if (pos == indent)
-                printf("%s", word);
-            else
-                printf(" %s", word);
-            pos += word_len + 1;
-            word = strsep(&line, " ");
-        }
-        if (desc)
-            printf("\n%*s", indent, "");
-        line =  strsep(&desc, "\n");
-    }
-
-    printf("\n");
-    free(desc_ptr);
-}
-
-static void print_options_help(const struct p11sak_opt *opts)
-{
-    const struct p11sak_opt *opt;
-    char tmp[200];
-    int len;
-
-    for (opt = opts; opt->short_opt != 0 || opt->long_opt != NULL; opt++) {
-        if (opt->short_opt != 0 && opt->long_opt != NULL)
-            len = snprintf(tmp, sizeof(tmp), "-%c, --%s", opt->short_opt,
-                           opt->long_opt);
-        else if (opt->short_opt == 0 && opt->long_opt != NULL)
-            len = snprintf(tmp, sizeof(tmp),"    --%s", opt->long_opt);
-        else
-            len = snprintf(tmp, sizeof(tmp),"-%c", opt->short_opt);
-
-        if (opt->arg.type != ARG_TYPE_PLAIN) {
-            if (opt->arg.required)
-                snprintf(&tmp[len], sizeof(tmp) - len, " %s", opt->arg.name);
-            else if (opt->long_opt == NULL)
-                snprintf(&tmp[len], sizeof(tmp) - len, "[%s]", opt->arg.name);
-            else
-                snprintf(&tmp[len], sizeof(tmp) - len, "[=%s]", opt->arg.name);
-        }
-
-        printf("    %-30.30s ", tmp);
-        print_indented(opt->description, PRINT_INDENT_POS);
-    }
-}
-
-static void print_arguments_help(const struct p11sak_cmd *cmd,
-                                 const struct p11sak_arg *args,
-                                 int indent)
-{
-    const struct p11sak_arg *arg;
-    const struct p11sak_enum_value *val;
-    int width;
-    bool newline = false;
-
-    if (indent > 0) {
-        for (arg = args; arg->name != NULL; arg++) {
-            if (arg->required)
-                printf(" %s", arg->name);
-            else
-                printf(" [%s]", arg->name);
-        }
-        printf("\n\n");
-    }
-
-    for (arg = args; arg->name != NULL; arg++) {
-        width = 30 - indent;
-        if (width < (int)strlen(arg->name))
-            width = (int)strlen(arg->name);
-
-        printf("%*s    %-*.*s ", indent, "", width, width, arg->name);
-        print_indented(arg->description, PRINT_INDENT_POS);
-
-        newline = false;
-
-        if (arg->type != ARG_TYPE_ENUM)
-            continue;
-
-        /* Enumeration: print possible values */
-        for (val = arg->enum_values; val->value != NULL; val++) {
-            if (arg == cmd->args && argument_is_set(arg) &&
-                *arg->value.enum_value != val)
-                continue;
-
-            newline = true;
-
-            printf("%*s        %s", indent, "", val->value);
-
-            if (val->args != NULL) {
-                print_arguments_help(cmd, val->args, indent + 8);
-                newline = false;
-            } else {
-                printf("\n");
-            }
-        }
-    }
-
-    if (indent > 0 || newline)
-        printf("\n");
-}
-
-static void print_help(void)
-{
-    const struct p11sak_cmd *cmd;
-
-    printf("\n");
-    printf("Usage: p11sak COMMAND [ARGS] [OPTIONS]\n");
-    printf("\n");
-    printf("COMMANDS:\n");
-    for (cmd = p11sak_commands; cmd->cmd != NULL; cmd++) {
-        printf("    %-30.30s ", cmd->cmd);
-        print_indented(cmd->description, PRINT_INDENT_POS);
-    }
-    printf("\n");
-    printf("COMMON OPTIONS\n");
-    print_options_help(p11sak_generic_opts);
-    printf("\n");
-    printf("For more information use 'p11sak COMMAND --help'.\n");
-    printf("\n");
-}
-
-static void print_command_help(const struct p11sak_cmd *cmd)
-{
-    printf("\n");
-    printf("Usage: p11sak %s [ARGS] [OPTIONS]\n", cmd->cmd);
-    printf("\n");
-    printf("ARGS:\n");
-    print_arguments_help(cmd, cmd->args, 0);
-    printf("OPTIONS:\n");
-    print_options_help(cmd->opts);
-    print_options_help(p11sak_generic_opts);
-    printf("\n");
-    if (cmd->help != NULL)
-        cmd->help();
-}
-
 static void print_import_cert_attr_help(void)
 {
     const struct p11sak_attr *attr;
@@ -2923,12 +2342,14 @@ static void print_import_cert_attr_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("An uppercase letter sets the corresponding attribute to "
-                   "CK_TRUE, a lower case letter to CK_FALSE.\n"
-                   "If an attribute is not set explicitly, its default value "
-                   "is used.\n"
-                   "Not all attributes may be accepted for all certificate types.\n"
-                   "Attribute CKA_TOKEN is always set to CK_TRUE.", 4);
+    p11tool_print_indented("An uppercase letter sets the corresponding "
+                           "attribute to CK_TRUE, a lower case letter to "
+                           "CK_FALSE.\n"
+                           "If an attribute is not set explicitly, its default "
+                           "value is used.\n"
+                           "Not all attributes may be accepted for all "
+                           "certificate types.\n"
+                           "Attribute CKA_TOKEN is always set to CK_TRUE.", 4);
     printf("\n");
 }
 
@@ -2946,12 +2367,14 @@ static void print_generate_import_key_attr_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("An uppercase letter sets the corresponding attribute to "
-                   "CK_TRUE, a lower case letter to CK_FALSE.\n"
-                   "If an attribute is not set explicitly, its default value "
-                   "is used.\n"
-                   "Not all attributes may be accepted for all key types.\n"
-                   "Attribute CKA_TOKEN is always set to CK_TRUE.", 4);
+    p11tool_print_indented("An uppercase letter sets the corresponding "
+                           "attribute to CK_TRUE, a lower case letter to "
+                           "CK_FALSE.\n"
+                           "If an attribute is not set explicitly, its default "
+                           "value is used.\n"
+                           "Not all attributes may be accepted for all key "
+                           "types.\n"
+                           "Attribute CKA_TOKEN is always set to CK_TRUE.", 4);
     printf("\n");
 }
 
@@ -2965,9 +2388,10 @@ static void print_list_key_attr_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("Not all attributes may be defined for all key types.\n"
-                   "Attribute CKA_TOKEN is always CK_TRUE for all keys listed.",
-                   4);
+    p11tool_print_indented("Not all attributes may be defined for all key "
+                           "types.\n"
+                           "Attribute CKA_TOKEN is always CK_TRUE for all keys "
+                           "listed.", 4);
     printf("\n");
 }
 
@@ -2981,9 +2405,10 @@ static void print_list_cert_attr_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("Not all attributes may be defined for all certificate types.\n"
-                   "Attribute CKA_TOKEN is always CK_TRUE for all certificates listed.",
-                   4);
+    p11tool_print_indented("Not all attributes may be defined for all "
+                           "certificate types.\n"
+                           "Attribute CKA_TOKEN is always CK_TRUE for all "
+                           "certificates listed.", 4);
     printf("\n");
 }
 
@@ -2997,8 +2422,8 @@ static void print_remove_key_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("Not all attributes may be defined for all key types.",
-                   4);
+    p11tool_print_indented("Not all attributes may be defined for all key "
+                           "types.", 4);
     printf("\n");
 }
 
@@ -3014,15 +2439,16 @@ static void print_set_copy_extract_key_attr_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("Keys can be filtered by all attributes, setting "
-                   "is possible for all except L A N Z. T can be set to TRUE "
-                   "by SO only.\n"
-                   "An uppercase letter sets the corresponding attribute to "
-                   "CK_TRUE, a lower case letter to CK_FALSE.\n"
-                   "If an attribute is not set explicitly, its value is not "
-                   "changed.\n"
-                   "Not all attributes may be allowed to be changed for all "
-                   "key types, or to all values.\n", 4);
+    p11tool_print_indented("Keys can be filtered by all attributes, setting "
+                           "is possible for all except L A N Z. T can be set "
+                           "to TRUE by SO only.\n"
+                           "An uppercase letter sets the corresponding "
+                           "attribute to CK_TRUE, a lower case letter to "
+                           "CK_FALSE.\n"
+                           "If an attribute is not set explicitly, its value "
+                           "is not changed.\n"
+                           "Not all attributes may be allowed to be changed "
+                           "for all key types, or to all values.\n", 4);
     printf("\n");
 }
 
@@ -3039,15 +2465,16 @@ static void print_set_copy_cert_attr_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("Certificates can be filtered by all attributes, setting "
-                   "is also possible for all, but T can be set to TRUE by SO "
-                   "only.\n"
-                   "An uppercase letter sets the corresponding attribute to "
-                   "CK_TRUE, a lower case letter to CK_FALSE.\n"
-                   "If an attribute is not set explicitly, its value is not "
-                   "changed.\n"
-                   "Not all attributes may be allowed to be changed for all "
-                   "certificate types, or to all values.\n", 4);
+    p11tool_print_indented("Certificates can be filtered by all attributes, "
+                           "setting is also possible for all, but T can be set "
+                           "to TRUE by SO only.\n"
+                           "An uppercase letter sets the corresponding "
+                           "attribute to CK_TRUE, a lower case letter to "
+                           "CK_FALSE.\n"
+                           "If an attribute is not set explicitly, its value "
+                           "is not changed.\n"
+                           "Not all attributes may be allowed to be changed "
+                           "for all certificate types, or to all values.\n", 4);
     printf("\n");
 }
 
@@ -3061,8 +2488,8 @@ static void print_remove_cert_help(void)
     printf("\n");
 
     printf("    ");
-    print_indented("Not all attributes may be defined for all certificate types.",
-                   4);
+    p11tool_print_indented("Not all attributes may be defined for all "
+                           "certificate types.", 4);
     printf("\n");
 }
 
@@ -3077,10 +2504,11 @@ static void print_extract_cert_pubkey_help(void)
 
     printf("    ");
 
-    print_indented("When filtering certificates, use lowercase letters to "
-                   "include only certificates where the related attribute value "
-                   "is equal to CK_FALSE, use uppercase letters if the related "
-                   "attribute shall be CK_TRUE.\n", 4);
+    p11tool_print_indented("When filtering certificates, use lowercase letters "
+                           "to include only certificates where the related "
+                           "attribute value is equal to CK_FALSE, use "
+                           "uppercase letters if the related attribute shall "
+                           "be CK_TRUE.\n", 4);
 
     printf("ATTRIBUTES (for setting):\n");
     for (attr = p11sak_bool_attrs; attr->name != NULL; attr++) {
@@ -3093,13 +2521,14 @@ static void print_extract_cert_pubkey_help(void)
 
     printf("    ");
 
-    print_indented("When setting attributes for extracted public keys, use "
-                   "uppercase letters to set the corresponding attribute to "
-                   "CK_TRUE, lowercase letters to CK_FALSE.\n"
-                   "If an attribute is not set explicitly, its value is set "
-                   "to its default.\n"
-                   "Not all attributes may be allowed to be set for all "
-                   "public keys, or to all values.\n", 4);
+    p11tool_print_indented("When setting attributes for extracted public keys, "
+                           "use uppercase letters to set the corresponding "
+                           "attribute to CK_TRUE, lowercase letters to "
+                           "CK_FALSE.\n"
+                           "If an attribute is not set explicitly, its value "
+                           "is set to its default.\n"
+                           "Not all attributes may be allowed to be set for "
+                           "all public keys, or to all values.\n", 4);
     printf("\n");
 }
 
@@ -3108,7 +2537,7 @@ static void print_version(void)
     printf("p11sak version %s\n", PACKAGE_VERSION);
 }
 
-static bool opt_slot_is_set(const struct p11sak_arg *arg)
+static bool opt_slot_is_set(const struct p11tool_arg *arg)
 {
     return (*arg->value.number != (CK_ULONG)-1);
 }
@@ -5483,7 +4912,7 @@ static void print_ibm_dilithium_keyform_attr(const char *attr,
                                              const CK_ATTRIBUTE *val,
                                              int indent, bool sensitive)
 {
-    const struct p11sak_enum_value *eval;
+    const struct p11tool_enum_value *eval;
     const char *name = "[unknown]";
 
     if ((val->ulValueLen == CK_UNAVAILABLE_INFORMATION ||
@@ -5511,7 +4940,7 @@ static void print_ibm_kyber_keyform_attr(const char *attr,
                                          const CK_ATTRIBUTE *val,
                                          int indent, bool sensitive)
 {
-    const struct p11sak_enum_value *eval;
+    const struct p11tool_enum_value *eval;
     const char *name = "[unknown]";
 
     if ((val->ulValueLen == CK_UNAVAILABLE_INFORMATION ||
@@ -11470,7 +10899,7 @@ static void close_pkcs11_session(void)
     pkcs11_session = CK_INVALID_HANDLE;
 }
 
-static CK_RV init_pkcs11(const struct p11sak_cmd *command)
+static CK_RV init_pkcs11(const struct p11tool_cmd *command)
 {
     CK_RV rc;
     char *buf_user_pin = NULL;
@@ -11619,12 +11048,12 @@ static CK_RV parse_config_file(void)
 
 int main(int argc, char *argv[])
 {
-    const struct p11sak_cmd *command = NULL;
+    const struct p11tool_cmd *command = NULL;
     CK_RV rc = CKR_OK;
 
     /* Get p11sak command (if any) */
     if (argc >= 2 && strncmp(argv[1], "-", 1) != 0) {
-        command = find_command(argv[1]);
+        command = p11tool_find_command(p11sak_commands, argv[1]);
         if (command == NULL) {
             warnx("Invalid command '%s'", argv[1]);
             rc = CKR_ARGUMENTS_BAD;
@@ -11636,20 +11065,22 @@ int main(int argc, char *argv[])
     }
 
     /* Get command arguments (if any) */
-    rc = parse_cmd_arguments(command, &argc, &argv);
+    rc = p11tool_parse_cmd_arguments(command, &argc, &argv);
     if (rc != CKR_OK)
         goto done;
 
     /* Get generic and command specific options (if any) */
-    rc = parse_cmd_options(command, argc, argv);
+    rc = p11tool_parse_cmd_options(command, p11sak_generic_opts, argc, argv);
     if (rc != CKR_OK)
         goto done;
 
     if (opt_help) {
         if (command == NULL)
-            print_help();
+            p11tool_print_help(p11sak_commands, p11sak_generic_opts,
+                               PRINT_INDENT_POS);
         else
-            print_command_help(command);
+            p11tool_print_command_help(command, p11sak_generic_opts,
+                                       PRINT_INDENT_POS);
         goto done;
     }
 
@@ -11665,11 +11096,11 @@ int main(int argc, char *argv[])
         goto done;
     }
 
-    rc = check_required_args(command->args);
+    rc = p11tool_check_required_args(command->args);
     if (rc != CKR_OK)
         goto done;
 
-    rc = check_required_cmd_opts(command->opts);
+    rc = p11tool_check_required_cmd_opts(command->opts, p11sak_generic_opts);
     if (rc != CKR_OK)
         goto done;
 

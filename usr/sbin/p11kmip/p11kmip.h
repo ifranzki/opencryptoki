@@ -11,7 +11,7 @@
 #ifndef P11KMIP_H_
 #define P11KMIP_H_
 
-#include "pkcs11types.h"
+#include "p11tool.h"
 #include "ec_curves.h"
 #include <kmipclient/kmipclient.h>
 
@@ -73,7 +73,6 @@
 #define OPT_WRAPKEY_ATTRS       272
 #define OPT_WRAPKEY_ID          273
 
-#define MAX_PRINT_LINE_LENGTH   80
 #define PRINT_INDENT_POS        45
 
 #define FIND_OBJECTS_COUNT      64
@@ -82,63 +81,6 @@
 #define MAX_SYM_CLEAR_KEY_SIZE  64
 
 #define P11KMIP_DEFAULT_AES_KEY_LENGTH 32
-
-/* CLI Struct definitions */
-
-enum p11kmip_arg_type {
-    ARG_TYPE_PLAIN = 0,         /* no argument */
-    ARG_TYPE_STRING = 1,
-    ARG_TYPE_ENUM = 2,
-    ARG_TYPE_NUMBER = 3,
-};
-
-struct p11kmip_enum_value {
-    const char *value;
-    const struct p11kmip_arg *args;
-    union {
-        const void *ptr;
-        CK_ULONG num;
-    } private;
-    char **any_value;           /* if this is not NULL then this enum value matches to
-                                   any string, and the string is set into any_value */
-};
-
-struct p11kmip_arg {
-    const char *name;
-    enum p11kmip_arg_type type;
-    bool required;
-    bool case_sensitive;
-    const struct p11kmip_enum_value *enum_values;
-    union {
-        bool *plain;
-        char **string;
-        struct p11kmip_enum_value **enum_value;
-        CK_ULONG *number;
-    } value;
-    bool (*is_set)(const struct p11kmip_arg * arg);
-    const char *description;
-};
-
-struct p11kmip_opt {
-    char short_opt;             /* 0 if no short option is used */
-    const char *long_opt;       /* NULL if no long option */
-    int long_opt_val;           /* Used only if short_opt is 0 */
-    bool required;
-    struct p11kmip_arg arg;
-    const char *description;
-};
-
-struct p11kmip_cmd {
-    const char *cmd;
-    const char *cmd_short1;
-    const char *cmd_short2;
-     CK_RV(*func) (void);
-    const struct p11kmip_opt *opts;
-    const struct p11kmip_arg *args;
-    const char *description;
-    void (*help)(void);
-    CK_FLAGS session_flags;
-};
 
 struct p11kmip_attr {
     const char *name;
