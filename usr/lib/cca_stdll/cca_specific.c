@@ -680,7 +680,6 @@ static CK_RV cca_get_version(STDLL_TokData_t *tokdata)
     long return_code, reason_code;
     long version_data_length;
     long exit_data_len = 0;
-    char date[20];
 
     /* Get CCA host library version */
     version_data_length = sizeof(version_data);
@@ -696,10 +695,10 @@ static CK_RV cca_get_version(STDLL_TokData_t *tokdata)
     version_data[sizeof(version_data) - 1] = '\0';
     TRACE_DEVEL("CCA Version string: %s\n", version_data);
 
-    if (sscanf((char *)version_data, "%u.%u.%uz%s",
+    if (sscanf((char *)version_data, "%u.%u.%u",
                &cca_private->version.ver,
                &cca_private->version.rel,
-               &cca_private->version.mod, date) != 4) {
+               &cca_private->version.mod) != 3) {
         TRACE_ERROR("CCA library version is invalid: %s\n", version_data);
         return CKR_FUNCTION_FAILED;
     }
