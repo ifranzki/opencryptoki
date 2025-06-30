@@ -89,11 +89,50 @@ CK_RV ckm_ec_key_pair_gen(STDLL_TokData_t *tokdata, TEMPLATE *publ_tmpl,
     return rc;
 }
 
+CK_RV ckm_ec_edwards_key_pair_gen(STDLL_TokData_t *tokdata, TEMPLATE *publ_tmpl,
+                                  TEMPLATE *priv_tmpl)
+{
+    CK_RV rc;
+
+    if (token_specific.t_ec_edwards_generate_keypair == NULL) {
+        TRACE_ERROR("ec_edwards_generate_keypair not supported by this "
+                    "token\n");
+        return CKR_FUNCTION_NOT_SUPPORTED;
+    }
+
+    rc = token_specific.t_ec_edwards_generate_keypair(tokdata, publ_tmpl,
+                                                      priv_tmpl);
+    if (rc != CKR_OK)
+        TRACE_ERROR("Key Generation failed\n");
+
+    return rc;
+}
+
+CK_RV ckm_ec_montgomery_key_pair_gen(STDLL_TokData_t *tokdata,
+                                     TEMPLATE *publ_tmpl, TEMPLATE *priv_tmpl)
+{
+    CK_RV rc;
+
+    if (token_specific.t_ec_montgomery_generate_keypair == NULL) {
+        TRACE_ERROR("ec_montgomery_generate_keypair not supported by this "
+                    "token\n");
+        return CKR_FUNCTION_NOT_SUPPORTED;
+    }
+
+    rc = token_specific.t_ec_montgomery_generate_keypair(tokdata, publ_tmpl,
+                                                         priv_tmpl);
+    if (rc != CKR_OK)
+        TRACE_ERROR("Key Generation failed\n");
+
+    return rc;
+}
+
 CK_RV ckm_ec_sign(STDLL_TokData_t *tokdata,
                   SESSION *sess,
                   CK_BYTE *in_data,
                   CK_ULONG in_data_len,
-                  CK_BYTE *out_data, CK_ULONG *out_data_len, OBJECT *key_obj)
+                  CK_BYTE *out_data, CK_ULONG *out_data_len, OBJECT *key_obj,
+                  CK_MECHANISM *mech)
 {
     CK_OBJECT_CLASS keyclass;
     CK_RV rc;
@@ -116,8 +155,21 @@ CK_RV ckm_ec_sign(STDLL_TokData_t *tokdata,
         return CKR_KEY_FUNCTION_NOT_PERMITTED;
     }
 
-    rc = token_specific.t_ec_sign(tokdata, sess, in_data, in_data_len, out_data,
-                                  out_data_len, key_obj);
+    switch (mech->mechanism) {
+    case CKM_ECDSA:
+        rc = token_specific.t_ec_sign(tokdata, sess, in_data, in_data_len,
+                                      out_data, out_data_len, key_obj);
+        break;
+    case CKM_EDDSA:
+        rc = token_specific.t_ec_edwards_sign(tokdata, sess, in_data,
+                                              in_data_len, out_data,
+                                              out_data_len, key_obj,
+                                              mech);
+        break;
+    default:
+        return CKR_MECHANISM_INVALID;
+    }
+
     if (rc != CKR_OK)
         TRACE_DEVEL("EC Sign failed.\n");
 
@@ -168,7 +220,7 @@ CK_RV ec_sign(STDLL_TokData_t *tokdata,
     }
 
     rc = ckm_ec_sign(tokdata, sess, in_data, in_data_len, out_data,
-                     out_data_len, key_obj);
+                     out_data_len, key_obj, &ctx->mech);
 
 done:
     object_put(tokdata, key_obj, TRUE);
@@ -181,7 +233,8 @@ CK_RV ckm_ec_verify(STDLL_TokData_t *tokdata,
                     SESSION *sess,
                     CK_BYTE *in_data,
                     CK_ULONG in_data_len,
-                    CK_BYTE *out_data, CK_ULONG out_data_len, OBJECT *key_obj)
+                    CK_BYTE *out_data, CK_ULONG out_data_len, OBJECT *key_obj,
+                    CK_MECHANISM *mech)
 {
     CK_OBJECT_CLASS keyclass;
     CK_RV rc;
@@ -204,8 +257,21 @@ CK_RV ckm_ec_verify(STDLL_TokData_t *tokdata,
         return CKR_KEY_FUNCTION_NOT_PERMITTED;
     }
 
-    rc = token_specific.t_ec_verify(tokdata, sess, in_data, in_data_len,
-                                    out_data, out_data_len, key_obj);
+    switch (mech->mechanism) {
+    case CKM_ECDSA:
+        rc = token_specific.t_ec_verify(tokdata, sess, in_data, in_data_len,
+                                        out_data, out_data_len, key_obj);
+        break;
+    case CKM_EDDSA:
+        rc = token_specific.t_ec_edwards_verify(tokdata, sess, in_data,
+                                                in_data_len, out_data,
+                                                out_data_len, key_obj,
+                                                mech);
+        break;
+    default:
+        return CKR_MECHANISM_INVALID;
+    }
+
     if (rc != CKR_OK)
         TRACE_ERROR("Token specific ec verify failed.\n");
 
@@ -244,7 +310,7 @@ CK_RV ec_verify(STDLL_TokData_t *tokdata,
         goto done;
     }
     rc = ckm_ec_verify(tokdata, sess, in_data, in_data_len, signature,
-                       sig_len, key_obj);
+                       sig_len, key_obj, &ctx->mech);
 
 done:
     object_put(tokdata, key_obj, TRUE);
@@ -809,7 +875,8 @@ CK_RV ckm_ecdh_pkcs_derive(STDLL_TokData_t *tokdata, SESSION *sess,
         goto done;
     }
 
-    if (class != CKO_PRIVATE_KEY || keytype != CKK_EC) {
+    if (class != CKO_PRIVATE_KEY ||
+        (keytype != CKK_EC && keytype != CKK_EC_MONTGOMERY)) {
         TRACE_ERROR("Base key is not an EC private key\n");
         rc = CKR_KEY_TYPE_INCONSISTENT;
         goto done;
