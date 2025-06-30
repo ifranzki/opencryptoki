@@ -4286,7 +4286,7 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
          * Builds the DER encoding (ansi_x962) SPKI.
          */
         rc = ber_encode_ECPublicKey(FALSE, &data, &data_len,
-                                    ec_params, &ec_point_uncompr);
+                                    ec_params, &ec_point_uncompr, CKK_EC);
         free(ecpoint);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s public key import class=0x%lx rc=0x%lx "
@@ -4319,8 +4319,8 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
         /* extract the secret data to be wrapped
          * since this is AES_CBC_PAD, padding is done in mechanism.
          */
-        rc = ecdsa_priv_wrap_get_data(ec_key_obj->template, FALSE,
-                                      &data, &data_len);
+        rc = ec_priv_wrap_get_data(ec_key_obj->template, FALSE,
+                                   &data, &data_len, CKK_EC);
         if (rc != CKR_OK) {
             TRACE_DEVEL("%s EC wrap get data failed\n", __func__);
             goto import_EC_key_end;
@@ -5142,8 +5142,8 @@ static CK_RV import_blob_private_public(STDLL_TokData_t *tokdata, SESSION *sess,
     /* Decode SPKI and add the respective public key attributes */
     switch (keytype) {
     case CKK_EC:
-        rc = ecdsa_priv_unwrap_get_data(obj->template, spki, spki_len,
-                                        is_public);
+        rc = ec_priv_unwrap_get_data(obj->template, spki, spki_len,
+                                        is_public, CKK_EC);
         break;
     case CKK_RSA:
         rc = rsa_priv_unwrap_get_data(obj->template, spki, spki_len, is_public);
@@ -7685,7 +7685,8 @@ static CK_RV ep11tok_btc_mech_post_process(STDLL_TokData_t *tokdata,
     switch (class) {
     case CKO_PUBLIC_KEY:
         /* Derived blob is an SPKI, extract public EC key attributes */
-        rc = ecdsa_priv_unwrap_get_data(key_obj->template, blob, bloblen, TRUE);
+        rc = ec_priv_unwrap_get_data(key_obj->template, blob, bloblen, TRUE,
+                                     CKK_EC);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s ecdsa_priv_unwrap_get_data failed with "
                         "rc=0x%lx\n", __func__, rc);
@@ -13074,8 +13075,8 @@ CK_RV ep11tok_unwrap_key(STDLL_TokData_t * tokdata, SESSION * session,
          */
         switch (*(CK_KEY_TYPE *) keytype_attr->pValue) {
         case CKK_EC:
-            rc = ecdsa_priv_unwrap_get_data(key_obj->template, csum, cslen,
-                                            FALSE);
+            rc = ec_priv_unwrap_get_data(key_obj->template, csum, cslen,
+                                            FALSE, CKK_EC);
             break;
         case CKK_RSA:
             rc = rsa_priv_unwrap_get_data(key_obj->template, csum, cslen,

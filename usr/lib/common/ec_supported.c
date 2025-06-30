@@ -113,9 +113,9 @@ const struct _ec der_ec_supported[NUMEC] = {
     {MONTGOMERY_CURVE, CURVE256, CURVE256, NID_X25519, CK_FALSE,
             sizeof(curve25519), &curve25519},
     {MONTGOMERY_CURVE, CURVE456, CURVE448, NID_X448, CK_FALSE,
-            sizeof(curve448), &curve448},
+            sizeof(curve448), &curve448}, /* Curve448: prime len = 56 bytes ! */
     {EDWARDS_CURVE, CURVE256, CURVE256, NID_ED25519, CK_FALSE,
             sizeof(ed25519), &ed25519},
-    {EDWARDS_CURVE, CURVE456, CURVE448, NID_ED448, CK_FALSE,
-            sizeof(ed448), &ed448},
+    {EDWARDS_CURVE, CURVE456, CURVE456, NID_ED448, CK_FALSE,
+            sizeof(ed448), &ed448}, /* Ed448: prime len = 57 bytes ! */
 };

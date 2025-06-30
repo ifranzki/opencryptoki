@@ -459,6 +459,7 @@ CK_BBOOL pkey_op_supported_by_cpacf(int msa_level, CK_MECHANISM_TYPE type,
     case CKM_ECDSA_SHA512:
     case CKM_IBM_ED25519_SHA512:
     case CKM_IBM_ED448_SHA3:
+    case CKM_EDDSA:
         if (msa_level > 8)
             return pkey_op_ec_curve_supported_by_cpacf(tmpl);
         break;
