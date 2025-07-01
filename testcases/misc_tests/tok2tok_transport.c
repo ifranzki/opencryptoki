@@ -89,7 +89,25 @@ CK_GCM_PARAMS aes_gcm_param = {
        .ulTagBits = 32,
 };
 
+CK_EDDSA_PARAMS eddsa_param = {
+        .phFlag = FALSE,
+        .ulContextDataLen = 0,
+        .pContextData = NULL,
+};
+
+CK_ECDH1_DERIVE_PARAMS ecdh_param = {
+        .kdf = CKD_NULL,
+        .ulSharedDataLen = 0,
+        .pSharedData = NULL,
+        .ulPublicDataLen = 0,
+        .pPublicData = NULL,
+};
+
 CK_BYTE prime256v1[] = OCK_PRIME256V1;
+CK_BYTE ed25519[] = OCK_ED25519;
+CK_BYTE ed448[] = OCK_ED448;
+CK_BYTE curve25519[] = OCK_CURVE25519;
+CK_BYTE curve448[] = OCK_CURVE448;
 
 struct wrapping_mech_info {
     char *name;
@@ -520,6 +538,34 @@ struct wrapped_mech_info wrapped_key_tests[] = {
         .ec_params_len = sizeof(prime256v1),
     },
     {
+        .name = "key type EC-Edwards 25519",
+        .wrapped_key_gen_mech = { CKM_EC_EDWARDS_KEY_PAIR_GEN, 0, 0 },
+        .operation_mech = { CKM_EDDSA, NULL, 0 },
+        .ec_params = ed25519,
+        .ec_params_len = sizeof(ed25519),
+    },
+    {
+        .name = "key type EC-Edwards 48",
+        .wrapped_key_gen_mech = { CKM_EC_EDWARDS_KEY_PAIR_GEN, 0, 0 },
+        .operation_mech = { CKM_EDDSA, &eddsa_param, sizeof(eddsa_param) },
+        .ec_params = ed448,
+        .ec_params_len = sizeof(ed448),
+    },
+    {
+        .name = "key type EC-Montgomery 25519",
+        .wrapped_key_gen_mech = { CKM_EC_MONTGOMERY_KEY_PAIR_GEN, 0, 0 },
+        .operation_mech = { CKM_ECDH1_DERIVE, &ecdh_param, sizeof(ecdh_param) },
+        .ec_params = curve25519,
+        .ec_params_len = sizeof(curve25519),
+    },
+    {
+        .name = "key type EC-Edwards 48",
+        .wrapped_key_gen_mech = { CKM_EC_MONTGOMERY_KEY_PAIR_GEN, 0, 0 },
+        .operation_mech = { CKM_ECDH1_DERIVE, &ecdh_param, sizeof(ecdh_param) },
+        .ec_params = curve448,
+        .ec_params_len = sizeof(curve448),
+    },
+    {
         .name = "key type IBM Dilithium R2 6-5",
         .wrapped_key_gen_mech = { CKM_IBM_DILITHIUM, 0, 0 },
         .operation_mech = { CKM_IBM_DILITHIUM, 0, 0 },
@@ -550,6 +596,7 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
                            CK_SESSION_HANDLE sess1,
                            CK_OBJECT_HANDLE sym_key1,
                            CK_OBJECT_HANDLE publ_key1,
+                           CK_OBJECT_HANDLE priv_key1,
                            CK_SLOT_ID slot2,
                            CK_SESSION_HANDLE sess2,
                            CK_OBJECT_HANDLE sym_key2,
@@ -558,6 +605,7 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
     CK_RV rc;
     CK_MECHANISM_INFO mech_info;
     CK_BBOOL encr = FALSE, decr = FALSE, sign = FALSE, verify = FALSE;
+    CK_BBOOL derive = FALSE;
     CK_ULONG input_size, cipher_size, output_size;
     CK_BYTE input_data[32] = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
                                0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
@@ -566,6 +614,27 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
     CK_BYTE cipher_data[OPENSSL_RSA_MAX_MODULUS_BITS / 8];
     CK_BYTE output_data[8192];
     CK_OBJECT_HANDLE encr_key, decr_key, sign_key, verify_key;
+    CK_OBJECT_CLASS class = CKO_SECRET_KEY;
+    CK_KEY_TYPE key_type = CKK_AES;
+    CK_BBOOL true = CK_TRUE;
+    CK_BBOOL false = CK_FALSE;
+    CK_ULONG secret_key_len = 32;
+    CK_ATTRIBUTE  derive_tmpl[] = {
+        {CKA_CLASS, &class, sizeof(class)},
+        {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
+        {CKA_SENSITIVE, &false, sizeof(false)},
+        {CKA_VALUE_LEN, &secret_key_len, sizeof(secret_key_len)},
+        {CKA_ENCRYPT, &true, sizeof(true)},
+        {CKA_DECRYPT, &true, sizeof(true)},
+    };
+    CK_ULONG derive_tmpl_len = sizeof(derive_tmpl) / sizeof(CK_ATTRIBUTE);
+    CK_OBJECT_HANDLE key1 = CK_INVALID_HANDLE;
+    CK_OBJECT_HANDLE key2 = CK_INVALID_HANDLE;
+    CK_ECDH1_DERIVE_PARAMS derive_params;
+    CK_MECHANISM ecdh_mech;
+    CK_BYTE ec_point[64];
+    CK_ATTRIBUTE ec_point_attr = { CKA_EC_POINT, ec_point, sizeof(ec_point) };
+    CK_MECHANISM aes_ebc_mech = { CKM_AES_ECB, NULL, 0 };
 
     /* Check if Encrypt/Decrypt or Sign/Verify is supported */
     rc = funcs->C_GetMechanismInfo(slot1, mech->mechanism, &mech_info);
@@ -576,6 +645,7 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
     }
     encr = (mech_info.flags & CKF_ENCRYPT) != 0;
     sign = (mech_info.flags & CKF_SIGN) != 0;
+    derive = (mech_info.flags & CKF_DERIVE) != 0;
 
     rc = funcs->C_GetMechanismInfo(slot2, mech->mechanism, &mech_info);
     if (rc != CKR_OK) {
@@ -586,6 +656,7 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
 
     decr = (mech_info.flags & CKF_DECRYPT) != 0;
     verify = (mech_info.flags & CKF_VERIFY) != 0;
+    derive &= (mech_info.flags & CKF_DERIVE) != 0;
 
     if (encr && decr) {
         /* Perform Encrypt/Decrypt operation */
@@ -664,6 +735,7 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
             break;
         case CKM_RSA_PKCS:
         case CKM_ECDSA:
+        case CKM_EDDSA:
         case CKM_IBM_DILITHIUM:
             sign_key = priv_key2;
             verify_key = publ_key1;
@@ -709,8 +781,66 @@ CK_RV do_perform_operation(CK_MECHANISM *mech,
             testcase_error("C_Verify on slot %lu rc=%s", slot1, p11_get_ckr(rc));
             return rc;
         }
+    } else if (derive) {
+        /* Perform Derive operation */
+        switch (mech->mechanism) {
+        case CKM_ECDH1_DERIVE:
+            if (mech->ulParameterLen != sizeof(CK_ECDH1_DERIVE_PARAMS) ||
+                mech->pParameter == NULL) {
+                testcase_error("ECDH mechanism param invalid");
+                return CKR_MECHANISM_PARAM_INVALID;
+            }
+            memcpy(&derive_params, mech->pParameter, sizeof(derive_params));
+
+            rc = funcs->C_GetAttributeValue(sess1, publ_key1,
+                                            &ec_point_attr, 1);
+            if (rc != CKR_OK) {
+                testcase_error("C_GetAttributeValue on slot %lu rc=%s", slot1,
+                               p11_get_ckr(rc));
+                return rc;
+            }
+
+            derive_params.kdf = CKD_SHA256_KDF;
+            derive_params.pPublicData = ec_point_attr.pValue;
+            derive_params.ulPublicDataLen = ec_point_attr.ulValueLen;
+
+            ecdh_mech.mechanism = mech->mechanism;
+            ecdh_mech.pParameter = &derive_params;
+            ecdh_mech.ulParameterLen = sizeof(derive_params);
+
+            rc = funcs->C_DeriveKey(sess1, &ecdh_mech, priv_key1,
+                                    derive_tmpl, derive_tmpl_len, &key1);
+            if (rc != CKR_OK) {
+                testcase_error("C_DeriveKey on slot %lu rc=%s", slot2,
+                               p11_get_ckr(rc));
+                return rc;
+            }
+
+            rc = funcs->C_DeriveKey(sess2, &ecdh_mech, priv_key2,
+                                    derive_tmpl, derive_tmpl_len, &key2);
+            if (rc != CKR_OK) {
+                testcase_error("C_DeriveKey on slot %lu rc=%s", slot2,
+                               p11_get_ckr(rc));
+                funcs->C_DestroyObject(sess2, key1);
+                return rc;
+            }
+
+            rc = do_perform_operation(&aes_ebc_mech,
+                                      slot1, sess1, key1, CK_INVALID_HANDLE,
+                                      CK_INVALID_HANDLE,
+                                      slot2, sess2, key2, CK_INVALID_HANDLE);
+            funcs->C_DestroyObject(sess2, key1);
+            funcs->C_DestroyObject(sess2, key2);
+            if (rc != CKR_OK)
+                return rc;
+            break;
+        default:
+            testcase_error("Operation not supported by testcase");
+            return CKR_FUNCTION_NOT_SUPPORTED;
+        }
     } else {
-        testcase_error("Neither Encrypt/Decrypt, nor Sign/Verify supported");
+        testcase_error("Neither Encrypt/Decrypt, Sign/Verify, nor Derive "
+                       "supported");
         return CKR_FUNCTION_NOT_SUPPORTED;
     }
 
@@ -730,9 +860,11 @@ CK_RV do_wrap_key_test(struct wrapped_mech_info *tsuite,
     CK_OBJECT_CLASS key_class;
     CK_KEY_TYPE key_type;
     CK_ULONG key_len, unwrapped_keylen;
+    CK_BBOOL derive = FALSE;
     CK_ATTRIBUTE unwrap_tmpl[] = {
         {CKA_CLASS, &key_class, sizeof(CK_OBJECT_CLASS)},
         {CKA_KEY_TYPE, &key_type, sizeof(CK_KEY_TYPE)},
+        {CKA_DERIVE, &derive, sizeof(derive)},
         {CKA_VALUE_LEN, &key_len, sizeof(CK_ULONG)}
     };
     CK_ULONG unwrap_tmpl_num;
@@ -901,8 +1033,12 @@ CK_RV do_wrap_key_test(struct wrapped_mech_info *tsuite,
         break;
 
     case CKM_EC_KEY_PAIR_GEN:
-        rc = generate_EC_KeyPair(session1, tsuite->ec_params,
-                                 tsuite->ec_params_len, &publ_key, &priv_key,
+    case CKM_EC_EDWARDS_KEY_PAIR_GEN:
+    case CKM_EC_MONTGOMERY_KEY_PAIR_GEN:
+        rc = generate_EC_KeyPair(session1,
+                                 tsuite->wrapped_key_gen_mech.mechanism,
+                                 tsuite->ec_params, tsuite->ec_params_len,
+                                 &publ_key, &priv_key,
                                  CK_TRUE); // must be extractable for Wrap/Unwrap
         break;
 
@@ -960,7 +1096,7 @@ CK_RV do_wrap_key_test(struct wrapped_mech_info *tsuite,
 
     /* Test the key with a crypto operation on slot 1 */
     rc = do_perform_operation(&tsuite->operation_mech,
-                              slot_id1, session1, sym_key, publ_key,
+                              slot_id1, session1, sym_key, publ_key, priv_key,
                               slot_id1, session1, sym_key, priv_key);
     if (rc != CKR_OK)
         goto testcase_cleanup;
@@ -1044,10 +1180,10 @@ do_wrap:
     case CKM_AES_XTS_KEY_GEN:
     case CKM_GENERIC_SECRET_KEY_GEN:
     case CKM_SHA_1_KEY_GEN:
-        unwrap_tmpl_num = 3;
+        unwrap_tmpl_num = 4;
         break;
    default:
-        unwrap_tmpl_num = 2;
+        unwrap_tmpl_num = 3;
         break;
     }
 
@@ -1070,7 +1206,7 @@ do_wrap:
     case CKM_DES3_CBC:
         break;
     default:
-        unwrap_tmpl_num = 2;
+        unwrap_tmpl_num = 3;
         break;
     }
 
@@ -1154,7 +1290,7 @@ do_wrap:
 
     /* Test the unwrapped key with a crypto operation on slot 2 */
     rc = do_perform_operation(&tsuite->operation_mech,
-                              slot_id1, session1, sym_key, publ_key,
+                              slot_id1, session1, sym_key, publ_key, priv_key,
                               slot_id2, session2, unwrapped_key,
                               unwrapped_key);
     if (rc != CKR_OK)
@@ -1351,8 +1487,8 @@ CK_RV do_wrapping_test(struct wrapping_mech_info *tsuite)
         break;
 
     case CKM_EC_KEY_PAIR_GEN:
-        rc = generate_EC_KeyPair(session2, tsuite->ec_parms,
-                                 tsuite->ec_parms_len,
+        rc = generate_EC_KeyPair(session2, CKM_EC_KEY_PAIR_GEN,
+                                 tsuite->ec_parms, tsuite->ec_parms_len,
                                  &publ_wrap_key2, &priv_wrap_key2,
                                  FALSE);
         break;
@@ -1522,7 +1658,7 @@ CK_RV do_wrapping_test(struct wrapping_mech_info *tsuite)
             testcase_error("C_GetAttributeValue(), rc=%s.", p11_get_ckr(rc));
             goto testcase_cleanup;
         }
-        rc = create_ECPublicKey(session1, ec_publ_tmpl[0].pValue,
+        rc = create_ECPublicKey(session1, CKK_EC, ec_publ_tmpl[0].pValue,
                                 ec_publ_tmpl[0].ulValueLen,
                                 ec_publ_tmpl[1].pValue,
                                 ec_publ_tmpl[1].ulValueLen, &publ_wrap_key1,
