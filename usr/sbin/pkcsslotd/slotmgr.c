@@ -29,13 +29,13 @@
 #include "configuration.h"
 
 #define OBJ_DIR "TOK_OBJ"
-#define MD5_HASH_SIZE 16
+#define SHA256_HASH_SIZE 32
 
 #define DEF_MANUFID "IBM"
 #define DEF_SLOTDESC    "Linux"
 
-typedef char md5_hash_entry[MD5_HASH_SIZE];
-md5_hash_entry tokname_hash_table[NUMBER_SLOTS_MANAGED];
+typedef char sha256_hash_entry[SHA256_HASH_SIZE];
+sha256_hash_entry tokname_hash_table[NUMBER_SLOTS_MANAGED];
 
 Slot_Mgr_Shr_t *shmp;           // pointer to the shared memory region.
 int shmid;
@@ -76,27 +76,19 @@ void DumpSharedMemory(void)
     }
 }
 
-int compute_hash(int hash_type, int buf_size, char *buf, char *digest)
+int compute_sha256(char *buf, int buf_size, char *digest)
 {
     EVP_MD_CTX *md_ctx = NULL;
     unsigned int result_size;
     int rc;
 
     md_ctx = EVP_MD_CTX_create();
-
-    switch (hash_type) {
-    case HASH_SHA1:
-        rc = EVP_DigestInit(md_ctx, EVP_sha1());
-        break;
-    case HASH_MD5:
-        rc = EVP_DigestInit(md_ctx, EVP_md5());
-        break;
-    default:
-        EVP_MD_CTX_destroy(md_ctx);
+    if (md_ctx == NULL) {
+        fprintf(stderr, "EVP_MD_CTX_create() failed\n");
         return -1;
-        break;
     }
 
+    rc = EVP_DigestInit(md_ctx, EVP_sha256());
     if (rc != 1) {
         fprintf(stderr, "EVP_DigestInit() failed: rc = %d\n", rc);
         return -1;
@@ -308,12 +300,12 @@ void run_sanity_checks(void)
     }
 }
 
-int is_duplicate(md5_hash_entry hash, md5_hash_entry *hash_table)
+int is_duplicate(sha256_hash_entry hash, sha256_hash_entry *hash_table)
 {
     int i;
 
     for (i = 0; i < NUMBER_SLOTS_MANAGED; i++) {
-        if (memcmp(hash_table[i], hash, sizeof(md5_hash_entry)) == 0)
+        if (memcmp(hash_table[i], hash, sizeof(sha256_hash_entry)) == 0)
             return 1;
     }
 
@@ -329,7 +321,7 @@ int chk_create_tokdir(Slot_Info_t_64 *psinfo)
     int uid, rc;
     mode_t proc_umask;
     char *tokdir = psinfo->tokname;
-    char token_md5_hash[MD5_HASH_SIZE];
+    char token_sha256_hash[SHA256_HASH_SIZE];
 
     /* skip if no dedicated token directory is required */
     if (!tokdir || strlen(tokdir) == 0)
@@ -356,21 +348,21 @@ int chk_create_tokdir(Slot_Info_t_64 *psinfo)
         grpid = grp->gr_gid;
     }
 
-    /* calculate md5 hash from token name */
-    rc = compute_md5(tokdir, strlen(tokdir), token_md5_hash);
+    /* calculate SHA256 hash from token name */
+    rc = compute_sha256(tokdir, strlen(tokdir), token_sha256_hash);
     if (rc) {
-        fprintf(stderr, "Error calculating MD5 of token name!\n");
+        fprintf(stderr, "Error calculating SHA256 of token name!\n");
         return -1;
     }
     /* check for duplicate token names */
-    if (is_duplicate(token_md5_hash, tokname_hash_table)) {
+    if (is_duplicate(token_sha256_hash, tokname_hash_table)) {
         fprintf(stderr, "Duplicate token name '%s'!\n", tokdir);
         return -1;
     }
 
     /* add entry into hash table */
-    memcpy(tokname_hash_table[psinfo->slot_number], token_md5_hash,
-           MD5_HASH_SIZE);
+    memcpy(tokname_hash_table[psinfo->slot_number], token_sha256_hash,
+           SHA256_HASH_SIZE);
 
     /* Create token specific directory */
     /* sprintf checked above */
