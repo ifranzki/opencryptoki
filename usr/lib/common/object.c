@@ -921,6 +921,8 @@ CK_RV object_create_skel(STDLL_TokData_t * tokdata,
     return CKR_OK;
 
 done:
+    if (o->template)
+        template_free(o->template);
     if (o)
         free(o);
     if (tmpl)
