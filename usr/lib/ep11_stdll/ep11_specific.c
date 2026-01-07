@@ -3380,7 +3380,7 @@ CK_RV ep11tok_init(STDLL_TokData_t * tokdata, CK_SLOT_ID SlotNumber,
     CK_RV rc;
     ep11_private_data_t *ep11_data;
 #ifndef EP11_HSMSIM
-    const CK_VERSION ver4_1 = { .major = 4, .minor = 1 };
+    const CK_VERSION ver4_1 = { .major = 4, .minor = 0x10 };
 #endif
 
     TRACE_INFO("ep11 %s slot=%lu running\n", __func__, SlotNumber);
@@ -6718,7 +6718,7 @@ static CK_BBOOL ep11tok_ec_curve_supported2(STDLL_TokData_t *tokdata,
     CK_ATTRIBUTE *attr = NULL;
     int i, status;
     const CK_VERSION ver3 = { .major = 3, .minor = 0 };
-    const CK_VERSION ver4_1 = { .major = 4, .minor = 1 };
+    const CK_VERSION ver4_1 = { .major = 4, .minor = 0x10 };
 
     *curve = NULL;
 
