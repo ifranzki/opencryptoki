@@ -41,6 +41,7 @@
 #include "sw_crypt.h"
 #include "trace.h"
 #include "ock_syslog.h"
+#include "platform.h"
 
 extern void set_perm(int);
 
@@ -115,7 +116,7 @@ CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
     // update the index file if it exists
     sprintf(fname, "%s/%s/%s", tokdata->data_store, PK_LITE_OBJ_DIR,
             PK_LITE_OBJ_IDX);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (fp) {
         set_perm(fileno(fp));
         while (fgets(line, 50, fp)) {
@@ -131,9 +132,12 @@ CK_RV save_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
     // we didn't find it...either the index file doesn't exist or this
     // is a new object...
     //
-    fp = fopen(fname, "a");
+    fp = fopen_nofollow(fname, "a");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         return CKR_FUNCTION_FAILED;
     }
 
@@ -164,8 +168,12 @@ CK_RV delete_token_object(STDLL_TokData_t *tokdata, OBJECT *obj)
     // remove the object from the index file
     //
 
-    fp1 = fopen(objidx, "r");
-    fp2 = fopen(idxtmp, "w");
+    fp1 = fopen_nofollow(objidx, "r");
+    if (fp1 == NULL && errno == ELOOP)
+        TRACE_ERROR("Refusing to follow symlink: %s\n", objidx);
+    fp2 = fopen_nofollow(idxtmp, "w");
+    if (fp2 == NULL && errno == ELOOP)
+        TRACE_ERROR("Refusing to follow symlink: %s\n", idxtmp);
     if (!fp1 || !fp2) {
         if (fp1)
             fclose(fp1);
@@ -601,8 +609,10 @@ CK_RV load_token_data_old(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
     }
 
     sprintf(fname, "%s/%s", tokdata->data_store, PK_LITE_NV);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (!fp) {
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
         /* Better error checking added */
         if (errno == ENOENT) {
             /* init_token_data may call save_token_data, which
@@ -616,17 +626,14 @@ CK_RV load_token_data_old(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
 
             init_token_data(tokdata, slot_id);
 
-            rc = XProcLock(tokdata);
-            if (rc != CKR_OK) {
-                TRACE_ERROR("Failed to get Process Lock.\n");
-                goto out_nolock;
-            }
-
-            fp = fopen(fname, "r");
+            fp = fopen_nofollow(fname, "r");
             if (!fp) {
                 // were really hosed here since the created
                 // did not occur
-                TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+                if (errno == ELOOP)
+                    TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+                else
+                    TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
                 rc = CKR_FUNCTION_FAILED;
                 goto out_unlock;
             }
@@ -690,9 +697,12 @@ CK_RV save_token_data_old(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
     }
 
     sprintf(fname, "%s/%s", tokdata->data_store, PK_LITE_NV);
-    fp = fopen(fname, "w");
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -882,7 +892,7 @@ CK_RV load_private_token_objects_old(STDLL_TokData_t *tokdata)
     sprintf(iname, "%s/%s/%s", tokdata->data_store, PK_LITE_OBJ_DIR,
             PK_LITE_OBJ_IDX);
 
-    fp1 = fopen(iname, "r");
+    fp1 = fopen_nofollow(iname, "r");
     if (!fp1)
         return CKR_OK;          // no token objects
 
@@ -892,9 +902,12 @@ CK_RV load_private_token_objects_old(STDLL_TokData_t *tokdata)
         sprintf(fname, "%s/%s/", tokdata->data_store, PK_LITE_OBJ_DIR);
         strcat(fname, tmp);
 
-        fp2 = fopen(fname, "r");
-        if (!fp2)
+        fp2 = fopen_nofollow(fname, "r");
+        if (!fp2) {
+            if (errno == ELOOP)
+                TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
             continue;
+        }
 
         if (!fread(&size, sizeof(CK_ULONG_32), 1, fp2)) {
             fclose(fp2);
@@ -996,9 +1009,12 @@ CK_RV load_masterkey_so_old(STDLL_TokData_t *tokdata)
     // exists
     //
     sprintf(fname, "%s/MK_SO", tokdata->data_store);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -1099,9 +1115,12 @@ CK_RV load_masterkey_user_old(STDLL_TokData_t *tokdata)
     // exists
     //
     sprintf(fname, "%s/MK_USER", tokdata->data_store);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -1223,9 +1242,12 @@ CK_RV save_masterkey_so_old(STDLL_TokData_t *tokdata)
     // probably ought to ensure the permissions are correct
     //
     sprintf(fname, "%s/MK_SO", tokdata->data_store);
-    fp = fopen(fname, "w");
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -1311,9 +1333,12 @@ CK_RV save_masterkey_user_old(STDLL_TokData_t *tokdata)
     // probably ought to ensure the permissions are correct
     //
     sprintf(fname, "%s/MK_USER", tokdata->data_store);
-    fp = fopen(fname, "w");
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -1624,7 +1649,7 @@ CK_RV load_public_token_objects_old(STDLL_TokData_t *tokdata)
     sprintf(iname, "%s/%s/%s", tokdata->data_store, PK_LITE_OBJ_DIR,
             PK_LITE_OBJ_IDX);
 
-    fp1 = fopen(iname, "r");
+    fp1 = fopen_nofollow(iname, "r");
     if (!fp1)
         return CKR_OK;          // no token objects
 
@@ -1634,9 +1659,12 @@ CK_RV load_public_token_objects_old(STDLL_TokData_t *tokdata)
         sprintf(fname, "%s/%s/", tokdata->data_store, PK_LITE_OBJ_DIR);
         strcat(fname, tmp);
 
-        fp2 = fopen(fname, "r");
-        if (!fp2)
+        fp2 = fopen_nofollow(fname, "r");
+        if (!fp2) {
+            if (errno == ELOOP)
+                TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
             continue;
+        }
 
         if (!fread(&size, sizeof(CK_ULONG_32), 1, fp2)) {
             fclose(fp2);
@@ -1872,9 +1900,12 @@ CK_RV save_masterkey_so(STDLL_TokData_t *tokdata)
     // probably ought to ensure the permissions are correct
     //
     sprintf(fname, "%s/MK_SO", tokdata->data_store);
-    fp = fopen(fname, "w");
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -1910,9 +1941,12 @@ CK_RV load_masterkey_so(STDLL_TokData_t *tokdata)
     // exists
     //
     sprintf(fname, "%s/MK_SO", tokdata->data_store);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -1962,9 +1996,12 @@ CK_RV save_masterkey_user(STDLL_TokData_t *tokdata)
     // probably ought to ensure the permissions are correct
     //
     sprintf(fname, "%s/MK_USER", tokdata->data_store);
-    fp = fopen(fname, "w");
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -2001,9 +2038,12 @@ CK_RV load_masterkey_user(STDLL_TokData_t *tokdata)
     // exists
     //
     sprintf(fname, "%s/MK_USER", tokdata->data_store);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -2046,9 +2086,12 @@ CK_RV save_token_data(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
     }
 
     sprintf(fname, "%s/%s", tokdata->data_store, PK_LITE_NV);
-    fp = fopen(fname, "w");
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -2134,8 +2177,10 @@ CK_RV load_token_data(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
     }
 
     sprintf(fname, "%s/%s", tokdata->data_store, PK_LITE_NV);
-    fp = fopen(fname, "r");
+    fp = fopen_nofollow(fname, "r");
     if (!fp) {
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
         /* Better error checking added */
         if (errno == ENOENT) {
             /* init_token_data may call save_token_data, which
@@ -2149,17 +2194,14 @@ CK_RV load_token_data(STDLL_TokData_t *tokdata, CK_SLOT_ID slot_id)
 
             init_token_data(tokdata, slot_id);
 
-            rc = XProcLock(tokdata);
-            if (rc != CKR_OK) {
-                TRACE_ERROR("Failed to get Process Lock.\n");
-                goto out_nolock;
-            }
-
-            fp = fopen(fname, "r");
+            fp = fopen_nofollow(fname, "r");
             if (!fp) {
                 // were really hosed here since the created
                 // did not occur
-                TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
+                if (errno == ELOOP)
+                    TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+                else
+                    TRACE_ERROR("fopen(%s): %s\n", fname, strerror(errno));
                 rc = CKR_FUNCTION_FAILED;
                 goto out_unlock;
             }
@@ -2446,7 +2488,7 @@ CK_RV load_private_token_objects(STDLL_TokData_t *tokdata)
     sprintf(iname, "%s/%s/%s", tokdata->data_store, PK_LITE_OBJ_DIR,
             PK_LITE_OBJ_IDX);
 
-    fp1 = fopen(iname, "r");
+    fp1 = fopen_nofollow(iname, "r");
     if (!fp1)
         return CKR_OK;          // no token objects
 
@@ -2456,9 +2498,12 @@ CK_RV load_private_token_objects(STDLL_TokData_t *tokdata)
         sprintf(fname, "%s/%s/", tokdata->data_store, PK_LITE_OBJ_DIR);
         strcat(fname, tmp);
 
-        fp2 = fopen(fname, "r");
-        if (!fp2)
+        fp2 = fopen_nofollow(fname, "r");
+        if (!fp2) {
+            if (errno == ELOOP)
+                TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
             continue;
+        }
 
         if (fread(header, HEADER_LEN, 1, fp2) != 1) {
             fclose(fp2);

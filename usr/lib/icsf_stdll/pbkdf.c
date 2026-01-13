@@ -27,6 +27,7 @@
 #include "h_extern.h"
 #include "pbkdf.h"
 #include "trace.h"
+#include "platform.h"
 
 
 CK_RV get_randombytes(unsigned char *output, int bytes)
@@ -446,9 +447,13 @@ CK_RV secure_racf(CK_BYTE * racf, CK_ULONG racflen, CK_BYTE * key,
     /* get the total length */
     totallen = outputlen + AES_INIT_VECTOR_SIZE;
 
-    fp = fopen(RACFFILE, "w");
+    /* CWE-59 fix: Use fopen_nofollow to prevent symlink attacks */
+    fp = fopen_nofollow(RACFFILE, "w");
     if (!fp) {
-        TRACE_ERROR("fopen failed: %s\n", strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", RACFFILE);
+        else
+            TRACE_ERROR("fopen failed: %s\n", strerror(errno));
         return CKR_FUNCTION_FAILED;
     }
 
@@ -516,9 +521,13 @@ CK_RV secure_masterkey(CK_BYTE * masterkey, CK_ULONG len, CK_BYTE * pin,
     /* get the total length */
     totallen = outputlen + SALTSIZE;
 
-    fp = fopen(fname, "w");
+    /* CWE-59 fix: Use fopen_nofollow to prevent symlink attacks */
+    fp = fopen_nofollow(fname, "w");
     if (!fp) {
-        TRACE_ERROR("fopen failed: %s\n", strerror(errno));
+        if (errno == ELOOP)
+            TRACE_ERROR("Refusing to follow symlink: %s\n", fname);
+        else
+            TRACE_ERROR("fopen failed: %s\n", strerror(errno));
         return CKR_FUNCTION_FAILED;
     }
 
