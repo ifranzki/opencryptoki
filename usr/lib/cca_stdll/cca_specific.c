@@ -11391,8 +11391,8 @@ static CK_RV cca_ibm_ml_kem_derive(STDLL_TokData_t *tokdata, SESSION *sess,
     switch (kem_params->mode) {
     case CK_IBM_ML_KEM_ENCAPSULATE:
         if (kem_params->pCipher == NULL ||
-            kem_params->ulCipherLen < oid->len_info.ml_kem.pk_len) {
-            kem_params->ulCipherLen = oid->len_info.ml_kem.pk_len;
+            kem_params->ulCipherLen < oid->len_info.ml_kem.ct_len) {
+            kem_params->ulCipherLen = oid->len_info.ml_kem.ct_len;
             return CKR_BUFFER_TOO_SMALL;
         }
 
