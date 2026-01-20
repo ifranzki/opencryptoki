@@ -354,6 +354,13 @@ CK_RV run_EnDecapsulateMLKEM(CK_SESSION_HANDLE session,
         goto testcase_cleanup;
     }
 
+    if (is_cca_token(SLOT_ID) && hybrid) {
+        testcase_notice("CCA token in slot %u doesn't support hybrid KEM",
+                        (unsigned int) SLOT_ID);
+        rc = CKR_MECHANISM_INVALID;
+        goto testcase_cleanup;
+    }
+
     if (hybrid) {
         rc = ecdh_derive_secret(session, 32, CKD_IBM_HYBRID_NULL, &hybrid_key);
         if (rc != CKR_OK) {
