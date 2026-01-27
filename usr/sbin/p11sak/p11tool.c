@@ -1477,6 +1477,8 @@ bool p11tool_is_attr_array_attr(CK_ATTRIBUTE *attr)
     case CKA_WRAP_TEMPLATE:
     case CKA_UNWRAP_TEMPLATE:
     case CKA_DERIVE_TEMPLATE:
+    case CKA_ENCAPSULATE_TEMPLATE:
+    case CKA_DECAPSULATE_TEMPLATE:
         return true;
 
     default:
