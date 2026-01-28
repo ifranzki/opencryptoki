@@ -143,6 +143,8 @@ token_spec_t token_specific = {
     NULL,                       // object_add
     NULL,                       // key_wrap
     NULL,                       // key_unwrap
+    NULL,                       // encapsulate_key
+    NULL,                       // decapsulate_key
     NULL,                       // reencrypt_single
     NULL,                       // set_attribute_values
     NULL,                       // set_attrs_for_new_object

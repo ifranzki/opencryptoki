@@ -161,6 +161,8 @@ token_spec_t token_specific = {
     &token_specific_object_add,
     NULL,                       // key_wrap
     NULL,                       // key_unwrap
+    NULL,                       // encapsulate_key
+    NULL,                       // decapsulate_key
     &token_specific_reencrypt_single,
     &token_specific_set_attribute_values,
     &token_specific_set_attrs_for_new_object,

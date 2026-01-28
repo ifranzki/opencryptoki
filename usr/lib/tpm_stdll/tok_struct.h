@@ -134,6 +134,8 @@ struct token_specific_struct token_specific = {
     NULL,                       // object_add
     &token_specific_key_wrap,
     &token_specific_key_unwrap,
+    NULL,                       // encapsulate_key
+    NULL,                       // decapsulate_key
     NULL,                       // reencrypt_single
     NULL,                       // set_attribute_values
     NULL,                       // set_attrs_for_new_object
