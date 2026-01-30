@@ -311,7 +311,8 @@ static const MECH_LIST_ELEMENT cca_mech_list[] = {
                           CKF_EC_OID | CKF_EC_F_P | CKF_EC_UNCOMPRESS |
                           CKF_EC_COMPRESS}},
     {CKM_ECDH1_DERIVE, {160, 521, CKF_DERIVE | CKF_EC_OID | CKF_EC_F_P |
-                        CKF_EC_UNCOMPRESS | CKF_EC_COMPRESS}},
+                        CKF_EC_UNCOMPRESS | CKF_EC_COMPRESS | CKF_ENCAPSULATE |
+                        CKF_DECAPSULATE}},
     {CKM_GENERIC_SECRET_KEY_GEN, {80, 2048, CKF_HW | CKF_GENERATE}},
     {CKM_SHA_1_KEY_GEN, {80, 2048, CKF_HW | CKF_GENERATE}},
     {CKM_SHA224_KEY_GEN, {80, 2048, CKF_HW | CKF_GENERATE}},
