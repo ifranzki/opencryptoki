@@ -1734,7 +1734,8 @@ static void ep11tok_endecaps_combine_attrs(TEMPLATE *tmpl, CK_KEY_TYPE keytype,
 
     case CKK_EC:
     case CKK_EC_MONTGOMERY:
-        /* EC: Combine DERIVE and ENCAPS and DECAPS */
+    case CKK_DH:
+        /* EC/DH: Combine DERIVE and ENCAPS and DECAPS */
         if (pkcs11_attr == CKA_DERIVE) {
             if (class == CKO_PUBLIC_KEY &&
                 template_attribute_find(tmpl, CKA_ENCAPSULATE, &attr) &&
@@ -1791,7 +1792,8 @@ static CK_RV ep11tok_endecaps_combine_attrs_import(TEMPLATE *tmpl,
 
     case CKK_EC:
     case CKK_EC_MONTGOMERY:
-        /* EC: Set ENCAPS = DERIVE, DECAPS = DERIVE */
+    case CKK_DH:
+        /* EC/DH: Set ENCAPS = DERIVE, DECAPS = DERIVE */
         if(class == CKO_PUBLIC_KEY &&
            (add_always ||
             !template_attribute_find(tmpl, CKA_ENCAPSULATE, &attr))) {
@@ -3035,7 +3037,8 @@ static CK_RV ep11tok_endecaps_combine_attrs_apply(
         break;
     case CKK_EC:
     case CKK_EC_MONTGOMERY:
-        /* EC: Combine Encaps and Derive, Decaps and Derive */
+    case CKK_DH:
+        /* EC/DH: Combine Encaps and Derive, Decaps and Derive */
         if (data->encaps_found && class == CKO_PUBLIC_KEY) {
             data->derive |= data->encaps;
             data->derive_found = CK_TRUE;
@@ -16181,6 +16184,7 @@ CK_RV ep11tok_get_mechanism_info(STDLL_TokData_t * tokdata,
         pInfo->ulMaxKeySize = SHA256_HASH_SIZE * 8;
         break;
     case CKM_ECDH1_DERIVE:
+    case CKM_DH_PKCS_DERIVE:
         /* En/Decapsulate is not known by EP11, but we support it anyway */
         if (pInfo->flags & CKF_DERIVE)
             pInfo->flags |= CKF_ENCAPSULATE | CKF_DECAPSULATE;
