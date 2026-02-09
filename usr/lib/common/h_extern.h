@@ -2175,7 +2175,8 @@ CK_RV key_mgr_generate_key_pair(STDLL_TokData_t *tokdata,
                                 CK_BBOOL count_statistics, CK_ULONG operation);
 
 CK_RV key_mgr_get_private_key_type(CK_BYTE *keydata,
-                                   CK_ULONG keylen, CK_KEY_TYPE *keytype);
+                                   CK_ULONG keylen, CK_KEY_TYPE *keytype,
+                                   CK_KEY_TYPE *alt_keytype);
 
 CK_RV key_mgr_derive_key(STDLL_TokData_t *tokdata,
                          SESSION *sess,
@@ -2876,6 +2877,50 @@ CK_RV ibm_ml_kem_priv_unwrap_get_data(TEMPLATE *tmpl,
                                       CK_BBOOL is_public,
                                       CK_MECHANISM_TYPE mech);
 
+// ML-DSA routines
+//
+CK_RV ml_dsa_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_dsa_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_dsa_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_dsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_dsa_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                     TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                     CK_ULONG mode);
+CK_RV ml_dsa_priv_validate_attribute(STDLL_TokData_t *tokdata,
+                                     TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                     CK_ULONG mode);
+CK_BBOOL ml_dsa_priv_check_exportability(CK_ATTRIBUTE_TYPE type);
+CK_RV ml_dsa_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
+                           CK_BYTE **data, CK_ULONG *data_len);
+CK_RV ml_dsa_priv_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only,
+                                CK_BYTE **data, CK_ULONG *data_len);
+CK_RV ml_dsa_priv_unwrap_get_data(TEMPLATE *tmpl, CK_BYTE *data,
+                                  CK_ULONG total_length, CK_BBOOL is_public);
+CK_RV ml_dsa_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data,
+                         CK_ULONG total_length, CK_BBOOL add_value);
+
+// ML-KEM routines
+//
+CK_RV ml_kem_publ_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_kem_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_kem_publ_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_kem_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode);
+CK_RV ml_kem_publ_validate_attribute(STDLL_TokData_t *tokdata,
+                                     TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                     CK_ULONG mode);
+CK_RV ml_kem_priv_validate_attribute(STDLL_TokData_t *tokdata,
+                                     TEMPLATE *tmpl, CK_ATTRIBUTE *attr,
+                                     CK_ULONG mode);
+CK_BBOOL ml_kem_priv_check_exportability(CK_ATTRIBUTE_TYPE type);
+CK_RV ml_kem_publ_get_spki(TEMPLATE *tmpl, CK_BBOOL length_only,
+                           CK_BYTE **data, CK_ULONG *data_len);
+CK_RV ml_kem_priv_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only,
+                                CK_BYTE **data, CK_ULONG *data_len);
+CK_RV ml_kem_priv_unwrap_get_data(TEMPLATE *tmpl, CK_BYTE *data,
+                                  CK_ULONG total_length, CK_BBOOL is_public);
+CK_RV ml_kem_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data,
+                         CK_ULONG total_length, CK_BBOOL add_value);
+
 // PQC helper routines
 //
 CK_RV pqc_publ_get_spki(TEMPLATE *tmpl, CK_KEY_TYPE keytype,
@@ -3225,6 +3270,45 @@ CK_RV ber_decode_IBM_ML_KEM_PrivateKey(CK_MECHANISM_TYPE mech,
                                        CK_ATTRIBUTE **priv_seed,
                                        CK_ATTRIBUTE **value,
                                        const struct pqc_oid **oid);
+
+CK_RV ber_encode_ML_DSA_PublicKey(CK_BBOOL length_only,
+                                  CK_BYTE **data, CK_ULONG *data_len,
+                                  const CK_BYTE *oid, CK_ULONG oid_len,
+                                  CK_ATTRIBUTE *value);
+
+CK_RV ber_decode_ML_DSA_PublicKey(CK_BYTE *data, CK_ULONG data_len,
+                                  CK_ATTRIBUTE **value_attr,
+                                  const struct pqc_oid **oid);
+
+CK_RV ber_encode_ML_DSA_PrivateKey(CK_BBOOL length_only,
+                                   CK_BYTE **data, CK_ULONG *data_len,
+                                   const CK_BYTE *oid, CK_ULONG oid_len,
+                                   CK_ATTRIBUTE *value,
+                                   CK_ATTRIBUTE *seed);
+CK_RV ber_decode_ML_DSA_PrivateKey(CK_BYTE *data, CK_ULONG data_len,
+                                       CK_ATTRIBUTE **value,
+                                       CK_ATTRIBUTE **seed,
+                                       const struct pqc_oid **oid);
+
+CK_RV ber_encode_ML_KEM_PublicKey(CK_BBOOL length_only,
+                                  CK_BYTE **data, CK_ULONG *data_len,
+                                  const CK_BYTE *oid, CK_ULONG oid_len,
+                                  CK_ATTRIBUTE *value);
+
+CK_RV ber_decode_ML_KEM_PublicKey(CK_BYTE *data, CK_ULONG data_len,
+                                  CK_ATTRIBUTE **value_attr,
+                                  const struct pqc_oid **oid);
+
+CK_RV ber_encode_ML_KEM_PrivateKey(CK_BBOOL length_only,
+                                   CK_BYTE **data, CK_ULONG *data_len,
+                                   const CK_BYTE *oid, CK_ULONG oid_len,
+                                   CK_ATTRIBUTE *value,
+                                   CK_ATTRIBUTE *seed);
+
+CK_RV ber_decode_ML_KEM_PrivateKey(CK_BYTE *data, CK_ULONG data_len,
+                                   CK_ATTRIBUTE **value,
+                                   CK_ATTRIBUTE **seed,
+                                   const struct pqc_oid **oid);
 
 typedef CK_RV (*t_rsa_encrypt)(STDLL_TokData_t *, CK_BYTE *in_data,
                                CK_ULONG in_data_len, CK_BYTE *out_data,
