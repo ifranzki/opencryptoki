@@ -149,7 +149,7 @@ token_spec_t token_specific = {
     &token_specific_ml_dsa_generate_keypair,
     &token_specific_ml_dsa_sign,
     &token_specific_ml_dsa_verify,
-    NULL,                       // ml_kem_generate_keypair
+    &token_specific_ml_kem_generate_keypair,
     NULL,                       // ml_kem_encapsulate_key
     NULL,                       // ml_kem_decapsulate_key
     &token_specific_get_mechanism_list,
