@@ -329,6 +329,7 @@ static const MECH_LIST_ELEMENT cca_mech_list[] = {
     {CKM_ML_DSA, {1312, 2592, CKF_HW | CKF_SIGN | CKF_VERIFY}},
     {CKM_HASH_ML_DSA, {1312, 2592, CKF_HW | CKF_SIGN | CKF_VERIFY}},
     {CKM_HASH_ML_DSA_SHA512, {1312, 2592, CKF_HW | CKF_SIGN | CKF_VERIFY}},
+    {CKM_ML_KEM_KEY_PAIR_GEN, {800, 1568, CKF_HW | CKF_GENERATE_KEY_PAIR}},
     {CKM_RSA_AES_KEY_WRAP, {2048, 4096, CKF_HW | CKF_WRAP | CKF_UNWRAP}},
     {CKM_EC_EDWARDS_KEY_PAIR_GEN, {255, 448, CKF_HW | CKF_GENERATE_KEY_PAIR |
                                    CKF_EC_OID | CKF_EC_F_P | CKF_EC_COMPRESS}},
@@ -4800,6 +4801,7 @@ static CK_BBOOL cca_pqc_strength_supported(STDLL_TokData_t * tokdata,
     case CKM_ML_DSA:
     case CKM_HASH_ML_DSA:
     case CKM_HASH_ML_DSA_SHA512:
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         required = &cca_v8_4;
         break;
     default:
@@ -9898,6 +9900,9 @@ static CK_RV token_create_pqc_keypair(CK_MECHANISM_TYPE mech,
     case CKM_ML_DSA_KEY_PAIR_GEN:
         keytype = CKK_ML_DSA;
         break;
+    case CKM_ML_KEM_KEY_PAIR_GEN:
+        keytype = CKK_ML_KEM;
+        break;
     default:
         return CKR_MECHANISM_INVALID;
     }
@@ -9928,6 +9933,7 @@ static CK_RV token_create_pqc_keypair(CK_MECHANISM_TYPE mech,
         }
         break;
     case CKM_IBM_ML_KEM_KEY_PAIR_GEN:
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         pk_len = be16toh(*((uint16_t *)(publ_tok +
                                         CCA_QSA_EXTTOK_PUBLKEY_OFFSET +
                                         CCA_QSA_EXTTOK_PK_OFFSET)));
@@ -10006,6 +10012,8 @@ static CK_RV token_create_pqc_keypair(CK_MECHANISM_TYPE mech,
                         rc);
             return rc;
         }
+        break;
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         break;
     default:
         /* Add SPKI as CKA_VALUE to public template */
@@ -10086,6 +10094,7 @@ static CK_RV token_create_pqc_privkey(CK_MECHANISM_TYPE mech,
         }
         break;
     case CKM_IBM_ML_KEM_KEY_PAIR_GEN:
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         pk_len = be16toh(*((uint16_t *)(publ_sec +
                                         CCA_QSA_EXTTOK_PK_OFFSET)));
         seed_len = be16toh(*((uint16_t *)(publ_sec +
@@ -10114,9 +10123,11 @@ static CK_RV token_create_pqc_privkey(CK_MECHANISM_TYPE mech,
         }
         break;
     case CKM_ML_DSA_KEY_PAIR_GEN:
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         /* Add SPKI as CKA_PUBLIC_KEY_INFO to private template */
-        rc = pqc_publ_get_spki(priv_tmpl, CKK_ML_DSA, FALSE, &spki, &spki_len,
-                               TRUE);
+        rc = pqc_publ_get_spki(priv_tmpl, mech == CKM_ML_DSA_KEY_PAIR_GEN ?
+                                                        CKK_ML_DSA : CKK_ML_KEM,
+                               FALSE, &spki, &spki_len, TRUE);
         if (rc != CKR_OK) {
             TRACE_ERROR("pqc_publ_get_spki failed\n");
             return rc;
@@ -10228,15 +10239,16 @@ static CK_RV build_pqc_key_value_struct(CK_MECHANISM_TYPE mech,
         break;
 
     case CKM_IBM_ML_KEM_KEY_PAIR_GEN:
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         algo_id = CCA_QSA_ALGO_ML_KEM;
         switch (oid->keyform) {
-        case CKP_IBM_ML_KEM_512:
+        case CKP_ML_KEM_512:
             algo_param = htobe16(CCA_QSA_ALGO_ML_KEM_512);
             break;
-        case CKP_IBM_ML_KEM_768:
+        case CKP_ML_KEM_768:
             algo_param = htobe16(CCA_QSA_ALGO_ML_KEM_768);
             break;
-        case CKP_IBM_ML_KEM_1024:
+        case CKP_ML_KEM_1024:
             algo_param = htobe16(CCA_QSA_ALGO_ML_KEM_1024);
             break;
         default:
@@ -10334,6 +10346,7 @@ static CK_RV ccatok_pqc_generate_keypair(STDLL_TokData_t *tokdata,
         memcpy(rule_array, "QSA-PAIRU-DIGSIG", (size_t) (CCA_KEYWORD_SIZE * 2));
         break;
     case CKM_IBM_ML_KEM_KEY_PAIR_GEN:
+    case CKM_ML_KEM_KEY_PAIR_GEN:
         rule_array_count = 2;
         memcpy(rule_array, "QSA-PAIRU-DATENC", (size_t) (CCA_KEYWORD_SIZE * 2));
         break;
@@ -11021,6 +11034,18 @@ CK_RV token_specific_ibm_ml_kem_generate_keypair(STDLL_TokData_t *tokdata,
     return ccatok_pqc_generate_keypair(tokdata, mech, oid,
                                        publ_tmpl, priv_tmpl);
 }
+
+CK_RV token_specific_ml_kem_generate_keypair(STDLL_TokData_t *tokdata,
+                                             const struct pqc_oid *oid,
+                                             TEMPLATE *publ_tmpl,
+                                             TEMPLATE *priv_tmpl)
+{
+    CK_MECHANISM mech = { CKM_ML_KEM_KEY_PAIR_GEN, NULL, 0 };
+
+    return ccatok_pqc_generate_keypair(tokdata, &mech, oid,
+                                       publ_tmpl, priv_tmpl);
+}
+
 
 static CK_RV cca_ibm_ml_kem_derive_with_ecdh(STDLL_TokData_t *tokdata,
                                              SESSION *sess,
@@ -13763,18 +13788,19 @@ static const struct pqc_oid *get_pqc_oid_from_algo_info(uint8_t algo_id,
         }
         break;
     case CCA_QSA_ALGO_ML_KEM:
-        if (mech != CKM_IBM_ML_KEM_KEY_PAIR_GEN)
+        if (mech != CKM_IBM_ML_KEM_KEY_PAIR_GEN &&
+            mech != CKM_ML_KEM_KEY_PAIR_GEN)
             return NULL;
         pqcs = ml_kem_oids;
         switch (algo_params) {
         case CCA_QSA_ALGO_ML_KEM_512:
-            keyform = CKP_IBM_ML_KEM_512;
+            keyform = CKP_ML_KEM_512;
             break;
         case CCA_QSA_ALGO_ML_KEM_768:
-            keyform = CKP_IBM_ML_KEM_768;
+            keyform = CKP_ML_KEM_768;
             break;
         case CCA_QSA_ALGO_ML_KEM_1024:
-            keyform = CKP_IBM_ML_KEM_1024;
+            keyform = CKP_ML_KEM_1024;
             break;
         }
         break;
@@ -13813,6 +13839,10 @@ static CK_RV import_pqc_privkey(STDLL_TokData_t *tokdata,
         break;
     case CKK_ML_DSA:
         mech = CKM_ML_DSA_KEY_PAIR_GEN;
+        priv_seed_attr = CKA_SEED;
+        break;
+    case CKK_ML_KEM:
+        mech = CKM_ML_KEM_KEY_PAIR_GEN;
         priv_seed_attr = CKA_SEED;
         break;
     default:
@@ -13950,6 +13980,31 @@ static CK_RV import_pqc_privkey(STDLL_TokData_t *tokdata,
                 return rc;
             }
             break;
+        case CKK_ML_KEM:
+            /*
+             * Private key does not have the public key components, so build
+             * SPKI from public key now from the CCA public key section.
+             */
+            val_attr.pValue = pub + CCA_QSA_EXTTOK_PAYLOAD_OFFSET;
+            val_attr.ulValueLen = pubsec_len - CCA_QSA_EXTTOK_PAYLOAD_OFFSET;
+            val_attr.type = CKA_VALUE;
+
+            rc = ber_encode_ML_KEM_PublicKey(FALSE, &spki, &spki_len,
+                                             oid->oid, oid->oid_len, &val_attr);
+            if (rc != CKR_OK) {
+                TRACE_ERROR("ber_encode_ML_KEM_PublicKey failed.\n");
+                return rc;
+            }
+
+            rc = build_update_attribute(priv_templ, CKA_PUBLIC_KEY_INFO,
+                                        spki, spki_len);
+            free(spki);
+            if (rc != CKR_OK) {
+                TRACE_DEVEL("build_update_attribute "
+                            "(CKA_PUBLIC_KEY_INFO) failed\n");
+                return rc;
+            }
+            break;
         default:
             /* Extract public key attributes, common code will build SPKI. */
             rc = pqc_unpack_pub_key(pub + CCA_QSA_EXTTOK_PAYLOAD_OFFSET,
@@ -14012,7 +14067,7 @@ static CK_RV import_pqc_privkey(STDLL_TokData_t *tokdata,
             }
             break;
         default:
-            /* ML-DSA has raw key components in CKA_VALUE */
+            /* ML-DSA and ML-KEM have raw key components in CKA_VALUE */
             break;
         }
 
@@ -14053,6 +14108,7 @@ static CK_RV import_pqc_privkey(STDLL_TokData_t *tokdata,
                 priv_seed_len = oid->len_info.ml_dsa.priv_seed_len;
                 break;
             case CKK_IBM_ML_KEM:
+            case CKK_ML_KEM:
                 priv_seed_len = oid->len_info.ml_kem.priv_seed_len;
                 break;
             default:
@@ -14098,6 +14154,7 @@ static CK_RV import_pqc_privkey(STDLL_TokData_t *tokdata,
             memcpy(rule_array, "QSA-PAIRU-DIGSIG", CCA_KEYWORD_SIZE * 2);
             break;
         case CKK_IBM_ML_KEM:
+        case CKK_ML_KEM:
             rule_array_count = 2;
             memcpy(rule_array, "QSA-PAIRU-DATENC", CCA_KEYWORD_SIZE * 2);
             break;
@@ -14224,6 +14281,7 @@ static CK_RV import_pqc_privkey(STDLL_TokData_t *tokdata,
             cleanse_attribute(priv_templ, CKA_IBM_ML_KEM_PRIVATE_SEED);
             break;
         case CKK_ML_DSA:
+        case CKK_ML_KEM:
             cleanse_attribute(priv_templ, CKA_VALUE);
             cleanse_attribute(priv_templ, CKA_SEED);
             break;
@@ -14259,6 +14317,9 @@ static CK_RV import_pqc_pubkey(STDLL_TokData_t *tokdata,
         break;
     case CKK_ML_DSA:
         mech = CKM_ML_DSA_KEY_PAIR_GEN;
+        break;
+    case CKK_ML_KEM:
+        mech = CKM_ML_KEM_KEY_PAIR_GEN;
         break;
     default:
         return CKR_KEY_TYPE_INCONSISTENT;
@@ -14442,7 +14503,7 @@ static CK_RV import_pqc_pubkey(STDLL_TokData_t *tokdata,
             }
             break;
         default:
-            /* ML-DSA has raw key components in CKA_VALUE */
+            /* ML-DSA and ML-KEM have raw key components in CKA_VALUE */
             break;
         }
 
@@ -14498,6 +14559,7 @@ static CK_RV import_pqc_pubkey(STDLL_TokData_t *tokdata,
             memcpy(rule_array, "QSA-PUBLU-DIGSIG", CCA_KEYWORD_SIZE * 2);
             break;
         case CKK_IBM_ML_KEM:
+        case CKK_ML_KEM:
             rule_array_count = 2;
             memcpy(rule_array, "QSA-PUBLU-DATENC", CCA_KEYWORD_SIZE * 2);
             break;
@@ -14676,6 +14738,7 @@ CK_RV token_specific_object_add(STDLL_TokData_t *tokdata, SESSION *sess, OBJECT 
     case CKK_IBM_ML_DSA:
     case CKK_IBM_ML_KEM:
     case CKK_ML_DSA:
+    case CKK_ML_KEM:
         switch (keyclass) {
         case CKO_PUBLIC_KEY:
             // do import public key and create opaque object
