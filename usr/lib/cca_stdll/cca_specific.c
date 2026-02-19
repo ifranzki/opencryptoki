@@ -330,6 +330,7 @@ static const MECH_LIST_ELEMENT cca_mech_list[] = {
     {CKM_HASH_ML_DSA, {1312, 2592, CKF_HW | CKF_SIGN | CKF_VERIFY}},
     {CKM_HASH_ML_DSA_SHA512, {1312, 2592, CKF_HW | CKF_SIGN | CKF_VERIFY}},
     {CKM_ML_KEM_KEY_PAIR_GEN, {800, 1568, CKF_HW | CKF_GENERATE_KEY_PAIR}},
+    {CKM_ML_KEM, {800, 1568, CKF_HW | CKF_ENCAPSULATE | CKF_DECAPSULATE}},
     {CKM_RSA_AES_KEY_WRAP, {2048, 4096, CKF_HW | CKF_WRAP | CKF_UNWRAP}},
     {CKM_EC_EDWARDS_KEY_PAIR_GEN, {255, 448, CKF_HW | CKF_GENERATE_KEY_PAIR |
                                    CKF_EC_OID | CKF_EC_F_P | CKF_EC_COMPRESS}},
@@ -4804,6 +4805,9 @@ static CK_BBOOL cca_pqc_strength_supported(STDLL_TokData_t * tokdata,
     case CKM_ML_KEM_KEY_PAIR_GEN:
         required = &cca_v8_4;
         break;
+    case CKM_ML_KEM:
+        required = &cca_v8_4; // TODO: Will probably need 8.5 ?
+        break;
     default:
         return FALSE;
     }
@@ -7667,6 +7671,7 @@ static CK_BBOOL token_specific_filter_mechanism(STDLL_TokData_t *tokdata,
         break;
     case CKM_IBM_ML_KEM_KEY_PAIR_GEN:
     case CKM_IBM_ML_KEM_WITH_ECDH:
+    case CKM_ML_KEM:
         rc = cca_pqc_strength_supported(tokdata, mechanism, CKP_IBM_ML_KEM_768);
         break;
     case CKM_SHA3_224_RSA_PKCS:
@@ -11299,6 +11304,318 @@ CK_RV token_specific_ibm_ml_kem_derive(STDLL_TokData_t *tokdata, SESSION *sess,
     default:
         return CKR_MECHANISM_INVALID;
     }
+}
+
+static CK_RV cca_ml_kem_en_decapsulate_key(STDLL_TokData_t *tokdata,
+                                           SESSION *sess,
+                                           CK_BBOOL encapsulate,
+                                           CK_BBOOL length_only,
+                                           const struct pqc_oid *oid,
+                                           OBJECT *key_obj,
+                                           CK_ATTRIBUTE *pTemplate,
+                                           CK_ULONG ulAttributeCount,
+                                           CK_BYTE *pCiphertext,
+                                           CK_ULONG *pulCiphertextLen,
+                                           CK_KEY_TYPE keytype,
+                                           CK_ULONG keylen,
+                                           CK_OBJECT_HANDLE *phKey)
+{
+    long return_code, reason_code, rule_array_count;
+    unsigned char rule_array[CCA_RULE_ARRAY_SIZE] = { 0, };
+    CK_ATTRIBUTE *opaque_attr = NULL;
+    OBJECT *new_key_obj = NULL;
+    CK_BYTE dummy[AES_KEY_SIZE_256] = { 0, };
+    CK_IBM_CCA_AES_KEY_MODE_TYPE aes_key_mode;
+    unsigned char symkey_skeleton[CCA_MAX_AES_CIPHER_KEY_SIZE] = { 0 };
+    long symkey_skeleton_len = sizeof(symkey_skeleton);
+    long reserved_1 = 0;
+    unsigned char symkey_token[CCA_MAX_AES_CIPHER_KEY_SIZE] = { 0, };
+    long symkey_token_length = sizeof(symkey_token);
+    unsigned int keybitsize;
+    enum cca_token_type cca_keytype;
+    const CK_BYTE *mkvp;
+    CK_BBOOL new_mk;
+    CK_RV rc = CKR_OK;
+
+    if (((struct cca_private_data *)tokdata->private_data)->inconsistent) {
+        TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
+        return CKR_DEVICE_ERROR;
+    }
+
+    if (!cca_pqc_strength_supported(tokdata, CKM_ML_KEM, oid->keyform)) {
+        TRACE_DEVEL("PQC keyform %lu not supported by CCA\n",
+                    oid->keyform);
+        return CKR_KEY_SIZE_RANGE;
+    }
+
+    if (keytype != CKK_AES || keylen != AES_KEY_SIZE_256) {
+        TRACE_ERROR("CCA only supports to en/decapsulate AES-256 keys\n");
+        return CKR_KEY_TYPE_INCONSISTENT;
+    }
+
+    if (encapsulate && length_only) {
+        *pulCiphertextLen = oid->len_info.ml_kem.pk_len;
+        return CKR_OK;
+    }
+
+    if (encapsulate && *pulCiphertextLen < oid->len_info.ml_kem.pk_len) {
+        *pulCiphertextLen = oid->len_info.ml_kem.pk_len;
+        TRACE_ERROR("%s\n", ock_err(ERR_BUFFER_TOO_SMALL));
+        return CKR_BUFFER_TOO_SMALL;
+    }
+
+    rc = template_attribute_get_non_empty(key_obj->template,
+                                          CKA_IBM_OPAQUE, &opaque_attr);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Could not find CKA_IBM_OPAQUE for the base key.\n");
+        return rc;
+    }
+
+    rc = object_mgr_create_skel(tokdata, sess, pTemplate, ulAttributeCount,
+                                encapsulate ? MODE_ENCAPS : MODE_DECAPS,
+                                CKO_SECRET_KEY, keytype, &new_key_obj);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Object Mgr create skeleton failed, rc=0x%lx.\n", rc);
+        goto out;
+    }
+
+    /* CKA_IBM_CCA_AES_KEY_MODE must be CK_IBM_CCA_AES_CIPHER_KEY */
+    rc = template_attribute_get_ulong(new_key_obj->template,
+                                      CKA_IBM_CCA_AES_KEY_MODE,
+                                      &aes_key_mode);
+    if (rc == CKR_OK && aes_key_mode != CK_IBM_CCA_AES_CIPHER_KEY) {
+        TRACE_ERROR("%s\n", ock_err(ERR_ATTRIBUTE_VALUE_INVALID));
+        rc = CKR_ATTRIBUTE_VALUE_INVALID;
+        goto out;
+    }
+    aes_key_mode = CKA_IBM_CCA_AES_KEY_MODE;
+
+    /* Build an AES-CIPHER key token for the derived key */
+    memcpy(rule_array, "INTERNALAES     CIPHER  NO-KEY  ANY-MODE",
+           5 * CCA_KEYWORD_SIZE);
+    rule_array_count = 5;
+
+    rc = cca_aes_cipher_add_key_usage_keywords(tokdata,
+                                               new_key_obj->template,
+                                               rule_array,
+                                               sizeof(rule_array),
+                                               (CK_ULONG *)
+                                                   &rule_array_count);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Failed to add key usage keywords\n");
+        goto out;
+    }
+
+    USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
+        dll_CSNBKTB2(&return_code, &reason_code, NULL, NULL,
+                     &rule_array_count, rule_array,
+                     &reserved_1, NULL,
+                     &reserved_1, NULL,
+                     &reserved_1, NULL,
+                     &reserved_1, NULL,
+                     &reserved_1, NULL,
+                     &symkey_skeleton_len, symkey_skeleton);
+    USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
+
+    if (return_code != CCA_SUCCESS) {
+        TRACE_ERROR("CSNBKTB2 (AES CIPHER KEY TOKEN BUILD) failed."
+                    " return:%ld, reason:%ld\n",
+                    return_code, reason_code);
+        rc = CKR_FUNCTION_FAILED;
+        goto out;
+    }
+
+    /*
+     * Adjust the skeleton to let CSNDPKE/CSNDPKD return a secure key token.
+     * There is currently no way to let CSNBKTB2 generate such a skeleton
+     * directly.
+     *  - Encrypted section key-wrapping method (offset 26) = AESKW
+     *  - Hash algorithm for wrapping key (offset 27) = SHA-256
+     *
+     *  TODO: no longer needed with CCA 8.5 ?
+     */
+    symkey_skeleton[26] = 0x02;
+    symkey_skeleton[27] = 0x02;
+
+    /* Perform Encapsuation/decapsulation */
+    if (encapsulate) {
+        /* Encapsulate */
+        rule_array_count = 3;
+        memcpy(rule_array, "RANDOM  ZERO-PADAES-KB  ", 3 * CCA_KEYWORD_SIZE);
+
+        USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
+        RETRY_NEW_MK_BLOB_START()
+            dll_CSNDPKE(&return_code, &reason_code,
+                        NULL, NULL,
+                        &rule_array_count, rule_array,
+                        &symkey_token_length, symkey_token,
+                        &symkey_skeleton_len, symkey_skeleton,
+                        (long *)&(opaque_attr->ulValueLen),
+                        opaque_attr->pValue,
+                        (long *)pulCiphertextLen, pCiphertext);
+        RETRY_NEW_MK_BLOB_END(tokdata, return_code, reason_code,
+                              opaque_attr->pValue, opaque_attr->ulValueLen)
+        USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
+
+        if (return_code != CCA_SUCCESS) {
+            TRACE_ERROR("CSNDPKE (QSA ENCRYPT) failed. return:%ld, reason:%ld\n",
+                        return_code, reason_code);
+            rc =  CKR_FUNCTION_FAILED;
+            goto out;
+        } else if (reason_code != 0) {
+            TRACE_WARNING("CSNDPKE (QSA ENCRYPT) succeeded, but"
+                          " returned reason:%ld\n", reason_code);
+        }
+    } else {
+        /* Decapsulate */
+        rule_array_count = 2;
+        memcpy(rule_array, "ZERO-PADAES-KB  ", 2 * CCA_KEYWORD_SIZE);
+
+        USE_CCA_ADAPTER_START(tokdata, return_code, reason_code)
+        RETRY_NEW_MK_BLOB_START()
+            dll_CSNDPKD(&return_code, &reason_code,
+                        NULL, NULL,
+                        &rule_array_count, rule_array,
+                        (long *)pulCiphertextLen, pCiphertext,
+                        &symkey_skeleton_len, symkey_skeleton,
+                        (long *)&(opaque_attr->ulValueLen),
+                        opaque_attr->pValue,
+                        &symkey_token_length, symkey_token);
+        RETRY_NEW_MK_BLOB_END(tokdata, return_code, reason_code,
+                              opaque_attr->pValue, opaque_attr->ulValueLen)
+        USE_CCA_ADAPTER_END(tokdata, return_code, reason_code)
+
+        if (return_code != CCA_SUCCESS) {
+            TRACE_ERROR("CSNDPKD (QSA DECRYPT) failed. return:%ld, "
+                        "reason:%ld\n", return_code, reason_code);
+            rc = CKR_FUNCTION_FAILED;
+            goto out;
+        } else if (reason_code != 0) {
+            TRACE_WARNING("CSNDPKD (QSA DECRYPT) succeeded, but"
+                          " returned reason:%ld\n", reason_code);
+        }
+    }
+
+    if (analyse_cca_key_token(symkey_token, symkey_token_length,
+                              &cca_keytype, &keybitsize, &mkvp) == FALSE ||
+        mkvp == NULL) {
+        TRACE_ERROR("Invalid/unknown cca token has been unwrapped\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto out;
+    }
+
+    if (check_expected_mkvp(tokdata, cca_keytype, mkvp, &new_mk) != CKR_OK) {
+        TRACE_ERROR("%s\n", ock_err(ERR_DEVICE_ERROR));
+        rc = CKR_DEVICE_ERROR;
+        goto out;
+    }
+
+    rc = cca_reencipher_created_key(tokdata, new_key_obj->template,
+                                    symkey_token, symkey_token_length,
+                                    new_mk, cca_keytype, FALSE);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("cca_reencipher_created_key failed: 0x%lx\n", rc);
+        goto out;
+    }
+
+    /* Add CKA_IBM_OPAQUE */
+    rc = build_update_attribute(new_key_obj->template, CKA_IBM_OPAQUE,
+                                symkey_token, symkey_token_length);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s build_update_attribute failed with rc=0x%lx\n",
+                    __func__, rc);
+        goto out;
+    }
+
+    /* Add CKA_VALUE as all zeros */
+    rc = build_update_attribute(new_key_obj->template, CKA_VALUE,
+                                dummy, keylen);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s build_update_attribute failed with rc=0x%lx\n",
+                    __func__, rc);
+        goto out;
+    }
+
+    /* Add CKA_VALUE_LEN */
+    rc = build_update_attribute(new_key_obj->template, CKA_VALUE_LEN,
+                                (CK_BYTE *)&keylen, sizeof(keylen));
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s build_update_attribute failed with rc=0x%lx\n",
+                    __func__, rc);
+        goto out;
+    }
+
+    /* Add CKA_IBM_CCA_AES_KEY_MODE (CIPHER key) */
+    rc = build_update_attribute(new_key_obj->template,
+                                CKA_IBM_CCA_AES_KEY_MODE,
+                                (CK_BYTE *)&aes_key_mode,
+                                sizeof(aes_key_mode));
+    if (rc != CKR_OK) {
+        TRACE_ERROR("%s build_update_attribute failed with rc=0x%lx\n",
+                    __func__, rc);
+        goto out;
+    }
+
+    rc = object_mgr_create_final(tokdata, sess, new_key_obj, phKey);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Object Mgr create final failed, rc=0x%lx.\n", rc);
+        goto out;
+    }
+
+out:
+    if (rc != CKR_OK && new_key_obj != NULL) {
+        object_free(new_key_obj);
+        *phKey = CK_INVALID_HANDLE;
+    }
+
+    return rc;
+}
+
+CK_RV token_specific_ml_kem_encapsulate_key(STDLL_TokData_t *tokdata,
+                                            SESSION *sess,
+                                            CK_BBOOL length_only,
+                                            const struct pqc_oid *oid,
+                                            CK_MECHANISM *mech,
+                                            OBJECT *key_obj,
+                                            CK_ATTRIBUTE *pTemplate,
+                                            CK_ULONG ulAttributeCount,
+                                            CK_BYTE *pCiphertext,
+                                            CK_ULONG *pulCiphertextLen,
+                                            CK_KEY_TYPE keytype,
+                                            CK_ULONG keylen,
+                                            CK_OBJECT_HANDLE *phKey)
+{
+    if (mech->mechanism != CKM_ML_KEM)
+        return CKR_MECHANISM_INVALID;
+
+    return cca_ml_kem_en_decapsulate_key(tokdata, sess, TRUE, length_only,
+                                         oid, key_obj,
+                                         pTemplate, ulAttributeCount,
+                                         pCiphertext, pulCiphertextLen,
+                                         keytype, keylen, phKey);
+}
+
+CK_RV token_specific_ml_kem_decapsulate_key(STDLL_TokData_t *tokdata,
+                                            SESSION *sess,
+                                            const struct pqc_oid *oid,
+                                            CK_MECHANISM *mech,
+                                            OBJECT *key_obj,
+                                            CK_ATTRIBUTE *pTemplate,
+                                            CK_ULONG ulAttributeCount,
+                                            CK_BYTE *pCiphertext,
+                                            CK_ULONG ulCiphertextLen,
+                                            CK_KEY_TYPE keytype,
+                                            CK_ULONG keylen,
+                                            CK_OBJECT_HANDLE *phKey)
+{
+    if (mech->mechanism != CKM_ML_KEM)
+        return CKR_MECHANISM_INVALID;
+
+    return cca_ml_kem_en_decapsulate_key(tokdata, sess, FALSE, FALSE,
+                                         oid, key_obj,
+                                         pTemplate, ulAttributeCount,
+                                         pCiphertext, &ulCiphertextLen,
+                                         keytype, keylen, phKey);
 }
 
 static CK_RV import_rsa_privkey(STDLL_TokData_t *tokdata, TEMPLATE * priv_tmpl)
