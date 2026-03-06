@@ -2050,7 +2050,7 @@ CK_RV key_mgr_derive_key(STDLL_TokData_t *tokdata,
         goto done;
     }
 
-    if (flag != TRUE) {
+    if (flag != TRUE && mech->mechanism != CKM_PUB_KEY_FROM_PRIV_KEY) {
         TRACE_ERROR("%s is set to FALSE.\n", p11_get_cka(key_usage_attr));
         rc = CKR_KEY_FUNCTION_NOT_PERMITTED;
         goto done;
@@ -2144,6 +2144,15 @@ CK_RV key_mgr_derive_key(STDLL_TokData_t *tokdata,
             break;
         }
         rc = ibm_ml_kem_derive(tokdata, sess, mech, base_key_obj, new_attrs,
+                               new_attr_count, derived_key);
+        break;
+    case CKM_PUB_KEY_FROM_PRIV_KEY:
+        if (!derived_key) {
+            TRACE_ERROR("%s received bad argument(s)\n", __func__);
+            rc = CKR_FUNCTION_FAILED;
+            break;
+        }
+        rc = key_pub_from_priv(tokdata, sess, base_key_obj, new_attrs,
                                new_attr_count, derived_key);
         break;
     default:
