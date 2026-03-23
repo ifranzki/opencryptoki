@@ -45,6 +45,7 @@
 #define OPT_AESKW_KEY_SIZE      266
 #define OPT_ECDH_KDF_ALG        267
 #define OPT_ECDH_SHARED_DATA    268
+#define OPT_DERIVE_PUB_KEY      269
 
 #define PRINT_INDENT_POS        35
 
@@ -203,14 +204,6 @@ CK_RV iterate_objects(const struct p11tool_objtype *objtype,
                                           void *private),
                       void *private);
 
-struct p11sak_select_kek_data {
-    CK_BBOOL prompt;
-    CK_OBJECT_CLASS kek_class;
-    CK_BBOOL cancel;
-    CK_ULONG count;
-    CK_OBJECT_HANDLE kek_handle;
-};
-
 struct p11sak_wrap_data {
     unsigned long num_wrapped;
     unsigned long num_skipped;
@@ -259,6 +252,23 @@ struct p11sak_wrap_mech {
 #define P11SAK_WRAP_PEM_HDR_ECDH_SHARED       "SHARED-DATA"
 #define P11SAK_WRAP_PEM_HDR_ECDH_SHARED_NONE  "[none]"
 
+struct p11sak_derive_mech {
+    const char *name;
+    CK_MECHANISM_TYPE mech;
+    CK_ULONG mech_param_size;
+    CK_BBOOL mech_param_optional;
+    CK_OBJECT_CLASS base_class;
+    CK_KEY_TYPE base_key_type;
+    CK_KEY_TYPE addl_base_key_type;
+    CK_OBJECT_CLASS derived_class;
+    CK_KEY_TYPE derived_key_type;
+    CK_RV (*prepare_mech_param_from_opts)(
+                                const struct p11sak_derive_mech *derive_mech,
+                                CK_MECHANISM *mech);
+    void (*cleanup_mech_param)(const struct p11sak_derive_mech *derive_mech,
+                               CK_MECHANISM *mech);
+};
+
 extern CK_SLOT_ID opt_slot;
 extern bool opt_so;
 extern bool opt_force;
@@ -271,14 +281,20 @@ extern char *opt_kek_id;
 extern bool opt_raw;
 extern struct p11tool_enum_value *opt_wrap_mech;
 extern struct p11tool_enum_value *opt_keytype;
+extern struct p11tool_enum_value *opt_derive_mech;
+extern char *opt_base_label;
+extern char *opt_base_id;
 
 extern const struct p11tool_enum_value p11sak_wrap_mech_values[];
 extern const struct p11tool_objtype *p11sak_keytypes[];
+extern const struct p11tool_enum_value p11sak_derive_mech_values[];
 
 CK_RV p11sak_wrap_key(void);
 CK_RV p11sak_unwrap_key(void);
+CK_RV p11sak_derive_key(void);
 
 void print_wrap_key_help(void);
 void print_unwrap_key_help(void);
+void print_derive_key_help(void);
 
 #endif

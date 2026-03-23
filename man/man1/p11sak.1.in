@@ -2209,6 +2209,223 @@ are required.
 .B Note:
 A token may not support all wrapping mechanisms, nor all mechanism parameter
 combinations. Also, not all tokens may support to unwrap all key types.
+
+
+
+.
+.
+.
+.SS "Deriving a key from a base key"
+.
+.B p11sak
+.BR derive\-key | derive
+.I DERIVE\-MECH
+.RI [ KEYTYPE 
+.RI [ KEYBITS ]]
+.BR \-\-slot | \-s
+.I SLOTID
+.RB [ \-\-pin | \-p
+.IR PIN ]
+.RB [ \-\-force\-pin\-prompt ]
+.RB [ \-\-no\-login | \-N ]
+.RB [ \-\-so ]
+.RB [ \-\-base\-key\-label | \-B
+.IR LABEL ]
+.RB [ \-\-base\-key\-id | \-b
+.IR ID ]
+.RB [ \-\-label | \-L
+.IR LABEL ]
+.RB [ \-\-id | \-i
+.IR ID ]
+.RB [ \-\-attr | \-a
+.IR ATTRS ]
+.RB [ \-\-force | \-f ]
+.RB [ "options specific for"
+.IR DERIVE\-MECH ]
+.RB [ \-\-help | \-h ]
+.PP
+Use the
+.BR derive\-key | derive
+command and the
+.I DERIVE\-MECH
+and the optional
+.I KEYTYPE
+and
+.I KEYBITS
+arguments to derive a key from a base key. Dependent on the key derivation
+mechanism, additional options may be supported to specify mechanism parameters.
+Only secret keys can be derived.
+.PP
+Argument 
+.I KEYTYPE 
+is only required if the key derivatiuon mechanism supports to derive different
+key types and sizes. A key derivation mechanism might be only capable to derive
+a pre-defined key type or size.
+.PP
+Argument
+.I KEYBITS
+is required for certain key types, e.g. for
+.BR generic ,
+.BR sha-hmac ,
+.BR aes ,
+and
+.B aes\-xts
+keys to specify the size in bits.
+.PP
+Possible values for the
+.I DERIVE\-MECH
+argument are:
+.IP "\(bu" 2
+.BR sha1 :
+Use mechanism
+.B CKM_SHA1_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA-1. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha224 :
+Use mechanism
+.B CKM_SHA224_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA224. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha256 :
+Use mechanism
+.B CKM_SHA256_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA256. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha384 :
+Use mechanism
+.B CKM_SHA384_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA384. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha512 :
+Use mechanism
+.B CKM_SHA512_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA512. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha3\-224 :
+Use mechanism
+.B CKM_SHA3_224_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA3\-224. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha3\-256 :
+Use mechanism
+.B CKM_SHA3_256_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA3\-256. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha3\-384 :
+Use mechanism
+.B CKM_SHA3_384_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA3\-384. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR sha3\-512 :
+Use mechanism
+.B CKM_SHA3_512_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHA3\-512. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR shake128 :
+Use mechanism
+.B CKM_SHAKE128_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHAKE128. The base key must be a secret key type.
+.IP "\(bu" 2
+.BR shake256 :
+Use mechanism
+.B CKM_SHAKE256_KEY_DERIVATION
+for key derivation. Derives a secret key by digesting the value of the base
+key with SHAKE256. The base key must be a secret key type.
+.IP "\(bu" 2
+.B ecdh 
+and
+.BR ecdh\-cof :
+Use mechanisms 
+.B CKM_ECDH1_DERIVE 
+and
+.B CKM_ECDH1_COFACTOR_DERIVE
+respectively for key derivation. Derivation is done with an EC or EC-Montgomery
+private base key (for 
+.BR ecdh ), 
+or with an EC private base key (for
+.BR ecdh\-cof ).
+Use the
+.BR \-\-public\-key\-file
+.I FILENAME
+option to specify the file name of an OpenSSL PEM file that contains the foreign
+public key to be used with the ECDH key derivation, and the
+.BR \-\-kdf\-alg
+.IR KDF\-ALG ,
+and
+.B \-\-shared\-data
+.IR SHARED\-DATA ,
+options to specify the ECDH mechanism parameters.
+.IP "\(bu" 2
+.BR dh\-pkcs :
+Use mechanism 
+.B CKM_DH_PKCS_DERIVE 
+for key derivation. Derivation is done with an DH private base key.
+Use the
+.BR \-\-public\-key\-file
+.I FILENAME
+option to specify the file name of an OpenSSL PEM file that contains the foreign
+public key to be used with the DH-PKCS key derivation.
+.PP
+Possible values for the
+.I KEYTYPE
+argument are:
+.BR des |\: 3des |\: generic |\: sha\-1\-hmac |\: sha224\-hmac |\: \
+sha256\-hmac |\: sha384\-hmac |\: sha512\-hmac |\: sha512/224\-hmac |\: \
+sha512/256\-hmac |\: sha3\-224\-hmac |\: sha3\-256\-hmac |\: sha3\-384\-hmac \
+|\: sha3\-512\-hmac |\: aes |\: aes\-xts .
+.PP
+Specify the
+.BR \-\-base\-key\-label | \-B
+.IR LABEL ,
+and/or the 
+.BR \-\-base\-key\-id | \-b
+.IR ID 
+option to select the base key. The base key must have 
+.B CKA_DERIVE=CK_TRUE
+to allow key derivation. Only keys with the right object class and key type
+that fit to the key derivation mechanism are selected. If multiple key objects
+match, you are prompted to confirm to use the desired key object. If the
+.BR \-\-force | \-f
+option is specified, then the first matching key object is used.
+You can use wildcards (\fB*\fP and \fB?\fP) in the
+.I LABEL
+specification. To specify a wildcard character that should not be treated as a
+wildcard, it must be escaped using a backslash (\fB\e*\fP or \fB\e?\fP).
+Also, a backslash character that should not be treated as an escape character
+must be escaped (\fB\e\e\fP). The
+.B ID
+must be specified as hex string (not prefixed with 0x) of any number of bytes.
+.PP
+The
+.BR \-\-label | \-L
+.I LABEL
+option sets the
+.B CKA_LABEL
+attribute of the derived key and the
+.BR \-\-attr | \-a
+.I ATTRS
+option can be used to set the boolean attributes of the derived key (see
+below for detailed description of the attributes). The
+.BR \-\-id | \-i
+.I ID
+option can be used to set the value of the
+.B CKA_ID
+attribute of the derived key.
+.PP
+.B Note:
+A token may not support all key derivation mechanisms, nor all mechanism
+parameter combinations. Also, not all tokens may support to derive all key
+types.
 .
 .
 .
@@ -2959,6 +3176,22 @@ under
 for a description of the wrapping mechanism and its mechanism parameter options.
 .PP
 .
+.SS "DERIVE\-MECH"
+.
+Specifies the key derivation mechanism for use with deriving a key with a base
+key. Possible values are
+.BR sha1 |\: sha224 |\: sha256 |\: sha384 |\: sha512 |\: sha3-224 |\: sha3-256 \
+|\: sha3-384 |\: sha3-512 |\: shake128 |\: shake256 |\: ecdh |\: ecdh\-cof \
+|\: dh\-pkcs .
+Dependent on the key derivation mechanism, additional options may be supported
+to specify mechanism parameters. See section
+.B  Deriving a key from a base key
+under
+.B COMMANDS
+for a description of the key derivation mechanism and its mechanism parameter
+options.
+.PP
+.
 .
 .
 .SH OPTIONS
@@ -3385,10 +3618,12 @@ Suppress the prompt whether the user wants to remove, update, or export the keys
 matching the specified \fIKEYTYPE\fP, label, and ID filter (if specified).
 For the
 .B wrap\-key
-command and the
-command, and the
+command, the
 .B unwrap\-key
-command, also supress the prompt for a confirmation to use a key as KEK.
+command, and the
+.B derive\-key
+command, also supress the prompt for a confirmation to use a key as KEK or base
+key.
 .RE
 .PP
 .
@@ -3640,6 +3875,39 @@ option is specified, then the first matching key object is used.
 .
 .
 .TP 8
+.BR \-\-base\-key\-label | \-B\~\fILABEL\fP
+Select the key derivation base key by label. Only keys with the right object
+class and key type that fit to the key derivation mechanism are selected.
+If multiple key objects match, you are prompted to confirm to use the
+desired key object. If the
+.BR \-\-force | \-f
+option is specified, then the first matching key object is used.
+You can use wildcards (\fB*\fP and \fB?\fP) in the
+.I LABEL
+specification. To specify a wildcard character that should not be treated as a
+wildcard, it must be escaped using a backslash (\fB\e*\fP or \fB\e?\fP).
+Also, a backslash character that should not be treated as an escape character
+must be escaped (\fB\e\e\fP). 
+.RE
+.PP
+.
+.
+.
+.TP 8
+.BR \-\-base\-key\-id | \-b\~\fILABEL\fP
+Select the key derivation base key by ID. Only keys with the right object
+class and key type that fit to the key derivation mechanism are selected.
+Specify a hex string (not prefixed with 0x) of any number of bytes.
+If multiple key objects match, you are prompted to confirm to use the
+desired key object. If the
+.BR \-\-force | \-f
+option is specified, then the first matching key object is used.
+.RE
+.PP
+.
+.
+.
+.TP 8
 .BR \-\-ca\-cert | \-C
 Flag the certificate as a Certificate Authority (CA) certificate.
 If the certificate has the \fBBasicConstraints CA\fP flag on, it is also flagged
@@ -3807,6 +4075,43 @@ Some data shared between the two parties. Specify a hex string (not prefixed
 with 0x) of any number of bytes. The default is that no shared data is used.
 .RE
 .PP
+.
+.
+.SS OPTIONS FOR ARGUMENT \fIDERIVE\-MECH\fB VALUE ecdh and ecdh\-cof:
+.
+.TP 8
+.BR \-\-pub\-key\-file\~\fIFILENAME\fP
+The file name of an OpenSSL PEM file that contains the foreign public key to be
+used with the ECDH key derivation.
+.
+.
+.
+.TP 8
+.BR \-\-kdf\-alg\~\fIKDF\-ALG\fP
+The key derivation function algorithm used on the shared secret value. The 
+default is SHA256. Possible algorithms are:
+.BR SHA\-1 |\: SHA224 |\: SHA256 |\: SHA384 |\: SHA512 |\: SHA3\-224 |\: \
+SHA3\-256 |\: SHA3\-384 |\: SHA3\-512 |\: SHA\-1\-SP800 |\: SHA224\-SP800 |\: \
+SHA256\-SP800 |\: SHA384\-SP800 |\: SHA512\-SP800 |\: SHA3\-224\-SP800 |\: \
+SHA3\-256\-SP800 |\: SHA3\-384\-SP800 |\: SHA3\-512\-SP800 .
+.
+.
+.
+.TP 8
+.BR \-\-shared\-data\~\fISHARED\-DATA\fP
+Some data shared between the two parties. Specify a hex string (not prefixed
+with 0x) of any number of bytes. The default is that no shared data is used.
+.RE
+.PP
+.
+.
+.
+.SS OPTIONS FOR ARGUMENT \fIDERIVE\-MECH\fB VALUE dh\-pkcs:
+.
+.TP 8
+.BR \-\-pub\-key\-file\~\fIFILENAME\fP
+The file name of an OpenSSL PEM file that contains the foreign public key to be
+used with the DH-PKCS key derivation.
 .
 .
 .

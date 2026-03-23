@@ -117,6 +117,27 @@ const struct p11tool_enum_value p11tool_ml_kem_versions[] = {
     { .value = NULL, },
 };
 
+const struct p11tool_objtype *find_keytype(CK_KEY_TYPE ktype);
+
+CK_RV iterate_objects(const struct p11tool_objtype *objtype,
+                      const char *label_filter,
+                      const char *id_filter,
+                      const char *attr_filter,
+                      enum p11tool_objclass objclass,
+                      CK_RV (*compare_obj)(CK_OBJECT_HANDLE obj1,
+                                           CK_OBJECT_HANDLE obj2,
+                                           int *result,
+                                           void *private),
+                      CK_RV (*handle_obj)(CK_OBJECT_HANDLE obj,
+                                          CK_OBJECT_CLASS class,
+                                          const struct p11tool_objtype *objtype,
+                                          CK_ULONG keysize,
+                                          const char *typestr,
+                                          const char* label,
+                                          const char *common_name,
+                                          void *private),
+                      void *private);
+
 static bool p11tool_argument_is_set(const struct p11tool_arg *arg);
 
 const struct p11tool_cmd *p11tool_find_command(const struct p11tool_cmd *cmds,
@@ -2553,6 +2574,29 @@ CK_RV p11tool_check_wrap_mech_supported(CK_SLOT_ID slot,
     return CKR_OK;
 }
 
+CK_RV p11tool_check_derive_mech_supported(CK_SLOT_ID slot,
+                                          CK_MECHANISM_TYPE mechanism)
+{
+    CK_MECHANISM_INFO mech_info;
+    CK_RV rc;
+
+    rc = p11tool_pkcs11_funcs->C_GetMechanismInfo(slot, mechanism,
+                                                  &mech_info);
+    if (rc != CKR_OK) {
+        warnx("Token in slot %lu does not support mechanism %s", slot,
+              p11_get_ckm(&mechtable_funcs, mechanism));
+        return rc;
+    }
+
+    if ((mech_info.flags & CKF_DERIVE) == 0) {
+        warnx("Mechanism %s does not support to derive keys",
+              p11_get_ckm(&mechtable_funcs, mechanism));
+        return CKR_MECHANISM_INVALID;
+    }
+
+    return CKR_OK;
+}
+
 CK_RV p11tool_check_keygen_mech_supported(CK_SLOT_ID slot,
                                           CK_MECHANISM_TYPE mechanism,
                                           bool is_asymmetric, CK_ULONG keysize)
@@ -2880,3 +2924,169 @@ CK_RV p11tool_split_by_delim(char *str, char *delim, char ***list)
 
     return CKR_OK;
 }
+
+#ifdef P11TOOL_IS_P11SAK
+struct p11sak_select_key_data {
+    const char *key_descr;
+    CK_BBOOL prompt;
+    CK_BBOOL force;
+    CK_OBJECT_CLASS key_class;
+    CK_BBOOL cancel;
+    CK_ULONG count;
+    CK_OBJECT_HANDLE key_handle;
+};
+
+static CK_RV handle_key_select(CK_OBJECT_HANDLE key, CK_OBJECT_CLASS class,
+                               const struct p11tool_objtype *objtype,
+                               CK_ULONG keysize, const char *typestr,
+                               const char* label, const char *common_name,
+                               void *private)
+{
+    struct p11sak_select_key_data *data = private;
+    char *msg = NULL;
+    char ch;
+
+    UNUSED(objtype);
+    UNUSED(keysize);
+    UNUSED(common_name);
+
+    if (data->cancel)
+        return CKR_OK;
+
+    if (class != data->key_class)
+        return CKR_OK;
+
+    data->count++;
+
+    if (!data->prompt) {
+        data->key_handle = key;
+        return CKR_OK;
+    }
+
+    if (data->key_handle != CK_INVALID_HANDLE)
+        return CKR_OK;
+
+    if (data->force) {
+        data->key_handle = key;
+        return CKR_OK;
+    }
+
+    if (asprintf(&msg, "Use %s key object \"%s\" as %s [y/n/c]? ",
+                 typestr, label, data->key_descr) < 0 ||
+        msg == NULL) {
+        warnx("Failed to allocate memory for a message");
+        return CKR_HOST_MEMORY;
+    }
+    ch = p11tool_prompt_user(msg, "ync");
+    free(msg);
+
+    switch (ch) {
+    case 'n':
+        return CKR_OK;
+    case 'c':
+    case '\0':
+        data->cancel = CK_TRUE;
+        return CKR_OK;
+    default:
+        break;
+    }
+
+    data->key_handle = key;
+
+    return CKR_OK;
+}
+
+CK_RV p11tool_select_key(CK_OBJECT_CLASS key_class, CK_KEY_TYPE key_type,
+                         CK_KEY_TYPE addl_key_type,
+                         const char *key_label, const char *key_id,
+                         CK_BBOOL force,
+                         const char *key_descr, const char *key_descr_long,
+                         CK_OBJECT_HANDLE *key_handle)
+{
+    struct p11sak_select_key_data data = { 0 };
+    const struct p11tool_objtype *keytype, *addl_keytype = NULL;
+    CK_RV rc;
+
+    if (key_label == NULL && key_id == NULL)
+        return CKR_ARGUMENTS_BAD;
+
+    data.key_descr = key_descr_long;
+    data.prompt = CK_FALSE;
+    data.force = force;
+    data.key_class = key_class;
+    data.count = 0;
+    data.key_handle = CK_INVALID_HANDLE;
+
+    keytype = find_keytype(key_type);
+    if (addl_key_type != (CK_KEY_TYPE)-1)
+            addl_keytype = find_keytype(addl_key_type);
+
+    rc = iterate_objects(keytype, key_label, key_id, NULL, OBJCLASS_KEY,
+                         NULL, handle_key_select, &data);
+    if (rc != CKR_OK) {
+        warnx("Failed to iterate over key objects: 0x%lX: %s",
+               rc, p11_get_ckr(rc));
+        return rc;
+    }
+
+    if (addl_keytype != NULL) {
+        rc = iterate_objects(addl_keytype, key_label, key_id, NULL,
+                             OBJCLASS_KEY, NULL, handle_key_select, &data);
+        if (rc != CKR_OK) {
+            warnx("Failed to iterate over key objects: 0x%lX: %s",
+                   rc, p11_get_ckr(rc));
+            return rc;
+        }
+    }
+
+    if (data.count > 1) {
+        data.prompt = CK_TRUE;
+        data.count = 0;
+        data.cancel = CK_FALSE;
+
+        data.key_handle = CK_INVALID_HANDLE;
+
+        rc = iterate_objects(keytype, key_label, key_id, NULL,
+                             OBJCLASS_KEY, NULL, handle_key_select, &data);
+        if (rc != CKR_OK) {
+            warnx("Failed to iterate over key objects: 0x%lX: %s",
+                   rc, p11_get_ckr(rc));
+            return rc;
+        }
+
+        if (data.cancel)
+            return CKR_CANCEL;
+
+        if (data.key_handle == CK_INVALID_HANDLE && addl_keytype != NULL) {
+            rc = iterate_objects(addl_keytype, key_label, key_id, NULL,
+                                 OBJCLASS_KEY, NULL, handle_key_select, &data);
+            if (rc != CKR_OK) {
+                warnx("Failed to iterate over key objects: 0x%lX: %s",
+                       rc, p11_get_ckr(rc));
+                return rc;
+            }
+
+            if (data.cancel)
+                return CKR_CANCEL;
+
+            if (data.key_handle != CK_INVALID_HANDLE)
+                keytype = addl_keytype;
+        }
+    }
+
+    if (data.key_handle == CK_INVALID_HANDLE) {
+        warnx("No %s%s%s%s key matched the specified %s label or ID.",
+              key_class == CKO_SECRET_KEY ? "" :
+                      key_class == CKO_PUBLIC_KEY ? "public " : "private ",
+              keytype != NULL ? keytype->name : "",
+              addl_keytype != NULL ? " or " : "",
+              addl_keytype != NULL ? addl_keytype->name : "",
+              key_descr);
+        return CKR_ARGUMENTS_BAD;
+    }
+
+    *key_handle = data.key_handle;
+
+    return CKR_OK;
+}
+#endif

@@ -132,6 +132,9 @@ char *opt_kek_label = NULL;
 char *opt_kek_id = NULL;
 bool opt_raw = false;
 struct p11tool_enum_value *opt_wrap_mech = NULL;
+struct p11tool_enum_value *opt_derive_mech = NULL;
+char *opt_base_label = NULL;
+char *opt_base_id = NULL;
 
 static bool opt_slot_is_set(const struct p11tool_arg *arg);
 static CK_RV generic_get_key_size(const struct p11tool_objtype *keytype,
@@ -2920,6 +2923,107 @@ static const struct p11tool_arg p11sak_unwrap_key_args[] = {
     { .name = NULL },
 };
 
+static const struct p11tool_opt p11sak_derive_key_opts[] = {
+    PKCS11_OPTS,
+    { .short_opt = 'f', .long_opt = "force", .required = false,
+      .arg =  { .type = ARG_TYPE_PLAIN, .required = false,
+                .value.plain = &opt_force, },
+      .description = "Do not prompt for a confirmation to use a key as "
+                     "base key.", },
+    { .short_opt = 'B', .long_opt = "base-key-label", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_base_label, .name = "LABEL", },
+      .description = "Select the base key by label. Only keys with the "
+                     "right object class and key type that fit to the key "
+                     "derivation mechanism are selected. You can use "
+                     "wildcards ('*' and '?') in the base-label "
+                     "specification. To specify a wildcard character that "
+                     "should not be treated as a wildcard, it must be "
+                     "escaped using a backslash ('\\*' or '\\?'). Also, a "
+                     "backslash character that should not be treated a an "
+                     "escape character must be escaped ('\\\\'). If "
+                     "multiple key objects match then you are prompted to "
+                     "confirm to use the desired key object.", },
+    { .short_opt = 'b', .long_opt = "base-key-id", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_base_id, .name = "ID", },
+      .description = "Select the base key by ID. Only keys with the right "
+                     "object class and key type that fit to the key "
+                     "derivation mechanism are selected. Specify a hex "
+                     "string (not prefixed with 0x) of any number of "
+                     "bytes. If multiple key objects match then you are "
+                     "prompted to confirm to use the desired key object.", },
+    { .short_opt = 'L', .long_opt = "label", .required = true,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_label, .name = "LABEL", },
+      .description = "The label of the to-be-derived key.", },
+    { .short_opt = 'a', .long_opt = "attr", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_attr, .name = "ATTRS", },
+      .description = "The boolean attributes to set for the to-be-derived "
+                     "key:\nP M B Y R E D G C V O W U S X T I H J Q K "
+                     "(optional). Specify a set of these letters without any "
+                     "blanks in between. See below for the meaning of the "
+                     "attribute letters.", },
+    { .short_opt = 'i', .long_opt = "id", .required = false,
+      .arg =  { .type = ARG_TYPE_STRING, .required = true,
+                .value.string = &opt_id, .name = "ID", },
+      .description = "The ID of the to-be-derived key. Specify a hex string "
+                     "(not prefixed with 0x) of any number of bytes.", },
+    { .short_opt = 0, .long_opt = NULL, },
+};
+
+static const struct p11tool_enum_value p11sak_derive_key_keytypes[] = {
+    { .value = "des", .args = NULL,
+      .private = { .ptr = &p11sak_des_keytype, }, },
+    { .value = "3des", .args = NULL,
+      .private = { .ptr = &p11sak_3des_keytype }, },
+    { .value = "generic", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_generic_keytype }, },
+    { .value = "sha-1-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha_1_hmac_keytype }, },
+    { .value = "sha224-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha224_hmac_keytype }, },
+    { .value = "sha256-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha256_hmac_keytype }, },
+    { .value = "sha384-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha384_hmac_keytype }, },
+    { .value = "sha512-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha512_hmac_keytype }, },
+    { .value = "sha512/224-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha512_224_hmac_keytype }, },
+    { .value = "sha512/256-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha512_256_hmac_keytype }, },
+    { .value = "sha3-224-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha3_224_hmac_keytype }, },
+    { .value = "sha3-256-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha3_256_hmac_keytype }, },
+    { .value = "sha3-384-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha3_384_hmac_keytype }, },
+    { .value = "sha3-512-hmac", .args = p11sak_generate_generic_args,
+      .private = { .ptr = &p11sak_sha3_512_hmac_keytype }, },
+    { .value = "aes", .args = p11sak_generate_aes_args,
+      .private = { .ptr = &p11sak_aes_keytype }, },
+    { .value = "aes-xts", .args = p11sak_generate_aes_xts_args,
+      .private = { .ptr = &p11sak_aes_xts_keytype }, },
+    { .value = NULL, },
+};
+
+static const struct p11tool_arg p11sak_derive_key_args[] = {
+    { .name = "DERIVE-MECH", .type = ARG_TYPE_ENUM, .required = true,
+      .enum_values = p11sak_derive_mech_values,
+      .value.enum_value = &opt_derive_mech,
+      .description = "The key derivation mechanism to use. Dependent on "
+                     "the key derivation mechanism, additional options may "
+                     "be supported to specify mechanism parameters.", },
+    { .name = "KEYTYPE", .type = ARG_TYPE_ENUM, .required = false,
+      .enum_values = p11sak_derive_key_keytypes,
+      .value.enum_value = &opt_keytype,
+      .description = "The type of the to-be-derived key. "
+                     "One of the following:", },
+    { .name = NULL },
+};
+
 static const struct p11tool_cmd p11sak_commands[] = {
     { .cmd = "generate-key", .cmd_short1 = "gen-key", .cmd_short2 = "gen",
       .func = p11sak_generate_key,
@@ -3020,7 +3124,13 @@ static const struct p11tool_cmd p11sak_commands[] = {
       .description = "Import a key by unwrapping it with a key encrypting key. "
                      "Only private and secret keys can be unwrapped.",
       .help = print_unwrap_key_help,
-       .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION, },
+      .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION, },
+    { .cmd = "derive-key", .cmd_short1 = "derive",
+      .func = p11sak_derive_key,
+      .opts = p11sak_derive_key_opts, .args = p11sak_derive_key_args,
+      .description = "Derive a key from a base key.",
+      .help = print_derive_key_help,
+      .session_flags = CKF_SERIAL_SESSION | CKF_RW_SESSION, },
     { .cmd = NULL, .func = NULL },
 };
 

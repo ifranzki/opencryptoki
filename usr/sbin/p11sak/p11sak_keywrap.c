@@ -1150,158 +1150,6 @@ static CK_RV p11sak_ecdh_aeskw_prepare_pem_header(
     return CKR_OK;
 }
 
-static CK_RV handle_kek_select(CK_OBJECT_HANDLE key, CK_OBJECT_CLASS class,
-                               const struct p11tool_objtype *objtype,
-                               CK_ULONG keysize, const char *typestr,
-                               const char* label, const char *common_name,
-                               void *private)
-{
-    struct p11sak_select_kek_data *data = private;
-    char *msg = NULL;
-    char ch;
-
-    UNUSED(objtype);
-    UNUSED(keysize);
-    UNUSED(common_name);
-
-    if (data->cancel)
-        return CKR_OK;
-
-    if (class != data->kek_class)
-        return CKR_OK;
-
-    data->count++;
-
-    if (!data->prompt) {
-        data->kek_handle = key;
-        return CKR_OK;
-    }
-
-    if (data->kek_handle != CK_INVALID_HANDLE)
-        return CKR_OK;
-
-    if (opt_force) {
-        data->kek_handle = key;
-        return CKR_OK;
-    }
-
-    if (asprintf(&msg, "Use %s key object \"%s\" as key encrypting key (KEK) "
-                 "[y/n/c]? ",
-                 typestr, label) < 0 ||
-        msg == NULL) {
-        warnx("Failed to allocate memory for a message");
-        return CKR_HOST_MEMORY;
-    }
-    ch = p11tool_prompt_user(msg, "ync");
-    free(msg);
-
-    switch (ch) {
-    case 'n':
-        return CKR_OK;
-    case 'c':
-    case '\0':
-        data->cancel = CK_TRUE;
-        return CKR_OK;
-    default:
-        break;
-    }
-
-    data->kek_handle = key;
-
-    return CKR_OK;
-}
-
-static CK_RV p11sak_select_kek(CK_OBJECT_CLASS kek_class, CK_KEY_TYPE kek_type,
-                               CK_KEY_TYPE addl_kek_type,
-                               CK_OBJECT_HANDLE *kek_handle)
-{
-    struct p11sak_select_kek_data data = { 0 };
-    const struct p11tool_objtype *keytype, *addl_keytype = NULL;
-    CK_RV rc;
-
-    if (opt_kek_label == NULL && opt_kek_id == NULL) {
-        warnx("At least one of the following options must be specified:");
-        warnx("'-K'/'--kek-label',  r '-k'/'--kek-id'");
-        return CKR_ARGUMENTS_BAD;
-    }
-
-    data.prompt = CK_FALSE;
-    data.kek_class = kek_class;
-    data.count = 0;
-    data.kek_handle = CK_INVALID_HANDLE;
-
-    keytype = find_keytype(kek_type);
-    if (addl_kek_type != (CK_KEY_TYPE)-1)
-            addl_keytype = find_keytype(addl_kek_type);
-
-    rc = iterate_objects(keytype, opt_kek_label, opt_kek_id, NULL, OBJCLASS_KEY,
-                         NULL, handle_kek_select, &data);
-    if (rc != CKR_OK) {
-        warnx("Failed to iterate over key objects: 0x%lX: %s",
-               rc, p11_get_ckr(rc));
-        return rc;
-    }
-
-    if (addl_keytype != NULL) {
-        rc = iterate_objects(addl_keytype, opt_kek_label, opt_kek_id, NULL,
-                             OBJCLASS_KEY, NULL, handle_kek_select, &data);
-        if (rc != CKR_OK) {
-            warnx("Failed to iterate over key objects: 0x%lX: %s",
-                   rc, p11_get_ckr(rc));
-            return rc;
-        }
-    }
-
-    if (data.count > 1) {
-        data.prompt = CK_TRUE;
-        data.count = 0;
-        data.cancel = CK_FALSE;
-
-        data.kek_handle = CK_INVALID_HANDLE;
-
-        rc = iterate_objects(keytype, opt_kek_label, opt_kek_id, NULL,
-                             OBJCLASS_KEY, NULL, handle_kek_select, &data);
-        if (rc != CKR_OK) {
-            warnx("Failed to iterate over key objects: 0x%lX: %s",
-                   rc, p11_get_ckr(rc));
-            return rc;
-        }
-
-        if (data.cancel)
-            return CKR_CANCEL;
-
-        if (data.kek_handle == CK_INVALID_HANDLE && addl_keytype != NULL) {
-            rc = iterate_objects(addl_keytype, opt_kek_label, opt_kek_id, NULL,
-                                 OBJCLASS_KEY, NULL, handle_kek_select, &data);
-            if (rc != CKR_OK) {
-                warnx("Failed to iterate over key objects: 0x%lX: %s",
-                       rc, p11_get_ckr(rc));
-                return rc;
-            }
-
-            if (data.cancel)
-                return CKR_CANCEL;
-
-            if (data.kek_handle != CK_INVALID_HANDLE)
-                keytype = addl_keytype;
-        }
-    }
-
-    if (data.kek_handle == CK_INVALID_HANDLE) {
-        warnx("No %s%s%s%s key matched the specified KEK label or ID.",
-              kek_class == CKO_SECRET_KEY ? "" :
-                      kek_class == CKO_PUBLIC_KEY ? "public " : "private ",
-              keytype != NULL ? keytype->name : "",
-              addl_keytype != NULL ? " or " : "",
-              addl_keytype != NULL ? addl_keytype->name : "");
-        return CKR_ARGUMENTS_BAD;
-    }
-
-    *kek_handle = data.kek_handle;
-
-    return CKR_OK;
-}
-
 static CK_RV p11sak_wrap_key_perform(struct p11sak_wrap_data *data,
                                      const struct p11tool_objtype *keytype,
                                      CK_OBJECT_HANDLE key,
@@ -1562,6 +1410,12 @@ CK_RV p11sak_wrap_key(void)
     void *mech_param = NULL;
     CK_RV rc;
 
+    if (opt_kek_label == NULL && opt_kek_id == NULL) {
+        warnx("At least one of the following options must be specified:");
+        warnx("'-K'/'--kek-label',  r '-k'/'--kek-id'");
+        return CKR_ARGUMENTS_BAD;
+    }
+
     if (opt_keytype != NULL)
         keytype = opt_keytype->private.ptr;
 
@@ -1570,8 +1424,11 @@ CK_RV p11sak_wrap_key(void)
     if (rc != CKR_OK)
         return rc;
 
-    rc = p11sak_select_kek(wrap_mech->wrap_class, wrap_mech->key_type,
-                           wrap_mech->addl_key_type, &data.kek_handle);
+    rc = p11tool_select_key(wrap_mech->wrap_class, wrap_mech->key_type,
+                            wrap_mech->addl_key_type,
+                            opt_kek_label, opt_kek_id, opt_force,
+                            "KEK", "key encrypting key (KEK)",
+                            &data.kek_handle);
     if (rc != CKR_OK)
         return rc;
 
@@ -1802,6 +1659,12 @@ CK_RV p11sak_unwrap_key(void)
     CK_ULONG wrapped_key_len = 0;
     CK_RV rc;
 
+    if (opt_kek_label == NULL && opt_kek_id == NULL) {
+        warnx("At least one of the following options must be specified:");
+        warnx("'-K'/'--kek-label',  r '-k'/'--kek-id'");
+        return CKR_ARGUMENTS_BAD;
+    }
+
     if (opt_wrap_mech != NULL)
         wrap_mech = opt_wrap_mech->private.ptr;
     if (opt_keytype != NULL)
@@ -1843,8 +1706,11 @@ CK_RV p11sak_unwrap_key(void)
     if (rc != CKR_OK)
         goto done;
 
-    rc = p11sak_select_kek(wrap_mech->unwrap_class, wrap_mech->key_type,
-                           wrap_mech->addl_key_type, &kek_handle);
+    rc = p11tool_select_key(wrap_mech->unwrap_class, wrap_mech->key_type,
+                            wrap_mech->addl_key_type,
+                            opt_kek_label, opt_kek_id, opt_force,
+                            "KEK", "key encrypting key (KEK)",
+                            &kek_handle);
     if (rc != CKR_OK)
         goto done;
 
