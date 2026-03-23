@@ -402,6 +402,8 @@ bool p11tool_is_rejected_by_policy(CK_RV ret_code, CK_SESSION_HANDLE session);
 CK_RV p11tool_check_wrap_mech_supported(CK_SLOT_ID slot,
                                         CK_MECHANISM_TYPE mechanism,
                                         CK_BBOOL wrap, CK_BBOOL unwrap);
+CK_RV p11tool_check_derive_mech_supported(CK_SLOT_ID slot,
+                                          CK_MECHANISM_TYPE mechanism);
 CK_RV p11tool_check_keygen_mech_supported(CK_SLOT_ID slot,
                                           CK_MECHANISM_TYPE mechanism,
                                           bool is_asymmetric, CK_ULONG keysize);
@@ -436,5 +438,14 @@ CK_RV p11tool_prepare_uri(CK_OBJECT_HANDLE key, CK_OBJECT_CLASS *class,
 CK_RV p11tool_bio_readall(BIO *bio, CK_BYTE **buffer, CK_ULONG *read_len);
 
 CK_RV p11tool_split_by_delim(char *str, char *delim, char ***list);
+
+#ifdef P11TOOL_IS_P11SAK
+CK_RV p11tool_select_key(CK_OBJECT_CLASS key_class, CK_KEY_TYPE key_type,
+                         CK_KEY_TYPE addl_key_type,
+                         const char *key_label, const char *key_id,
+                         CK_BBOOL force,
+                         const char *key_descr, const char *key_descr_long,
+                         CK_OBJECT_HANDLE *key_handle);
+#endif
 
 #endif
