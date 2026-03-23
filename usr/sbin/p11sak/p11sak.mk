@@ -13,7 +13,7 @@ usr_sbin_p11sak_p11sak_CFLAGS = -DPROGRAM_NAME=\"$(@)\"		\
 	-I${srcdir}/usr/include -I${srcdir}/usr/lib/common		\
 	-I${srcdir}/usr/sbin/p11sak -I${srcdir}/usr/lib/config		\
 	-I${top_builddir}/usr/lib/config -I${top_builddir}/usr/lib/api	\
-	-I${srcdir}/usr/lib/api
+	-I${srcdir}/usr/lib/api -DP11TOOL_IS_P11SAK
 
 if !AIX
 usr_sbin_p11sak_p11sak_CFLAGS += -DLINUX
@@ -24,8 +24,8 @@ usr_sbin_p11sak_p11sak_SOURCES = usr/lib/common/p11util.c		\
 	usr/lib/config/configuration.c usr/lib/common/uri.c		\
 	usr/lib/common/buffer.c	 usr/lib/common/pqc_supported.c		\
 	usr/lib/config/cfgparse.y usr/lib/config/cfglex.l		\
-	usr/sbin/p11sak/p11tool.c usr/sbin/p11sak/p11sak_keywrap.c
-	
+	usr/sbin/p11sak/p11tool.c usr/sbin/p11sak/p11sak_keywrap.c	\
+	usr/sbin/p11sak/p11sak_keyderive.c
 
 if AIX
 usr_sbin_p11sak_p11sak_SOURCES += usr/lib/common/aix/err.c \
