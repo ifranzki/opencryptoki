@@ -879,6 +879,14 @@ else
 fi
 
 
+echo "** Derive tests - 'p11sak_test.sh'"
+RC_P11SAK_DERIVE=0
+${P11SAK} generate-key EC prime256v1 --slot $SLOT --pin $PKCS11_USER_PIN --id 123 --label "p11sak-derive-ec-base" --attr R
+RC_P11SAK_DERIVE=$((RC_P11SAK_DERIVE + $?))
+${P11SAK} derive-key ECDH AES 256 --slot $SLOT --pin $PKCS11_USER_PIN --base-key-label "p11sak-derive-ec-base:prv" --pub-key-file $DIR/ec-key-prime256v1.pem --kdf-alg SHA256 --shared-data 012345 --label "p11sak-derive-aes" --id 123 --force
+RC_P11SAK_DERIVE=$((RC_P11SAK_DERIVE + $?))
+
+
 echo "** Now remove keys - 'p11sak_test.sh'"
 
 # remove objects
@@ -1008,6 +1016,8 @@ RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 ${P11SAK} remove-key --slot $SLOT --pin $PKCS11_USER_PIN --label "p11sak-pubkey-extracted" -f
 RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 ${P11SAK} remove-key --slot $SLOT --pin $PKCS11_USER_PIN --label "p11sak-keywrap*" -f
+RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
+${P11SAK} remove-key --slot $SLOT --pin $PKCS11_USER_PIN --label "p11sak-derive*" -f
 RC_P11SAK_REMOVE=$((RC_P11SAK_REMOVE + $?))
 
 
@@ -2956,6 +2966,14 @@ if [ $RC_P11SAK_WRAP = 0 ]; then
 	echo "* TESTCASE wrap-key PASS return code check"
 else
 	echo "* TESTCASE wrap-key FAIL return code check"
+	status=1
+fi
+
+# check return codes from key derive tests
+if [ $RC_P11SAK_DERIVE = 0 ]; then
+	echo "* TESTCASE derive-key PASS return code check"
+else
+	echo "* TESTCASE derive-key FAIL return code check"
 	status=1
 fi
 
