@@ -1449,7 +1449,7 @@ int ec_point_from_public_data(const CK_BYTE *data, CK_ULONG data_len,
 
 check_encoded:
     /* If we reach here, try to BER decode it as OCTET-STRING */
-    rc = ber_decode_OCTET_STRING((CK_BYTE *)data, &value, &value_len,
+    rc = ber_decode_OCTET_STRING((CK_BYTE *)data, data_len, &value, &value_len,
                                   &field_len);
     if (rc == CKR_OK && field_len == data_len && value_len <= data_len - 2) {
          /* Looks like a BER encoded EC Point */

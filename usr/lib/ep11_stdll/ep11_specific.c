@@ -3310,8 +3310,9 @@ static CK_RV import_EC_key(STDLL_TokData_t *tokdata, SESSION *sess,
         }
 
         /* CKA_EC_POINT is an BER encoded OCTET STRING. Extract it. */
-        rc = ber_decode_OCTET_STRING((CK_BYTE *)ec_point_attr->pValue, &ecpoint,
-                                     &ecpoint_len, &field_len);
+        rc = ber_decode_OCTET_STRING((CK_BYTE *)ec_point_attr->pValue, 
+                                     ec_point_attr->ulValueLen, 
+                                     &ecpoint, &ecpoint_len, &field_len);
         if (rc != CKR_OK || ec_point_attr->ulValueLen != field_len) {
             TRACE_DEVEL("%s ber_decode_OCTET_STRING failed\n", __func__);
             rc = CKR_ATTRIBUTE_VALUE_INVALID;
@@ -4381,7 +4382,7 @@ CK_RV token_specific_object_add(STDLL_TokData_t * tokdata, SESSION * sess,
 
     if (spkisize > 0 && (class == CKO_PRIVATE_KEY || class == CKO_PUBLIC_KEY)) {
         /* spki may be a MACed SPKI, get length of SPKI part only */
-        rc = ber_decode_SEQUENCE(spki, &temp, &temp_len, &spkisize);
+        rc = ber_decode_SEQUENCE(spki, spkisize, &temp, &temp_len, &spkisize);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s ber_decode_SEQUENCE failed rc=0x%lx\n",
                         __func__, rc);
@@ -6281,8 +6282,10 @@ CK_RV ep11tok_derive_key(STDLL_TokData_t *tokdata, SESSION *session,
                     goto error;
                 }
             } else {
-                rc = ber_decode_OCTET_STRING(ecdh1_parms->pPublicData, &ecpoint,
-                                             &ecpoint_len, &field_len);
+                rc = ber_decode_OCTET_STRING(ecdh1_parms->pPublicData,
+                                             ecdh1_parms->ulPublicDataLen,
+                                             &ecpoint, &ecpoint_len,
+                                             &field_len);
                 if (rc != CKR_OK || field_len != ecdh1_parms->ulPublicDataLen ||
                     ecpoint_len > ecdh1_parms->ulPublicDataLen - 2) {
                     /* no valid BER OCTET STRING encoding, assume raw */
@@ -6946,15 +6949,15 @@ static CK_RV dh_generate_keypair(STDLL_TokData_t *tokdata,
 #endif
 
     /* CKA_VALUE of the public key must hold 'y' */
-    rc = ber_decode_SPKI(publblob, &oid, &oid_len, &parm, &parm_len,
-                         &y_start, &bit_str_len);
+    rc = ber_decode_SPKI(publblob, publblobsize, &oid, &oid_len,
+                         &parm, &parm_len, &y_start, &bit_str_len);
     if (rc != CKR_OK) {
         TRACE_ERROR("%s ber_decode SKPI failed rc=0x%lx\n", __func__, rc);
         goto dh_generate_keypair_end;
     }
 
     /* DHPublicKey ::= INTEGER -- public key, y = g^x mod p */
-    rc = ber_decode_INTEGER(y_start, &data, &data_len, &field_len);
+    rc = ber_decode_INTEGER(y_start, bit_str_len, &data, &data_len, &field_len);
     if (rc != CKR_OK) {
         TRACE_ERROR("%s ber_decode_INTEGER failed rc=0x%lx\n", __func__, rc);
         goto dh_generate_keypair_end;
@@ -7325,15 +7328,15 @@ static CK_RV dsa_generate_keypair(STDLL_TokData_t *tokdata,
     }
 
     /* set CKA_VALUE of the public key, first get key from SPKI */
-    rc = ber_decode_SPKI(publblob, &oid, &oid_len, &parm, &parm_len,
-                         &key, &bit_str_len);
+    rc = ber_decode_SPKI(publblob, publblobsize, &oid, &oid_len,
+                         &parm, &parm_len, &key, &bit_str_len);
     if (rc != CKR_OK) {
         TRACE_ERROR("%s reading DSA SPKI failed with rc=0x%lx\n", __func__, rc);
         goto dsa_generate_keypair_end;
     }
 
     /* key must be an integer */
-    rc = ber_decode_INTEGER(key, &data, &data_len, &field_len);
+    rc = ber_decode_INTEGER(key, bit_str_len, &data, &data_len, &field_len);
     if (rc != CKR_OK) {
         TRACE_ERROR("%s reading DSA public key failed with rc=0x%lx\n",
                     __func__, rc);
@@ -7575,7 +7578,7 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
         TRACE_DEBUG("%s ec_generate_keypair spki:\n", __func__);
         TRACE_DEBUG_DUMP("    ", spki, spki_len);
 #endif
-        rc = ber_decode_SPKI(spki, &oid, &oid_len, &parm, &parm_len,
+        rc = ber_decode_SPKI(spki, spki_len, &oid, &oid_len, &parm, &parm_len,
                              &key, &bit_str_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s read key from SPKI failed with rc=0x%lx\n",
@@ -7671,8 +7674,9 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
          * already built SPKI (in CKA_IBM_OPAQUE of the public key).
          */
         CK_BYTE *modulus, *publ_exp;
+        CK_ULONG modulus_len, publ_exp_len;
 
-        rc = ber_decode_SPKI(spki, &oid, &oid_len, &parm, &parm_len,
+        rc = ber_decode_SPKI(spki, spki_len, &oid, &oid_len, &parm, &parm_len,
                              &key, &bit_str_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s read key from SPKI failed with rc=0x%lx\n",
@@ -7683,7 +7687,8 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
         /* key must be a sequence holding two integers,
          * modulus and public exponent
          */
-        rc = ber_decode_SEQUENCE(key, &data, &data_len, &field_len);
+        rc = ber_decode_SEQUENCE(key, bit_str_len, &data, &data_len,
+                                 &field_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s read sequence failed with rc=0x%lx\n",
                         __func__, rc);
@@ -7691,7 +7696,9 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
         }
 
         modulus = key + field_len - data_len;
-        rc = ber_decode_INTEGER(modulus, &data, &data_len, &field_len);
+        modulus_len = bit_str_len - field_len + data_len;
+        rc = ber_decode_INTEGER(modulus, modulus_len, &data, &data_len,
+                                &field_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s read modulus failed with rc=0x%lx\n", __func__, rc);
             goto error;
@@ -7718,7 +7725,9 @@ static CK_RV rsa_ec_generate_keypair(STDLL_TokData_t *tokdata,
 
         /* read public exponent */
         publ_exp = modulus + field_len;
-        rc = ber_decode_INTEGER(publ_exp, &data, &data_len, &field_len);
+        publ_exp_len = bit_str_len - field_len;
+        rc = ber_decode_INTEGER(publ_exp, publ_exp_len, &data, &data_len,
+                                &field_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s read public exponent failed with rc=0x%lx\n",
                         __func__, rc);
@@ -10833,7 +10842,7 @@ CK_RV ep11tok_unwrap_key(STDLL_TokData_t * tokdata, SESSION * session,
         }
 
         /* csum is a MACed SPKI, get length of SPKI part only */
-        rc = ber_decode_SEQUENCE(csum, &temp, &temp_len, &cslen);
+        rc = ber_decode_SEQUENCE(csum, cslen, &temp, &temp_len, &cslen);
         if (rc != CKR_OK) {
             TRACE_ERROR("%s ber_decode_SEQUENCE failed rc=0x%lx\n",
                         __func__, rc);
