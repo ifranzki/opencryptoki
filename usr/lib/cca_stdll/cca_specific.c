@@ -3424,8 +3424,8 @@ static CK_RV ec_import_privkey(TEMPLATE *priv_templ)
         return CKR_TEMPLATE_INCOMPLETE;
     }
 
-    rc = ber_decode_OCTET_STRING(attr->pValue, &pubkey, &publen,
-                                 &field_len);
+    rc = ber_decode_OCTET_STRING(attr->pValue, attr->ulValueLen,
+                                 &pubkey, &publen, &field_len);
     if (rc != CKR_OK || attr->ulValueLen != field_len) {
         TRACE_DEVEL("ber decoding of public key failed\n");
         return CKR_ATTRIBUTE_VALUE_INVALID;
@@ -3540,8 +3540,8 @@ static CK_RV ec_import_pubkey(TEMPLATE *pub_templ)
         return CKR_TEMPLATE_INCOMPLETE;
     }
 
-    rc = ber_decode_OCTET_STRING(attr->pValue, &pubkey, &publen,
-                                 &field_len);
+    rc = ber_decode_OCTET_STRING(attr->pValue, attr->ulValueLen,
+                                 &pubkey, &publen, &field_len);
     if (rc != CKR_OK || attr->ulValueLen != field_len) {
         TRACE_DEVEL("ber decoding of public key failed\n");
         return CKR_ATTRIBUTE_VALUE_INVALID;

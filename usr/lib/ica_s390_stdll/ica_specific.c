@@ -4255,8 +4255,8 @@ CK_RV token_specific_ec_verify(STDLL_TokData_t *tokdata,
     }
 
     /* CKA_EC_POINT contains the EC point as OCTET STRING */
-    ret = ber_decode_OCTET_STRING(attr2->pValue, &ecpoint, &ecpoint_len,
-                                  &field_len);
+    ret = ber_decode_OCTET_STRING(attr2->pValue, attr2->ulValueLen,
+                                  &ecpoint, &ecpoint_len, &field_len);
     if (ret != CKR_OK || field_len != attr2->ulValueLen) {
         TRACE_DEVEL("ber_decode_OCTET_STRING failed\n");
         ret = CKR_ATTRIBUTE_VALUE_INVALID;
@@ -4366,7 +4366,7 @@ CK_RV token_specific_ecdh_pkcs_derive(STDLL_TokData_t *tokdata,
      * DER-encoded ECPoint (as per section E.6 of [ANSI X9.62]) i.e.
      * the same as a CKA_EC_POINT encoding.
      */
-    ret = ber_decode_OCTET_STRING(pub_bytes, &ecpoint, &ecpoint_len,
+    ret = ber_decode_OCTET_STRING(pub_bytes, pub_length, &ecpoint, &ecpoint_len,
                                   &field_len);
     if (ret != CKR_OK || field_len != pub_length ||
         ecpoint_len > pub_length - 2) {
