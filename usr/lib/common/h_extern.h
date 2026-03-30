@@ -2647,11 +2647,11 @@ CK_ULONG ber_encode_INTEGER(CK_BBOOL length_only,
                             CK_ULONG *ber_int_len,
                             CK_BYTE *data, CK_ULONG data_len);
 
-CK_RV ber_decode_INTEGER(CK_BYTE *ber_int,
+CK_RV ber_decode_INTEGER(CK_BYTE *ber_int, CK_ULONG ber_int_len,
                          CK_BYTE **data,
                          CK_ULONG *data_len, CK_ULONG *field_len);
 
-CK_RV ber_decode_BIT_STRING(CK_BYTE *str,
+CK_RV ber_decode_BIT_STRING(CK_BYTE *str, CK_ULONG str_len,
                             CK_BYTE **data,
                             CK_ULONG *data_len, CK_ULONG *field_len);
 
@@ -2660,7 +2660,7 @@ CK_RV ber_encode_OCTET_STRING(CK_BBOOL length_only,
                               CK_ULONG *str_len,
                               CK_BYTE *data, CK_ULONG data_len);
 
-CK_RV ber_decode_OCTET_STRING(CK_BYTE *str,
+CK_RV ber_decode_OCTET_STRING(CK_BYTE *str, CK_ULONG str_len,
                               CK_BYTE **data,
                               CK_ULONG *data_len, CK_ULONG *field_len);
 
@@ -2669,7 +2669,7 @@ CK_RV ber_encode_SEQUENCE(CK_BBOOL length_only,
                           CK_ULONG *seq_len,
                           CK_BYTE *data, CK_ULONG data_len);
 
-CK_RV ber_decode_SEQUENCE(CK_BYTE *seq,
+CK_RV ber_decode_SEQUENCE(CK_BYTE *seq, CK_ULONG seq_len,
                           CK_BYTE **data,
                           CK_ULONG *data_len, CK_ULONG *field_len);
 
@@ -2680,12 +2680,12 @@ CK_RV ber_encode_PrivateKeyInfo(CK_BBOOL length_only,
                                 const CK_ULONG algorithm_id_len,
                                 CK_BYTE *priv_key, CK_ULONG priv_key_len);
 
-CK_RV ber_decode_PrivateKeyInfo(CK_BYTE *data,
-                                CK_ULONG data_len,
-                                CK_BYTE **algorithm_id,
-                                CK_ULONG *alg_len, CK_BYTE **priv_key);
+CK_RV ber_decode_PrivateKeyInfo(CK_BYTE *data, CK_ULONG data_len,
+                                CK_BYTE **algorithm_id, CK_ULONG *alg_len,
+                                CK_BYTE **priv_key, CK_ULONG *priv_key_len);
 
-CK_RV ber_decode_SPKI(CK_BYTE *spki, CK_BYTE **alg_oid, CK_ULONG *alg_oid_len,
+CK_RV ber_decode_SPKI(CK_BYTE *spki, CK_ULONG spki_len,
+                      CK_BYTE **alg_oid, CK_ULONG *alg_oid_len,
                       CK_BYTE **param, CK_ULONG *param_len,
                       CK_BYTE **key, CK_ULONG *key_len);
 
