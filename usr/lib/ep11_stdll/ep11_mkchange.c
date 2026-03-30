@@ -45,15 +45,16 @@ CK_BBOOL ep11tok_is_blob_new_wkid(STDLL_TokData_t *tokdata,
      * denoted by 0x30 followed by the DER encoded length of the SPKI.
      */
     if (blob_len > 5 && blob[0] == 0x30 &&
-        ber_decode_SEQUENCE(blob, &data, &data_len, &spki_len) == CKR_OK) {
+        ber_decode_SEQUENCE(blob, blob_len, &data, &data_len, &spki_len) ==
+                                                                    CKR_OK) {
         /* Its a SPKI, WKID follows as OCTET STRING right after SPKI data */
         if (blob_len < spki_len + 2 + XCP_WKID_BYTES) {
             TRACE_ERROR("MACed SPKI is too small\n");
             return CK_FALSE;
         }
 
-        rc = ber_decode_OCTET_STRING(blob + spki_len, &data, &data_len,
-                                     &wkid_len);
+        rc = ber_decode_OCTET_STRING(blob + spki_len, blob_len - spki_len,
+                                     &data, &data_len, &wkid_len);
         if (rc != CKR_OK || data_len != XCP_WKID_BYTES) {
             TRACE_ERROR("Invalid MACed SPKI encoding\n");
             return CK_FALSE;
