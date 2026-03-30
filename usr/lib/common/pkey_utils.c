@@ -1607,8 +1607,8 @@ struct {                          \
     }
 
     /* CKA_EC_POINT is an BER encoded OCTET STRING. Extract it. */
-    rc = ber_decode_OCTET_STRING(pub_attr->pValue, &ecpoint,
-                                 &ecpoint_len, &field_len);
+    rc = ber_decode_OCTET_STRING(pub_attr->pValue, pub_attr->ulValueLen,
+                                 &ecpoint, &ecpoint_len, &field_len);
     if (rc != CKR_OK || pub_attr->ulValueLen != field_len) {
         TRACE_ERROR("%s: ber_decode_OCTET_STRING failed\n", __func__);
         ret = CKR_ATTRIBUTE_VALUE_INVALID;
@@ -1755,8 +1755,8 @@ struct {                            \
     }
 
     /* CKA_EC_POINT is an BER encoded OCTET STRING. Extract it. */
-    rc = ber_decode_OCTET_STRING(pub_attr->pValue, &ecpoint,
-                                 &ecpoint_len, &field_len);
+    rc = ber_decode_OCTET_STRING(pub_attr->pValue, pub_attr->ulValueLen,
+                                 &ecpoint, &ecpoint_len, &field_len);
     if (rc != CKR_OK || pub_attr->ulValueLen != field_len) {
         TRACE_ERROR("%s: ber_decode_OCTET_STRING failed\n", __func__);
         ret = CKR_ATTRIBUTE_VALUE_INVALID;
