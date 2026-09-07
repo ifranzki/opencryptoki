@@ -928,6 +928,15 @@ CK_RV reset_token_data(STDLL_TokData_t * tokdata, CK_SLOT_ID slot_id,
             }
         }
 
+        /* Hold XProcLock across the RACF read-modify-write so that a
+         * concurrent 'pkcsicsf -p' cannot overwrite the RACF file while we
+         * are reading it, and vice versa. */
+        rc = XProcLock(tokdata);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("Process Lock Failed.\n");
+            goto done;
+        }
+
         /* Load RACF password */
         if (tokdata->version >= TOK_NEW_DATA_STORE) {
             rc = get_racf_v3(tokdata, mk, racf_pass, &racf_pass_len);
@@ -935,12 +944,14 @@ CK_RV reset_token_data(STDLL_TokData_t * tokdata, CK_SLOT_ID slot_id,
             rc = get_racf(tokdata, mk, mk_len, racf_pass, &racf_pass_len);
         }
         if (rc != CKR_OK) {
+            XProcUnLock(tokdata);
             TRACE_DEVEL("Failed to get RACF password.\n");
             goto done;
         }
 
         /* Generate new master key */
         if (get_randombytes(mk, AES_KEY_SIZE_256)) {
+            XProcUnLock(tokdata);
             TRACE_DEVEL("Failed to generate new master key.\n");
             rc = CKR_FUNCTION_FAILED;
             goto done;
@@ -963,6 +974,7 @@ CK_RV reset_token_data(STDLL_TokData_t * tokdata, CK_SLOT_ID slot_id,
             rc = secure_racf(tokdata, racf_pass, (CK_ULONG)racf_pass_len,
                              mk, (CK_ULONG)mk_len, tokname);
         }
+        XProcUnLock(tokdata);
         if (rc != CKR_OK) {
             TRACE_DEVEL("Failed to save racf password.\n");
             goto done;
@@ -1537,7 +1549,13 @@ LDAP *getLDAPhandle(STDLL_TokData_t * tokdata, CK_SLOT_ID slot_id)
     /* Check if using sasl or simple auth */
     if (icsf_data->slot_data->mech == ICSF_CFG_MECH_SIMPLE) {
         TRACE_INFO("Using SIMPLE auth with slot ID: %lu\n", slot_id);
-        /* get racf passwd */
+        /* get racf passwd - hold XProcLock so pkcsicsf -p cannot update
+         * the RACF file concurrently and leave us reading a partial write */
+        rc = XProcLock(tokdata);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("Process Lock Failed.\n");
+            goto done;
+        }
         if (tokdata->version >= TOK_NEW_DATA_STORE) {
             rc = get_racf_v3(tokdata, tokdata->master_key,
                              racfpwd, &racflen);
@@ -1545,6 +1563,7 @@ LDAP *getLDAPhandle(STDLL_TokData_t * tokdata, CK_SLOT_ID slot_id)
             rc = get_racf(tokdata, tokdata->master_key, AES_KEY_SIZE_256,
                           racfpwd, &racflen);
         }
+        XProcUnLock(tokdata);
         if (rc != CKR_OK) {
             TRACE_DEVEL("Failed to get racf passwd.\n");
             goto done;
