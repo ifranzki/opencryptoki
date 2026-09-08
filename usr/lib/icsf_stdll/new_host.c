@@ -491,9 +491,15 @@ CK_RV SC_InitPIN(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
 
     rc = icsftok_init_pin(tokdata, sess, pPin, ulPinLen);
     if (rc == CKR_OK) {
+        if (XProcLock(tokdata) != CKR_OK) {
+            TRACE_ERROR("Failed to get process lock.\n");
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
         flags = &tokdata->nv_token_data->token_info.flags;
         *flags &= ~(CKF_USER_PIN_LOCKED | CKF_USER_PIN_FINAL_TRY |
                     CKF_USER_PIN_COUNT_LOW);
+        XProcUnLock(tokdata);
         rc = save_token_data(tokdata, sess->session_info.slotID);
         if (rc != CKR_OK)
             TRACE_DEVEL("Failed to save token data.\n");
@@ -862,7 +868,13 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
     flags = &tokdata->nv_token_data->token_info.flags;
 
     if (!pPin || ulPinLen > MAX_PIN_LEN) {
+        if (XProcLock(tokdata) != CKR_OK) {
+            TRACE_ERROR("Failed to get process lock.\n");
+            rc = CKR_FUNCTION_FAILED;
+            goto done;
+        }
         set_login_flags(userType, flags);
+        XProcUnLock(tokdata);
         TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
         rc = CKR_PIN_INCORRECT;
         goto done;
@@ -900,7 +912,6 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
     if (rc != CKR_OK)
         goto done;
 
-
     if (userType == CKU_USER) {
         if (*flags & CKF_USER_PIN_LOCKED) {
             TRACE_ERROR("%s\n", ock_err(ERR_PIN_LOCKED));
@@ -915,11 +926,21 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
         }
 
         rc = icsftok_login(tokdata, sess, userType, pPin, ulPinLen);
-        if (rc == CKR_OK) {
-            *flags &= ~(CKF_USER_PIN_LOCKED |
-                        CKF_USER_PIN_FINAL_TRY | CKF_USER_PIN_COUNT_LOW);
-        } else if (rc == CKR_PIN_INCORRECT) {
-            set_login_flags(userType, flags);
+        if (rc == CKR_OK || rc == CKR_PIN_INCORRECT) {
+            CK_RV rc2 = XProcLock(tokdata);
+
+            if (rc2 != CKR_OK) {
+                TRACE_ERROR("Failed to get process lock.\n");
+                rc = rc2;
+                goto done;
+            }
+            if (rc == CKR_OK)
+                *flags &= ~(CKF_USER_PIN_LOCKED |
+                            CKF_USER_PIN_FINAL_TRY |
+                            CKF_USER_PIN_COUNT_LOW);
+            else
+                set_login_flags(userType, flags);
+            XProcUnLock(tokdata);
         }
     } else {
         if (*flags & CKF_SO_PIN_LOCKED) {
@@ -929,11 +950,21 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
         }
 
         rc = icsftok_login(tokdata, sess, userType, pPin, ulPinLen);
-        if (rc == CKR_OK) {
-            *flags &= ~(CKF_SO_PIN_LOCKED |
-                        CKF_SO_PIN_FINAL_TRY | CKF_SO_PIN_COUNT_LOW);
-        } else if (rc == CKR_PIN_INCORRECT) {
-            set_login_flags(userType, flags);
+        if (rc == CKR_OK || rc == CKR_PIN_INCORRECT) {
+            CK_RV rc2 = XProcLock(tokdata);
+
+            if (rc2 != CKR_OK) {
+                TRACE_ERROR("Failed to get process lock.\n");
+                rc = rc2;
+                goto done;
+            }
+            if (rc == CKR_OK)
+                *flags &= ~(CKF_SO_PIN_LOCKED |
+                            CKF_SO_PIN_FINAL_TRY |
+                            CKF_SO_PIN_COUNT_LOW);
+            else
+                set_login_flags(userType, flags);
+            XProcUnLock(tokdata);
         }
     }
 done:
