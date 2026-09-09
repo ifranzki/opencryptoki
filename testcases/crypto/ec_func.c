@@ -706,6 +706,11 @@ CK_RV run_DeriveECDHKey(CK_BBOOL cofactor_mode)
                               (unsigned int) SLOT_ID, der_ec_supported[i].name);
                 continue;
             }
+            if (is_icsf_token(SLOT_ID) && rc == CKR_TEMPLATE_INCONSISTENT) {
+                testcase_skip("The ICSF token in slot %u doesn't support this curve: %s",
+                              (unsigned int) SLOT_ID, der_ec_supported[i].name);
+                continue;
+            }
             testcase_fail("C_GenerateKeyPair with valid input failed at i=%lu "
                           "(%s), rc=%s", i, der_ec_supported[i].name,
                           p11_get_ckr(rc));
@@ -1462,6 +1467,11 @@ CK_RV run_DeriveECDHKeyKAT(void)
             }
             if (rc == CKR_CURVE_NOT_SUPPORTED) {
                 testcase_skip("Slot %u doesn't support this curve: %s",
+                              (unsigned int) SLOT_ID, ecdh_tv[i].name);
+                goto testcase_next;
+            }
+            if (is_icsf_token(SLOT_ID) && rc == CKR_TEMPLATE_INCONSISTENT) {
+                testcase_skip("The ICSF token in slot %u doesn't support this curve: %s",
                               (unsigned int) SLOT_ID, ecdh_tv[i].name);
                 goto testcase_next;
             }
