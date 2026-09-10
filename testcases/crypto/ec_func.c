@@ -1478,7 +1478,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
 
             testcase_fail("C_CreateObject (EC Private Key) failed at i=%lu, "
                           "rc=%s", i, p11_get_ckr(rc));
-            goto testcase_cleanup;
+            goto testcase_next;
         }
 
         rc = create_ECPublicKey(session, CKK_EC,
@@ -1499,7 +1499,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
 
             testcase_fail("C_CreateObject (EC Public Key) failed at i=%lu, "
                           "rc=%s", i, p11_get_ckr(rc));
-            goto testcase_cleanup;
+            goto testcase_next;
         }
 
         // Now import the EC key pair for party B
@@ -1516,7 +1516,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
 
             testcase_fail("C_CreateObject (EC Private Key) failed at i=%lu, "
                           "rc=%s", i, p11_get_ckr(rc));
-            goto testcase_cleanup;
+            goto testcase_next;
         }
 
         rc = create_ECPublicKey(session, CKK_EC,
@@ -1532,7 +1532,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
 
             testcase_fail("C_CreateObject (EC Public Key) failed at i=%lu, "
                           "rc=%s", i, p11_get_ckr(rc));
-            goto testcase_cleanup;
+            goto testcase_next;
         }
 
         // Now derive the secrets...
@@ -1614,7 +1614,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             }
 
             testcase_fail("C_DeriveKey #1: rc = %s", p11_get_ckr(rc));
-            goto testcase_cleanup;
+            goto testcase_next;
         }
 
         // Now, derive a generic secret key using B's private key and
@@ -1671,7 +1671,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             }
 
             testcase_fail("C_DeriveKey #2: rc = %s", p11_get_ckr(rc));
-            goto testcase_cleanup;
+            goto testcase_next;
         }
 
         testcase_new_assertion();
@@ -1684,7 +1684,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             if (rc != CKR_OK) {
                 testcase_error("C_GetAttributeValue #3:rc = %s",
                                p11_get_ckr(rc));
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             // Compare lengths of derived secret from key object
@@ -1693,7 +1693,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
                               "derived key #2 length = %lu",
                               ecdh_tv[i].derived_key_len,
                               secretA_tmpl[0].ulValueLen);
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             // Compare with known value
@@ -1701,7 +1701,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
                        ecdh_tv[i].derived_key,
                        ecdh_tv[i].derived_key_len) != 0) {
                 testcase_fail("ERROR:derived key mismatch, i=%lu",i);
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             // Extract the derived secret B
@@ -1710,7 +1710,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             if (rc != CKR_OK) {
                 testcase_error("C_GetAttributeValue #4:rc = %s",
                                p11_get_ckr(rc));
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             // Compare lengths of derived secret from key object
@@ -1718,7 +1718,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
                 testcase_fail("ERROR:derived key #1 length = %lu, derived key "
                               "#2 length = %lu", ecdh_tv[i].derived_key_len,
                               secretB_tmpl[0].ulValueLen);
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             // Compare with known value
@@ -1726,7 +1726,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
                        ecdh_tv[i].derived_key,
                        ecdh_tv[i].derived_key_len) != 0) {
                 testcase_fail("ERROR:derived key mismatch, i=%lu",i);
-                goto testcase_cleanup;
+                goto testcase_next;
             }
         } else {
             /* Secure key:
@@ -1740,7 +1740,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             if (rc != CKR_OK) {
                 testcase_fail("HMAC for expected key failed: %s",
                               p11_get_ckr(rc));
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             rc = run_HMACSign(session, secret_keyA, ecdh_tv[i].derived_key_len,
@@ -1748,7 +1748,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             if (rc != CKR_OK) {
                 testcase_fail("HMAC for derived key #1 failed: %s",
                               p11_get_ckr(rc));
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             if (mac1_len != 0 && /* skip check if mac can't be calcualted */
@@ -1756,7 +1756,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
                  memcmp(mac1, macexpected, mac1_len) != 0)) {
                 testcase_fail("ERROR: derived key #1 does not produce the "
                               "expected HMAC");
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             rc = run_HMACSign(session, secret_keyB, ecdh_tv[i].derived_key_len,
@@ -1764,7 +1764,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
             if (rc != CKR_OK) {
                 testcase_fail("HMAC for derived key #2 failed: %s",
                               p11_get_ckr(rc));
-                goto testcase_cleanup;
+                goto testcase_next;
             }
 
             if (mac2_len != 0 && /* skip check if mac can't be calcualted */
@@ -1772,7 +1772,7 @@ CK_RV run_DeriveECDHKeyKAT(void)
                  memcmp(mac2, macexpected, mac2_len) != 0)) {
                 testcase_fail("ERROR: derived key #2 does not produce the "
                               "expected HMAC");
-                goto testcase_cleanup;
+                goto testcase_next;
             }
         }
 
