@@ -31,7 +31,6 @@ from pkcs11_const import (
     CKA_TOKEN, CKA_KEY_TYPE, CKA_EC_PARAMS,
     CKA_COPYABLE, CKA_SENSITIVE,
     CKK_EC, CKM_UNAVAILABLE_INFORMATION,
-    bool_attr,
 )
 from ec_backend import ec_curve_supported
 
@@ -198,6 +197,24 @@ def _handle_create_object(store, request):
         logger.warning('TRC OBJECT: could not decode attribute list: %s', exc)
 
     if is_copy:
+        # Check CKA_SENSITIVE rule before applying overrides:
+        # once CKA_SENSITIVE=TRUE on the source, it cannot be lowered to FALSE.
+        src_sensitive = base_attrs.get(CKA_SENSITIVE)
+        src_sensitive_bool = (bool(src_sensitive[0])
+                              if isinstance(src_sensitive, (bytes, bytearray)) and src_sensitive
+                              else bool(src_sensitive) if isinstance(src_sensitive, int)
+                              else False)
+        for attr_type, value in override_attrs:
+            if attr_type == CKA_SENSITIVE and src_sensitive_bool:
+                new_val = (bool(value[0])
+                           if isinstance(value, (bytes, bytearray)) and value
+                           else bool(value) if isinstance(value, int)
+                           else False)
+                if not new_val:
+                    logger.info('TRC COPY: CKA_SENSITIVE cannot be lowered from TRUE to FALSE')
+                    return encode_response(
+                        request.handle, RC_ERROR, RSN_ATTR_READ_ONLY, ICSF_TAG_CSFPTRC, b'')
+
         # Apply overrides on top of the cloned base attributes.
         for attr_type, value in override_attrs:
             base_attrs[attr_type] = value
