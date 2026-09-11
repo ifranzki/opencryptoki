@@ -139,8 +139,11 @@ _OID_EC_PUBLIC_KEY = bytes.fromhex('2a 86 48 ce 3d 02 01'.replace(' ', ''))
 # id-dsa  1.2.840.10040.4.1
 _OID_DSA = bytes.fromhex('2a 86 48 ce 38 04 01'.replace(' ', ''))
 
-# dhPublicNumber  1.2.840.10046.2.7
-_OID_DH_PUBLIC_NUMBER = bytes.fromhex('2a 86 48 ce 3e 02 07'.replace(' ', ''))
+# dhKeyAgreement  1.2.840.113549.1.3.1  (PKCS#3 DH — used by OpenSSL EVP_PKEY_DH)
+# Note: dhPublicNumber (1.2.840.10046.2.7) is the X9.42 DH OID used by EVP_PKEY_DHX.
+# openCryptoki uses PKCS#3 DH (CKM_DH_PKCS_KEY_PAIR_GEN) and p11sak exports via
+# EVP_PKEY_DH, so d2i_PUBKEY expects the dhKeyAgreement OID here.
+_OID_DH_KEY_AGREEMENT = bytes.fromhex('2a8648 86f70d 010301'.replace(' ', ''))
 
 
 # ---------------------------------------------------------------------------
@@ -204,19 +207,24 @@ def spki_from_dsa(p: bytes, q: bytes, g: bytes, pub_value: bytes) -> bytes:
 
 
 def spki_from_dh(p: bytes, g: bytes, pub_value: bytes) -> bytes:
-    """Build SubjectPublicKeyInfo for DH (RFC 3279 §2.3.3 / PKCS#3).
+    """Build SubjectPublicKeyInfo for PKCS#3 DH (RFC 3279 §2.3.3).
 
-    AlgorithmIdentifier: dhPublicNumber OID, parameters = DomainParameters
-    SEQUENCE { INTEGER p, INTEGER g }.
+    AlgorithmIdentifier: dhKeyAgreement OID (1.2.840.113549.1.3.1), parameters =
+    DHParameter SEQUENCE { INTEGER p, INTEGER g }.
     SubjectPublicKey: BIT STRING wrapping INTEGER pub_value.
+
+    This is the OID used by OpenSSL for EVP_PKEY_DH (PKCS#3 DH), which is what
+    openCryptoki generates with CKM_DH_PKCS_KEY_PAIR_GEN and what p11sak/OpenSSL
+    expect when calling d2i_PUBKEY on a DH SPKI.  The X9.42 DH OID
+    (dhPublicNumber, 1.2.840.10046.2.7, EVP_PKEY_DHX) is a different type.
     """
-    domain_params = _der_sequence(
+    dh_params = _der_sequence(
         _der_integer(p),
         _der_integer(g),
     )
     algorithm = _der_sequence(
-        _der_oid(_OID_DH_PUBLIC_NUMBER),
-        domain_params,
+        _der_oid(_OID_DH_KEY_AGREEMENT),
+        dh_params,
     )
     subject_public_key = _der_bit_string(_der_integer(pub_value))
     return _der_sequence(algorithm, subject_public_key)

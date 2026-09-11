@@ -67,7 +67,7 @@ from pkcs11_const import (
     CKA_EXTRACTABLE, CKA_ALWAYS_SENSITIVE, CKA_NEVER_EXTRACTABLE,
     CKA_WRAP_WITH_TRUSTED, CKA_UNWRAP_TEMPLATE, CKA_DERIVE_TEMPLATE,
     CKA_WRAP_TEMPLATE, CKA_TRUSTED, CKA_ALWAYS_AUTHENTICATE,
-    CKA_VALUE, CKA_VALUE_LEN,
+    CKA_VALUE, CKA_VALUE_BITS, CKA_VALUE_LEN,
     # RSA
     CKA_MODULUS, CKA_MODULUS_BITS, CKA_PUBLIC_EXPONENT,
     # EC
@@ -227,15 +227,23 @@ def complete_key_attrs(attrs, key_gen_mechanism=None):
 # ---------------------------------------------------------------------------
 
 def _complete_secret_key(d):
-    """Fill in all common secret-key attribute defaults (PKCS#11 Table 24)."""
+    """Fill in all common secret-key attribute defaults (PKCS#11 Table 24).
+
+    CKA_SIGN / CKA_VERIFY defaults depend on the key type:
+      - CKK_GENERIC_SECRET: True  (used for HMAC; real ICSF returns True)
+      - All other secret key types (AES, DES, 3DES, ...): False
+    """
     sensitive   = _get_bool(d, CKA_SENSITIVE,   False)
     extractable = _get_bool(d, CKA_EXTRACTABLE,  True)
+
+    key_type = _get_int(d, CKA_KEY_TYPE)
+    sign_verify_default = (key_type == CKK_GENERIC_SECRET)
 
     _default(d, CKA_SENSITIVE,         bool_attr(False))
     _default(d, CKA_ENCRYPT,           bool_attr(True))
     _default(d, CKA_DECRYPT,           bool_attr(True))
-    _default(d, CKA_SIGN,              bool_attr(False))
-    _default(d, CKA_VERIFY,            bool_attr(False))
+    _default(d, CKA_SIGN,              bool_attr(sign_verify_default))
+    _default(d, CKA_VERIFY,            bool_attr(sign_verify_default))
     _default(d, CKA_WRAP,              bool_attr(True))
     _default(d, CKA_UNWRAP,            bool_attr(True))
     _default(d, CKA_EXTRACTABLE,       bool_attr(True))
@@ -248,7 +256,6 @@ def _complete_secret_key(d):
     _default(d, CKA_DERIVE_TEMPLATE,   b'')
 
     # Derive CKA_VALUE_LEN from CKA_VALUE if both not present
-    key_type = _get_int(d, CKA_KEY_TYPE)
     if CKA_VALUE_LEN not in d:
         if CKA_VALUE in d:
             val = d[CKA_VALUE]
@@ -369,12 +376,14 @@ def _complete_private_key(d):
 
 
 def _complete_rsa_private_key(d):
-    """Derive CKA_MODULUS_BITS from CKA_MODULUS if absent."""
-    if CKA_MODULUS_BITS not in d and CKA_MODULUS in d:
-        mod = d[CKA_MODULUS]
-        mbits = len(mod) * 8 if isinstance(mod, (bytes, bytearray)) else 0
-        if mbits > 0:
-            d[CKA_MODULUS_BITS] = mbits
+    """RSA private key completion.
+
+    CKA_MODULUS_BITS is intentionally NOT set on private key objects — real
+    ICSF does not return it for private keys and p11sak expects it only on
+    public key objects (the test counts exactly 3 occurrences across 3 public +
+    3 private RSA key objects).
+    """
+    pass
 
 
 def _complete_dsa_private_key(d):
@@ -386,10 +395,22 @@ def _complete_dsa_private_key(d):
 
 
 def _complete_dh_private_key(d):
-    """DH private key: CKA_PRIME and CKA_BASE must be present."""
+    """DH private key: CKA_PRIME, CKA_BASE, CKA_VALUE, CKA_VALUE_BITS.
+
+    CKA_VALUE_BITS holds the bit length of the private value and is stored
+    only on the private key object (not on the public key).  Real ICSF sets
+    it from the bit length of CKA_VALUE; p11sak sets it as a keygen template
+    attribute and expects to read it back on the private key.
+    """
     _default(d, CKA_PRIME, b'')
     _default(d, CKA_BASE,  b'')
     _default(d, CKA_VALUE, b'')
+    # Derive CKA_VALUE_BITS from CKA_VALUE if not already present
+    if CKA_VALUE_BITS not in d and CKA_VALUE in d:
+        val = d[CKA_VALUE]
+        vbits = len(val) * 8 if isinstance(val, (bytes, bytearray)) else 0
+        if vbits > 0:
+            d[CKA_VALUE_BITS] = vbits
 
 
 def _complete_ec_private_key(d):
