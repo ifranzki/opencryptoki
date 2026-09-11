@@ -25,7 +25,8 @@ tool without a real z/OS system.
 ### Phase 3 — cryptographic operations
 | ICSF service | Tag | Operation | Mock behaviour |
 |---|---|---|---|
-| `CSFPDVK` |  2 | Derive key (EC-DH / `CKM_ECDH1_DERIVE`) | real ECDH via OpenSSL `EVP_PKEY_derive`; X9.63 KDF with `CKD_NULL`/SHA-1/224/256/384/512 |
+| `CSFPDMK` |  1 | Derive multiple keys (`CKM_SSL3_KEY_AND_MAC_DERIVE`, `CKM_TLS_KEY_AND_MAC_DERIVE`) | SSL3 / TLS key and MAC material derivation; returns 4 key handles + IVs |
+| `CSFPDVK` |  2 | Derive key (EC-DH / `CKM_ECDH1_DERIVE`, SSL-MS / `CKM_SSL3_MASTER_KEY_DERIVE`) | real ECDH via OpenSSL `EVP_PKEY_derive`; X9.63 KDF; SSL 3.0 master secret derivation |
 | `CSFPGSK` |  5 | Generate secret key (AES/DES/3DES) | `os.urandom` key material |
 | `CSFPGKP` |  4 | Generate RSA/EC key pair | real key generation via libcrypto |
 | `CSFPSKE` | 13 | Symmetric key encrypt | real AES-ECB/CBC/CBC-PAD (and DES/3DES) via libcrypto ctypes |

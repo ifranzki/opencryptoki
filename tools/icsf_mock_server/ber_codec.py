@@ -41,10 +41,11 @@ Attribute list (used by TRC/TRL/GAV/SAV/GKP/GSK) follows this grammar:
 # BER tag constants (matching OpenLDAP lber.h values used by icsf.c)
 # ---------------------------------------------------------------------------
 
-LBER_SEQUENCE      = 0x30   # universal, constructed, SEQUENCE
+LBER_BOOLEAN       = 0x01   # universal, primitive, BOOLEAN
 LBER_INTEGER       = 0x02   # universal, primitive, INTEGER
 LBER_OCTET_STRING  = 0x04   # universal, primitive, OCTET STRING
 LBER_NULL          = 0x05
+LBER_SEQUENCE      = 0x30   # universal, constructed, SEQUENCE
 
 # Context class tags used by icsf.c
 # context primitive  [n] = 0x80 | n
@@ -124,6 +125,18 @@ def encode_integer(n: int) -> bytes:
     if out[0] & 0x80:
         out.insert(0, 0x00)
     return encode_tlv(LBER_INTEGER, bytes(out))
+
+
+def encode_boolean(val: bool) -> bytes:
+    """Encode a BER BOOLEAN value."""
+    return encode_tlv(LBER_BOOLEAN, b'\xff' if val else b'\x00')
+
+
+def decode_boolean(data: bytes) -> bool:
+    """Decode BER BOOLEAN bytes (the value portion only, no tag/length)."""
+    if not data:
+        return False
+    return any(b != 0 for b in data)
 
 
 def decode_integer(data: bytes) -> int:

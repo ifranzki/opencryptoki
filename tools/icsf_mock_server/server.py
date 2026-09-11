@@ -89,6 +89,7 @@ from obj_attrs import (
     complete_key_attrs, make_x509_cert_attrs,
 )
 from ec_backend import ec_generate
+from handlers.dmk import handle_dmk, ICSF_TAG_CSFPDMK
 from handlers.trc import handle_trc, ICSF_TAG_CSFPTRC
 from handlers.trd import handle_trd, ICSF_TAG_CSFPTRD
 from handlers.trl import handle_trl, ICSF_TAG_CSFPTRL
@@ -549,7 +550,9 @@ def _dispatch_icsf(store, req, hmac_state):
     """Route an ICSF request to the correct handler."""
     tag = req.service_tag
 
-    if tag == ICSF_TAG_CSFPDVK:    # 2
+    if tag == ICSF_TAG_CSFPDMK:    # 1
+        return handle_dmk(store, req)
+    elif tag == ICSF_TAG_CSFPDVK:  # 2
         return handle_dvk(store, req)
     elif tag == ICSF_TAG_CSFPGAV:    # 3
         return handle_gav(store, req)
@@ -584,8 +587,6 @@ def _dispatch_icsf(store, req, hmac_state):
     elif tag == ICSF_TAG_CSFPWPK:  # 18
         return handle_wpk(store, req)
     else:
-        # Tag 1 (DMK) is not yet implemented.
-        # Return a clean ICSF error so the client fails gracefully.
         logger.warning('ICSF service tag %d not implemented in this mock', tag)
         blank_handle = (req.handle or b'').ljust(HANDLE_LEN, b' ')[:HANDLE_LEN]
         return encode_response(blank_handle, rc=8, reason=3000,

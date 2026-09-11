@@ -35,7 +35,8 @@ from pkcs11_const import (
     CKA_CLASS, CKA_KEY_TYPE, CKA_VALUE, CKA_VALUE_LEN, CKA_TOKEN,
     CKO_SECRET_KEY, CKK_AES, CKK_DES, CKK_DES2, CKK_DES3,
     CKM_DES_KEY_GEN, CKM_DES2_KEY_GEN, CKM_DES3_KEY_GEN, CKM_AES_KEY_GEN,
-    CKM_GENERIC_SECRET_KEY_GEN,
+    CKM_GENERIC_SECRET_KEY_GEN, CKM_SSL3_PRE_MASTER_KEY_GEN,
+    CKM_TLS_PRE_MASTER_KEY_GEN,
 )
 from obj_attrs import make_secret_key_attrs
 
@@ -93,14 +94,17 @@ def handle_gsk(store, request):
     # GSKInput: { attrList SEQUENCE-OF-SEQ ... } followed by parmsList OCTET STRING.
     # The attribute list is a SEQUENCE (written by icsf_ber_put_attribute_list).
     attrs = []
+    parms_bytes = b''
     try:
         # The first TLV inside service_data is the attribute list SEQUENCE
         tag, attr_seq_val, pos = _decode_tlv(request.service_data, 0)
         # attr_seq_val is the contents of the SEQUENCE — re-wrap for the decoder
         wrapped = encode_sequence(attr_seq_val)
         attrs = decode_attribute_list(wrapped)
+        if pos < len(request.service_data):
+            tag2, parms_bytes, _ = _decode_tlv(request.service_data, pos)
     except Exception as exc:
-        logger.warning('GSK: could not decode attribute list: %s', exc)
+        logger.warning('GSK: could not decode GSKInput: %s', exc)
 
     # Extract key type and length from attribute list
     attr_dict = {t: v for t, v in attrs}
@@ -118,7 +122,14 @@ def handle_gsk(store, request):
         value_len = int.from_bytes(value_len, 'big')
 
     # Generate random key material
-    key_bytes = os.urandom(value_len)
+    key_bytes = bytearray(os.urandom(value_len))
+
+    # If generating SSL/TLS pre-master secret ("SSL" / "TLS" rule), embed version into the first 2 bytes
+    rules = [r.upper() for r in request.rule_array]
+    if ('SSL' in rules or 'TLS' in rules) and len(parms_bytes) >= 2 and len(key_bytes) >= 2:
+        key_bytes[0] = parms_bytes[0]
+        key_bytes[1] = parms_bytes[1]
+    key_bytes = bytes(key_bytes)
 
     # Determine whether object persists across sessions
     cka_token = attr_dict.get(CKA_TOKEN, b'\x00')
@@ -126,7 +137,12 @@ def handle_gsk(store, request):
     obj_type = OBJ_TYPE_TOKEN if is_token else 'S'
 
     # Determine generating mechanism for this key type
-    gen_mech = _GEN_MECH.get(key_type, CKM_GENERIC_SECRET_KEY_GEN)
+    if 'SSL' in rules:
+        gen_mech = CKM_SSL3_PRE_MASTER_KEY_GEN
+    elif 'TLS' in rules:
+        gen_mech = CKM_TLS_PRE_MASTER_KEY_GEN
+    else:
+        gen_mech = _GEN_MECH.get(key_type, CKM_GENERIC_SECRET_KEY_GEN)
 
     # Build the complete attribute set — make_secret_key_attrs injects
     # CKA_VALUE and CKA_CLASS and then calls complete_key_attrs to fill in
