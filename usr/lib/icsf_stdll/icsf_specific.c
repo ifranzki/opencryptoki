@@ -2276,16 +2276,23 @@ CK_RV icsftok_copy_object(STDLL_TokData_t * tokdata,
     struct icsf_object_mapping *mapping_dst = NULL;
     struct icsf_object_mapping *mapping_src = NULL;
     CK_ULONG node_number;
+    CK_ULONG i;
     int reason = 0;
 
     CK_BBOOL is_priv;
     CK_BBOOL is_token;
+    CK_BBOOL is_copyable;
+    CK_BBOOL is_sensitive;
+    CK_BBOOL need_sensitive;
 
     CK_ATTRIBUTE priv_attrs[] = {
-        {CKA_PRIVATE, &is_priv, sizeof(is_priv)}
-        ,
-        {CKA_TOKEN, &is_token, sizeof(is_token)}
-        ,
+        {CKA_PRIVATE,  &is_priv,    sizeof(is_priv)},
+        {CKA_TOKEN,    &is_token,   sizeof(is_token)},
+        {CKA_COPYABLE, &is_copyable, sizeof(is_copyable)},
+    };
+
+    CK_ATTRIBUTE sensitive_attr[] = {
+        {CKA_SENSITIVE, &is_sensitive, sizeof(is_sensitive)},
     };
 
     CK_ATTRIBUTE_PTR temp_attrs;
@@ -2318,11 +2325,68 @@ CK_RV icsftok_copy_object(STDLL_TokData_t * tokdata,
         goto done;
     }
 
+    /*
+     * Fetch CKA_PRIVATE, CKA_TOKEN (for session-permission check) and
+     * CKA_COPYABLE (for copy rule).
+     *
+     * The common layer (object_mgr_copy) enforces these rules, but the ICSF
+     * token bypasses it and calls icsftok_copy_object directly, so we must
+     * duplicate the enforcement here:
+     *
+     *   CKA_COPYABLE=FALSE  -> CKR_ACTION_PROHIBITED   (PKCS#11 4.1.1)
+     *   CKA_SENSITIVE=TRUE + template sets it FALSE -> CKR_ATTRIBUTE_READ_ONLY
+     */
     rc = icsf_get_attribute(session_state->ld, &reason, NULL,
-                            &mapping_src->icsf_object, priv_attrs, 2);
+                            &mapping_src->icsf_object, priv_attrs,
+                            sizeof(priv_attrs) / sizeof(priv_attrs[0]));
     if (rc != CKR_OK) {
         TRACE_ERROR("icsf_get_attribute failed\n");
+        rc = icsf_to_ock_err(rc, reason);
         goto done;
+    }
+
+    /* CKA_COPYABLE=FALSE: the object may not be copied at all */
+    if (!is_copyable) {
+        TRACE_ERROR("Object is not copyable\n");
+        rc = CKR_ACTION_PROHIBITED;
+        goto done;
+    }
+
+    /*
+     * CKA_SENSITIVE: once TRUE, may only be set to TRUE during copy.
+     * Only fetch it when the caller's template actually contains
+     * CKA_SENSITIVE — not all object types (e.g. public keys) have it.
+     */
+    need_sensitive = CK_FALSE;
+    for (i = 0; i < attrs_len; i++) {
+        if (attrs[i].type == CKA_SENSITIVE) {
+            need_sensitive = CK_TRUE;
+            break;
+        }
+    }
+
+    if (need_sensitive) {
+        rc = icsf_get_attribute(session_state->ld, &reason, NULL,
+                                &mapping_src->icsf_object, sensitive_attr, 1);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("icsf_get_attribute for CKA_SENSITIVE failed\n");
+            rc = icsf_to_ock_err(rc, reason);
+            goto done;
+        }
+
+        if (is_sensitive) {
+            for (i = 0; i < attrs_len; i++) {
+                if (attrs[i].type == CKA_SENSITIVE &&
+                    attrs[i].ulValueLen == sizeof(CK_BBOOL) &&
+                    attrs[i].pValue != NULL &&
+                    *(CK_BBOOL *)attrs[i].pValue == CK_FALSE) {
+                    TRACE_ERROR("CKA_SENSITIVE cannot be changed from TRUE "
+                                "to FALSE during copy\n");
+                    rc = CKR_ATTRIBUTE_READ_ONLY;
+                    goto done;
+                }
+            }
+        }
     }
 
     if (attrs_len != 0) {
@@ -4360,14 +4424,19 @@ CK_RV icsftok_set_attribute_value(STDLL_TokData_t * tokdata,
     struct icsf_object_mapping *mapping = NULL;
     CK_BBOOL is_priv;
     CK_BBOOL is_token;
+    CK_BBOOL is_modifiable;
+    CK_BBOOL is_copyable;
+    CK_BBOOL is_trusted;
     CK_RV rc = CKR_OK;
     int reason = 0;
+    CK_ULONG i;
 
     CK_ATTRIBUTE priv_attrs[] = {
-        {CKA_PRIVATE, &is_priv, sizeof(is_priv)}
-        ,
-        {CKA_TOKEN, &is_token, sizeof(is_token)}
-        ,
+        {CKA_PRIVATE, &is_priv, sizeof(is_priv)},
+        {CKA_TOKEN, &is_token, sizeof(is_token)},
+        {CKA_MODIFIABLE, &is_modifiable, sizeof(is_modifiable)},
+        {CKA_COPYABLE, &is_copyable, sizeof(is_copyable)},
+        {CKA_TRUSTED, &is_trusted, sizeof(is_trusted)},
     };
 
     /* Get session state */
@@ -4391,12 +4460,16 @@ CK_RV icsftok_set_attribute_value(STDLL_TokData_t * tokdata,
         goto done;
     }
 
-    /* check permissions :
-     * first get CKA_PRIVATE since we need to check againse session
-     * icsf will check if the attributes are modifiable
+    /*
+     * Fetch CKA_PRIVATE, CKA_TOKEN (for session permission check) and
+     * CKA_MODIFIABLE, CKA_COPYABLE, CKA_TRUSTED (for attribute-update
+     * rules that ICSF enforces on the real server but the common layer
+     * does not enforce for the ICSF token because icsftok_set_attribute_value
+     * is called directly without going through object_mgr_set_attribute_values).
      */
     rc = icsf_get_attribute(session_state->ld, &reason, NULL,
-                            &mapping->icsf_object, priv_attrs, 2);
+                            &mapping->icsf_object, priv_attrs,
+                            sizeof(priv_attrs) / sizeof(priv_attrs[0]));
     if (rc != CKR_OK) {
         TRACE_DEVEL("icsf_get_attribute failed\n");
         rc = icsf_to_ock_err(rc, reason);
@@ -4408,6 +4481,59 @@ CK_RV icsftok_set_attribute_value(STDLL_TokData_t * tokdata,
     if (rc != CKR_OK) {
         TRACE_DEVEL("check_session_permissions failed\n");
         goto done;
+    }
+
+    /*
+     * Enforce CKA_MODIFIABLE: if the object is not modifiable, no attribute
+     * may be changed (PKCS#11 v2.40 v4.1.1).
+     */
+    if (!is_modifiable) {
+        TRACE_ERROR("Object is not modifiable\n");
+        rc = CKR_ACTION_PROHIBITED;
+        goto done;
+    }
+
+    /*
+     * Enforce per-attribute write rules that apply during C_SetAttributeValue:
+     *
+     *  CKA_MODIFIABLE : read-only after object creation (cannot be changed).
+     *  CKA_COPYABLE   : can be changed from TRUE to FALSE, but not back.
+     *  CKA_TRUSTED    : may only be set to TRUE by the SO.
+     */
+    for (i = 0; i < ulCount; i++) {
+        switch (pTemplate[i].type) {
+        case CKA_MODIFIABLE:
+            TRACE_ERROR("CKA_MODIFIABLE is read-only after creation\n");
+            rc = CKR_ATTRIBUTE_READ_ONLY;
+            goto done;
+
+        case CKA_COPYABLE:
+            /* Once CKA_COPYABLE is set to FALSE it cannot be set back to TRUE */
+            if (!is_copyable &&
+                pTemplate[i].ulValueLen == sizeof(CK_BBOOL) &&
+                pTemplate[i].pValue != NULL &&
+                *(CK_BBOOL *)pTemplate[i].pValue == CK_TRUE) {
+                TRACE_ERROR("CKA_COPYABLE cannot be set back to TRUE\n");
+                rc = CKR_ATTRIBUTE_READ_ONLY;
+                goto done;
+            }
+            break;
+
+        case CKA_TRUSTED:
+            /* CKA_TRUSTED may only be set to TRUE by the SO */
+            if (pTemplate[i].ulValueLen == sizeof(CK_BBOOL) &&
+                pTemplate[i].pValue != NULL &&
+                *(CK_BBOOL *)pTemplate[i].pValue == CK_TRUE &&
+                !session_mgr_so_session_exists(tokdata)) {
+                TRACE_ERROR("CKA_TRUSTED can only be set to TRUE by SO\n");
+                rc = CKR_USER_NOT_LOGGED_IN;
+                goto done;
+            }
+            break;
+
+        default:
+            break;
+        }
     }
 
     /* Now call into icsf to set the attribute values */
@@ -4505,7 +4631,7 @@ CK_RV icsftok_find_objects_init(STDLL_TokData_t * tokdata, SESSION * sess,
      * If the session state is CKS_RW_SO_FUNCTIONS or a public session state,
      * enforce CKA_PRIVATE=FALSE in the search template:
      *   - If the caller's template already requests CKA_PRIVATE=TRUE, no
-     *     objects can be visible to this session â€” return an empty result.
+     *     objects can be visible to this session - return an empty result.
      *   - Otherwise append CKA_PRIVATE=FALSE to the template so that ICSF
      *     performs the filtering server-side.
      *
