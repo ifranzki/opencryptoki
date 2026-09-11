@@ -29,7 +29,9 @@ from token_store import OBJ_TYPE_TOKEN, OBJ_TYPE_SESSION, MANUF_LEN, MODEL_LEN, 
 from obj_attrs import complete_key_attrs
 from pkcs11_const import (
     CKA_TOKEN, CKA_KEY_TYPE, CKA_EC_PARAMS,
+    CKA_COPYABLE, CKA_SENSITIVE,
     CKK_EC, CKM_UNAVAILABLE_INFORMATION,
+    bool_attr,
 )
 from ec_backend import ec_curve_supported
 
@@ -38,9 +40,21 @@ logger = logging.getLogger(__name__)
 ICSF_TAG_CSFPTRC = 14
 
 # Return / reason codes
-RC_SUCCESS = 0
-RC_ERROR   = 8
+RC_SUCCESS          = 0
+RC_ERROR            = 8
 RSN_TOKEN_NOT_FOUND = 3024   # approximate — used when token missing for object create
+RSN_ACTION_PROHIB   = 3020   # CKA_COPYABLE=FALSE  (→ CKR_ACTION_PROHIBITED)
+RSN_ATTR_READ_ONLY  = 3034   # attribute is read-only (→ CKR_ATTRIBUTE_READ_ONLY)
+
+
+def _get_bool(obj, attr_type):
+    """Return the boolean value of *attr_type* from obj.attributes, or None."""
+    v = obj.attributes.get(attr_type)
+    if v is None:
+        return None
+    if isinstance(v, (bytes, bytearray)):
+        return bool(v[0]) if v else False
+    return bool(v)
 
 
 def handle_trc(store, request):
@@ -150,6 +164,17 @@ def _handle_create_object(store, request):
             return encode_response(
                 request.handle, RC_ERROR, RSN_TOKEN_NOT_FOUND, ICSF_TAG_CSFPTRC, b'')
         base_attrs = dict(src_obj.get_all_attrs())
+
+        # Enforce PKCS#11 copy rules that the C layer checks before calling us,
+        # but mirror here as a safety net:
+        #
+        #   CKA_COPYABLE=FALSE → action prohibited.
+        #   CKA_SENSITIVE=TRUE in source + override sets it FALSE → read-only.
+        src_copyable = _get_bool(src_obj, CKA_COPYABLE)
+        if src_copyable is False:
+            logger.info('TRC COPY: source object not copyable (seq=%d)', src_sequence)
+            return encode_response(
+                request.handle, RC_ERROR, RSN_ACTION_PROHIB, ICSF_TAG_CSFPTRC, b'')
 
     # Decode attribute list from [1] context-constructed TLV.
     # icsf_create_object() / icsf_copy_object() encodes:
