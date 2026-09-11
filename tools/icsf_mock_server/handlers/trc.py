@@ -119,9 +119,15 @@ def _handle_create_object(store, request):
     """
     TRC with OBJECT rule.  The service_data is:
         [1] Attributes  (context-constructed, contents = attribute list SEQUENCE)
-    Also handles COPY (OBJECT + COPY rules) — treated the same way.
+
+    When the COPY rule is also present the handle identifies the source object.
+    The service_data then contains only the *override* attributes (or an empty
+    constructed TLV when there are none).  The mock must:
+      1. Look up the source object from the handle's sequence number.
+      2. Clone all of its attributes.
+      3. Merge/override with the attributes from the request.
     """
-    token_name, _, _ = parse_handle(request.handle)
+    token_name, src_sequence, _ = parse_handle(request.handle)
     if not token_name:
         logger.error('TRC OBJECT: empty token name in handle')
         return encode_response(
@@ -132,24 +138,47 @@ def _handle_create_object(store, request):
         return encode_response(
             request.handle, RC_ERROR, RSN_TOKEN_NOT_FOUND, ICSF_TAG_CSFPTRC, b'')
 
+    is_copy = 'COPY' in request.rule_array
+
+    # For COPY, load the source object's full attribute set first.
+    base_attrs = {}
+    if is_copy:
+        src_obj = store.get_object(token_name, src_sequence)
+        if src_obj is None:
+            logger.error('TRC COPY: source object seq=%d not found in token %r',
+                         src_sequence, token_name)
+            return encode_response(
+                request.handle, RC_ERROR, RSN_TOKEN_NOT_FOUND, ICSF_TAG_CSFPTRC, b'')
+        base_attrs = dict(src_obj.get_all_attrs())
+
     # Decode attribute list from [1] context-constructed TLV.
-    # icsf_create_object() encodes:
+    # icsf_create_object() / icsf_copy_object() encodes:
     #   ber_printf(msg, "t{", 1|CONTEXT|CONSTRUCTED)  → tag 0xa1
     #   icsf_ber_put_attribute_list(...)               → flat item SEQUENCEs
     #   ber_printf(msg, "}")
+    # For copy with no overrides: ber_printf(msg, "tn", ...) → empty constructed TLV.
     # So service_data[0] tag must be 0xa1 and inner = raw item bytes.
-    attrs = []
+    override_attrs = []
     try:
         tag, inner, _ = _decode_tlv(request.service_data, 0)
         if (tag & 0xe0) != 0xa0:
             logger.warning('TRC OBJECT: unexpected outer tag 0x%02x '
                            '(expected context-constructed 0xa1)', tag)
-        # inner is the flat SEQUENCE-OF-SEQUENCE item bytes; wrap in
-        # a SEQUENCE so decode_attribute_list can parse it.
-        wrapped = encode_sequence(inner)
-        attrs = decode_attribute_list(wrapped)
+        if inner:
+            # inner is the flat SEQUENCE-OF-SEQUENCE item bytes; wrap in
+            # a SEQUENCE so decode_attribute_list can parse it.
+            wrapped = encode_sequence(inner)
+            override_attrs = decode_attribute_list(wrapped)
     except Exception as exc:
         logger.warning('TRC OBJECT: could not decode attribute list: %s', exc)
+
+    if is_copy:
+        # Apply overrides on top of the cloned base attributes.
+        for attr_type, value in override_attrs:
+            base_attrs[attr_type] = value
+        attrs = list(base_attrs.items())
+    else:
+        attrs = override_attrs
 
     # Determine object type: session vs token persistent
     # CKA_TOKEN = 0x00000001; value is a CK_BBOOL (1 byte)
@@ -162,11 +191,12 @@ def _handle_create_object(store, request):
                 obj_type = OBJ_TYPE_TOKEN
             break
 
-    # Complete the attribute set: fill in all PKCS#11-defined defaults.
-    # C_CreateObject paths supply key material directly (not generated),
-    # so CKA_LOCAL=False and CKA_KEY_GEN_MECHANISM=CK_UNAVAILABLE_INFORMATION.
-    attrs = complete_key_attrs(attrs,
-                               key_gen_mechanism=CKM_UNAVAILABLE_INFORMATION)
+    if not is_copy:
+        # Complete the attribute set: fill in all PKCS#11-defined defaults.
+        # C_CreateObject paths supply key material directly (not generated),
+        # so CKA_LOCAL=False and CKA_KEY_GEN_MECHANISM=CK_UNAVAILABLE_INFORMATION.
+        attrs = complete_key_attrs(attrs,
+                                   key_gen_mechanism=CKM_UNAVAILABLE_INFORMATION)
 
     # For EC keys: reject unsupported curve OIDs now so C_CreateObject returns
     # CKR_CURVE_NOT_SUPPORTED rather than letting a later sign/verify fail.

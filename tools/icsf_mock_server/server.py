@@ -693,8 +693,8 @@ class ICSFMockServer:
             for t in preload_tokens:
                 self.store.create_token(
                     t['name'],
-                    manufacturer=t.get('manufacturer', 'IBM'),
-                    model=t.get('model', 'ICSF-MOCK'),
+                    manufacturer=t.get('manufacturer', 'ICSF PKCS11 token browser'),
+                    model=t.get('model', 'HCR77D0'),
                     serial=t.get('serial', '00000001'),
                 )
                 logger.info('Pre-loaded token: %r', t['name'])
