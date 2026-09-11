@@ -37,14 +37,15 @@ not the request header handle (which identifies the key to be wrapped).
 
 import logging
 
-from cipher_backend import aes_encrypt, AES_BLOCK
+from cipher_backend import aes_encrypt, AES_BLOCK, DES_BLOCK
 from rsa_backend import rsa_public_encrypt
 from ber_codec import (
     encode_response, encode_octet_string, encode_integer,
     parse_handle, _decode_tlv, decode_integer, HANDLE_LEN,
     rsa_attrs_to_pkcs8, ec_attrs_to_pkcs8,
 )
-from pkcs11_const import CKA_VALUE, CKA_CLASS, CKO_PRIVATE_KEY, CKA_KEY_TYPE, CKK_EC
+from pkcs11_const import (CKA_VALUE, CKA_CLASS, CKO_PRIVATE_KEY, CKA_KEY_TYPE, CKK_EC,
+                           CKA_MODULUS)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,11 @@ def handle_wpk(store, request):
             algo = rule.upper()
             break
 
+    # Block size depends on the algorithm family: DES/DES2/DES3 use 8-byte
+    # blocks; AES uses 16.  We infer from the wrapping key length once we have
+    # it, but use algo as a first hint.
+    iv_block = AES_BLOCK if algo == 'AES' else DES_BLOCK
+
     # Look up the wrapping key by its handle
     wrap_token, wrap_seq, _ = parse_handle(wrapping_handle)
     if not wrap_token or wrap_seq == 0:
@@ -121,17 +127,33 @@ def handle_wpk(store, request):
 
     try:
         if is_rsa:
+            # RSA-PKCS1 can encrypt at most modulus_len - 11 bytes.  Check
+            # before calling OpenSSL so we return the right reason code.
+            modulus = wrap_obj.get_attr(CKA_MODULUS) or b''
+            mod_len = len(modulus) if isinstance(modulus, (bytes, bytearray)) else 0
+            max_plain = mod_len - 11
+            if max_plain <= 0 or len(target_key_value) > max_plain:
+                logger.warning('WPK: RSA plaintext %d bytes exceeds modulus capacity '
+                               '%d bytes (mod=%d)', len(target_key_value),
+                               max_plain, mod_len)
+                # Reason 11000 → CKR_DATA_LEN_RANGE in icsf_to_ock_err, which is
+                # what real ICSF returns when the plaintext is too long for the key.
+                return encode_response(request.handle, RC_ERROR, 11000,
+                                       ICSF_TAG_CSFPWPK, b'')
             wrapped = rsa_public_encrypt(wrap_obj.attributes,
                                          target_key_value, 'PKCS1')
         else:
             # Encrypt the target key value with the wrapping key using
-            # AES/DES CBC-PAD.
-            iv = (iv_bytes or b'').ljust(AES_BLOCK, b'\x00')[:AES_BLOCK]
+            # AES/DES/DES2/DES3 CBC-PAD.  Use the actual key length to pick
+            # the correct block size (16-byte DES2 key → DES_BLOCK = 8).
+            iv_block = AES_BLOCK if len(wrapping_key_value) in (16, 24, 32) \
+                and algo == 'AES' else DES_BLOCK
+            iv = (iv_bytes or b'').ljust(iv_block, b'\x00')[:iv_block]
             wrapped = aes_encrypt(wrapping_key_value, target_key_value,
                                   'CBC-PAD', iv, algo=algo, pad=True)
     except Exception as exc:
         logger.error('WPK: encryption failed: %s', exc)
-        return encode_response(request.handle, RC_ERROR, RC_ERROR, ICSF_TAG_CSFPWPK, b'')
+        return encode_response(request.handle, RC_ERROR, 11000, ICSF_TAG_CSFPWPK, b'')
 
     # Check size query (max_len == 0) or buffer too small
     if max_len == 0 or len(wrapped) > max_len:

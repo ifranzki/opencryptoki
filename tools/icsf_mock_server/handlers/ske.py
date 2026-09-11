@@ -99,14 +99,18 @@ def handle_ske(store, request):
         return encode_response(
             request.handle, RC_ERROR, 3002, ICSF_TAG_CSFPSKE, b'')
 
-    # Determine algorithm and cipher mode from rule array
+    # Determine algorithm and cipher mode from rule array.
+    # DES2 (16-byte key) uses the 'DES' rule in the ICSF protocol; the correct
+    # cipher (EVP_des_ede3_*) is chosen automatically in cipher_backend based
+    # on the actual key length.  Accept 'DES2' explicitly as well for any
+    # future caller that sends it.
     algo        = 'AES'
     cipher_mode = 'ECB'
     chain_mode  = 'ONLY'
     for rule in request.rule_array:
         upper = rule.upper()
-        if upper in ('AES', 'DES', 'DES3'):
-            algo = upper
+        if upper in ('AES', 'DES', 'DES2', 'DES3'):
+            algo = upper if upper != 'DES2' else 'DES'
         elif upper in ('ECB', 'CBC', 'CBC-PAD'):
             cipher_mode = upper
         elif upper in ('ONLY', 'INITIAL', 'CONTINUE', 'FINAL'):

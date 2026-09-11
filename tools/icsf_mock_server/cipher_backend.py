@@ -195,9 +195,11 @@ def _evp_cipher(algo, key_len, mode_str):
             fn_name = {128: 'EVP_aes_128_cbc',
                        192: 'EVP_aes_192_cbc',
                        256: 'EVP_aes_256_cbc'}[bits]
-    elif algo == 'DES3':
+    elif algo == 'DES3' or (algo == 'DES' and key_len != 8):
+        # 24-byte DES3 key, or a DES2 key that _evp_crypt already expanded to
+        # 24 bytes (key[:8]+key[8:16]+key[:8]) before calling here.
         fn_name = 'EVP_des_ede3_ecb' if mode_str == 'ECB' else 'EVP_des_ede3_cbc'
-    else:  # DES
+    else:  # single DES (8-byte key)
         fn_name = 'EVP_des_ecb' if mode_str == 'ECB' else 'EVP_des_cbc'
 
     fn = getattr(_libcrypto, fn_name, None)
@@ -274,6 +276,14 @@ def _evp_crypt(key: bytes, data: bytes, mode: str, iv: bytes,
                use_padding: bool = False) -> bytes:
     if algo is None:
         algo = _algo_for_key(key)
+
+    # DES2 uses a 16-byte key (EDE2: K1=K3).  EVP_des_ede3_* always expects
+    # exactly 24 bytes regardless of the variant; passing 16 bytes causes
+    # OpenSSL to read 8 undefined bytes for K3, producing different results
+    # in EVP_EncryptInit_ex vs EVP_DecryptInit_ex.  Expand explicitly so K3
+    # equals K1, which is the correct DES2 definition.
+    if algo != 'AES' and len(key) == 16:
+        key = key + key[:8]
 
     block = AES_BLOCK if algo == 'AES' else DES_BLOCK
 

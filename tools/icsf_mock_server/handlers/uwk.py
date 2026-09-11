@@ -37,7 +37,7 @@ For PKCS-8 / AES-CBC-PAD the mock:
 
 import logging
 
-from cipher_backend import aes_decrypt, AES_BLOCK
+from cipher_backend import aes_decrypt, AES_BLOCK, DES_BLOCK
 from rsa_backend import rsa_private_decrypt
 from ber_codec import (
     encode_response, make_object_handle,
@@ -104,7 +104,11 @@ def handle_uwk(store, request):
             plain_key = rsa_private_decrypt(unwrap_obj.attributes,
                                             wrapped_key, 'PKCS1')
         else:
-            iv = (iv_bytes or b'').ljust(AES_BLOCK, b'\x00')[:AES_BLOCK]
+            # Use the actual unwrapping key length to pick the correct block
+            # size: DES/DES2/DES3 keys (8 or 16 bytes) use DES_BLOCK = 8.
+            iv_block = AES_BLOCK if len(unwrapping_key_value) in (16, 24, 32) \
+                and algo == 'AES' else DES_BLOCK
+            iv = (iv_bytes or b'').ljust(iv_block, b'\x00')[:iv_block]
             plain_key = aes_decrypt(unwrapping_key_value, wrapped_key,
                                     'CBC-PAD', iv, algo=algo, pad=True)
     except Exception as exc:
