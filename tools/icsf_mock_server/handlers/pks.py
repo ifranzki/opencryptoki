@@ -23,9 +23,13 @@ from ber_codec import (
     encode_response, encode_octet_string, encode_integer,
     parse_handle, _decode_tlv, decode_integer,
 )
-from pkcs11_const import CKA_MODULUS, CKA_KEY_TYPE, CKA_EC_PARAMS, CKK_EC
+from pkcs11_const import (
+    CKA_MODULUS, CKA_KEY_TYPE, CKA_SUBPRIME,
+    CKA_EC_PARAMS, CKK_EC, CKK_DSA,
+)
 from rsa_backend import rsa_private_decrypt, rsa_private_sign
 from ec_backend import ec_sign, ec_max_sig_len, CurveNotSupportedError
+from dsa_backend import dsa_sign, dsa_max_sig_len
 
 logger = logging.getLogger(__name__)
 
@@ -71,17 +75,25 @@ def handle_pks(store, request):
     else:
         key_type = key_type_raw or 0
 
-    # Size query for EC sign: return 2*n without performing a real sign.
-    # ECDSA raw R||S length is fixed at exactly 2*n — no DER variability.
-    if req_len == 0 and key_type == CKK_EC and not is_decrypt:
-        ec_params = obj.get_attr(CKA_EC_PARAMS) or b''
-        sig_len = ec_max_sig_len(ec_params)
-        svc_data = encode_octet_string(b'') + encode_integer(sig_len)
-        return encode_response(request.handle, RC_ERROR, RSN_TOO_SHORT,
-                               ICSF_TAG_CSFPPKS, svc_data)
+    # Size query for EC/DSA sign: return 2*n without performing a real sign.
+    if req_len == 0 and not is_decrypt:
+        if key_type == CKK_EC:
+            ec_params = obj.get_attr(CKA_EC_PARAMS) or b''
+            sig_len = ec_max_sig_len(ec_params)
+            svc_data = encode_octet_string(b'') + encode_integer(sig_len)
+            return encode_response(request.handle, RC_ERROR, RSN_TOO_SHORT,
+                                   ICSF_TAG_CSFPPKS, svc_data)
+        if key_type == CKK_DSA:
+            subprime = obj.get_attr(CKA_SUBPRIME) or b'\x00' * 20
+            sig_len = dsa_max_sig_len(subprime)
+            svc_data = encode_octet_string(b'') + encode_integer(sig_len)
+            return encode_response(request.handle, RC_ERROR, RSN_TOO_SHORT,
+                                   ICSF_TAG_CSFPPKS, svc_data)
 
     try:
-        if key_type == CKK_EC:
+        if key_type == CKK_DSA:
+            output = dsa_sign(obj.attributes, input_data)
+        elif key_type == CKK_EC:
             output = ec_sign(obj.attributes, input_data, mech_rule)
         elif is_decrypt:
             padding = 'PKCS1' if 'PKCS' in mech_rule else 'NONE'
@@ -95,6 +107,8 @@ def handle_pks(store, request):
         logger.error('PKS: operation failed: %s', exc)
         return encode_response(request.handle, RC_ERROR, RC_ERROR, ICSF_TAG_CSFPPKS, b'')
 
+    # For DSA/EC the output length was returned in the size-query branch above.
+    # For RSA, derive expected size from the modulus.
     mod_len = len(obj.get_attr(CKA_MODULUS) or b'') or 256
 
     # Size query for RSA/decrypt: req_len == 0 means caller wants output length only

@@ -28,9 +28,10 @@ from ber_codec import (
     encode_response, encode_octet_string, encode_integer,
     parse_handle, _decode_tlv, decode_integer,
 )
-from pkcs11_const import CKA_MODULUS, CKA_KEY_TYPE, CKK_EC
+from pkcs11_const import CKA_MODULUS, CKA_KEY_TYPE, CKK_EC, CKK_DSA
 from rsa_backend import rsa_public_encrypt, rsa_public_verify
 from ec_backend import ec_verify, CurveNotSupportedError
+from dsa_backend import dsa_verify
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,10 @@ def handle_pkv(store, request):
     else:
         # Verify
         try:
-            if key_type == CKK_EC:
+            if key_type == CKK_DSA:
+                valid = dsa_verify(obj.attributes, input_data,
+                                   signature or b'')
+            elif key_type == CKK_EC:
                 valid = ec_verify(obj.attributes, input_data,
                                   signature or b'', mech_rule)
             else:

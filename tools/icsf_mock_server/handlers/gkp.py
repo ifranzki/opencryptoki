@@ -37,10 +37,11 @@ from pkcs11_const import (
     CKA_MODULUS, CKA_MODULUS_BITS, CKA_PUBLIC_EXPONENT,
     CKA_PRIVATE_EXPONENT, CKA_PRIME_1, CKA_PRIME_2,
     CKA_EXPONENT_1, CKA_EXPONENT_2, CKA_COEFFICIENT,
-    CKA_PRIME, CKA_BASE,
+    CKA_PRIME, CKA_SUBPRIME, CKA_BASE,
     CKO_PUBLIC_KEY, CKO_PRIVATE_KEY,
-    CKK_RSA, CKK_DH, CKK_EC,
-    CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_DH_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN,
+    CKK_RSA, CKK_DSA, CKK_DH, CKK_EC,
+    CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_DSA_KEY_PAIR_GEN,
+    CKM_DH_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN,
     CKA_EC_PARAMS, CKA_EC_POINT, CKA_VALUE,
 )
 import secrets
@@ -48,10 +49,12 @@ from obj_attrs import (
     make_rsa_keypair_attrs,
     make_ec_keypair_attrs,
     make_dh_keypair_attrs,
+    make_dsa_keypair_attrs,
 )
 from rsa_backend import rsa_generate
 from ec_backend import ec_generate, CurveNotSupportedError
 from dh_backend import dh_generate
+from dsa_backend import dsa_generate
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +126,8 @@ def handle_gkp(store, request):
             # rc=8 / reason=874 → CKR_CURVE_NOT_SUPPORTED in icsf_to_ock_err.
             return encode_response(
                 request.handle, RC_ERROR, 874, ICSF_TAG_CSFPGKP, b'')
+    elif key_type == CKK_DSA:
+        pub_final, priv_final = _build_dsa_attrs(pub_attrs, priv_attrs, pub_dict)
     elif key_type == CKK_DH:
         pub_final, priv_final = _build_dh_attrs(pub_attrs, priv_attrs, pub_dict)
     else:
@@ -213,6 +218,100 @@ def _build_ec_attrs(pub_attrs, priv_attrs, pub_dict):
         ec_params=key[CKA_EC_PARAMS],
         ec_point=key[CKA_EC_POINT],
         key_gen_mechanism=CKM_EC_KEY_PAIR_GEN,
+    )
+
+
+# ---------------------------------------------------------------------------
+# DSA key pair builders
+# ---------------------------------------------------------------------------
+
+# Default 1024-bit DSA domain parameters matching the values in dsa_func.c
+# (DSA_PUBL_PRIME / DSA_PUBL_SUBPRIME / DSA_PUBL_BASE).  Used as fallback when
+# the caller did not supply domain parameters.
+_DSA_DEFAULT_PRIME = bytes([
+    0xba, 0xa2, 0x5b, 0xd9, 0x77, 0xb3, 0xf0, 0x2d, 0xa1, 0x65,
+    0xf1, 0x83, 0xa7, 0xc9, 0xf0, 0x8a, 0x51, 0x3f, 0x74, 0xe8,
+    0xeb, 0x1f, 0xd7, 0x0a, 0xd5, 0x41, 0xfa, 0x52, 0x3c, 0x1f,
+    0x79, 0x15, 0x55, 0x18, 0x45, 0x41, 0x29, 0x27, 0x12, 0x4a,
+    0xb4, 0x32, 0xa6, 0xd2, 0xec, 0xe2, 0x82, 0x73, 0xf4, 0x30,
+    0x66, 0x1a, 0x31, 0x06, 0x37, 0xd2, 0xb0, 0xe4, 0x26, 0x39,
+    0x2a, 0x0e, 0x48, 0xf6, 0x77, 0x94, 0x47, 0xea, 0x7d, 0x99,
+    0x22, 0xce, 0x65, 0x61, 0x82, 0xd5, 0xe3, 0xfc, 0x15, 0x3f,
+    0xff, 0xff, 0xc8, 0xb9, 0x4f, 0x37, 0xbf, 0x7a, 0xa6, 0x6a,
+    0xbe, 0xff, 0xa9, 0xdf, 0xfd, 0xed, 0x4a, 0xb6, 0x83, 0xd6,
+    0x0f, 0xea, 0xf6, 0x90, 0x4f, 0x12, 0x8e, 0x09, 0x6e, 0x3c,
+    0x0a, 0x6d, 0x2e, 0xfb, 0xb3, 0x79, 0x90, 0x8e, 0x39, 0xc0,
+    0x86, 0x0e, 0x5d, 0xf0, 0x56, 0xcd, 0x26, 0x45,
+])
+_DSA_DEFAULT_SUBPRIME = bytes([
+    0x9f, 0x3d, 0x47, 0x13, 0xa3, 0xff, 0x93, 0xbb, 0x4a, 0xa6,
+    0xb0, 0xf1, 0x7e, 0x54, 0x1e, 0xba, 0xf0, 0x66, 0x03, 0x61,
+])
+_DSA_DEFAULT_BASE = bytes([
+    0x1a, 0x5b, 0xfe, 0x12, 0xba, 0x85, 0x8e, 0x9b, 0x08, 0x86,
+    0xd1, 0x43, 0x9b, 0x4a, 0xaf, 0x44, 0x31, 0xdf, 0xa1, 0x57,
+    0xd8, 0xe0, 0xec, 0x34, 0x07, 0x4b, 0x78, 0x8e, 0x3c, 0x62,
+    0x47, 0x4c, 0x2f, 0x5d, 0xd3, 0x31, 0x2c, 0xe9, 0xdd, 0x59,
+    0xc5, 0xe7, 0x2e, 0x06, 0x40, 0x6c, 0x72, 0x9c, 0x95, 0xc6,
+    0xa4, 0x2a, 0x1c, 0x1c, 0x45, 0xb9, 0xf3, 0xdc, 0x83, 0xb6,
+    0xc6, 0xdd, 0x94, 0x45, 0x4f, 0x74, 0xc6, 0x55, 0x36, 0x54,
+    0xba, 0x20, 0xad, 0x9a, 0xb6, 0xe3, 0x20, 0xf2, 0xdd, 0xd3,
+    0x66, 0x19, 0xeb, 0x53, 0xf5, 0x88, 0x35, 0xe1, 0xea, 0xe8,
+    0xd4, 0x57, 0xe1, 0x3d, 0xea, 0xd5, 0x00, 0xc2, 0xa4, 0xf5,
+    0xff, 0xfb, 0x0b, 0xfb, 0xa2, 0xb9, 0xf1, 0x49, 0x46, 0x9d,
+    0x11, 0xa5, 0xb1, 0x94, 0x52, 0x47, 0x6e, 0x2e, 0x79, 0x4b,
+    0xc5, 0x18, 0xe9, 0xbc, 0xff, 0xae, 0x34, 0x7f,
+])
+
+
+def _build_dsa_attrs(pub_attrs, priv_attrs, pub_dict):
+    """Generate a DSA key pair from domain parameters (p, q, g) and build attribute lists."""
+    prime_bytes    = pub_dict.get(CKA_PRIME,    b'')
+    subprime_bytes = pub_dict.get(CKA_SUBPRIME, b'')
+    base_bytes     = pub_dict.get(CKA_BASE,     b'')
+
+    # Validate / normalise attribute byte values
+    if isinstance(prime_bytes,    int):
+        prime_bytes    = prime_bytes.to_bytes((prime_bytes.bit_length()    + 7) // 8, 'big')
+    if isinstance(subprime_bytes, int):
+        subprime_bytes = subprime_bytes.to_bytes((subprime_bytes.bit_length() + 7) // 8, 'big')
+    if isinstance(base_bytes,     int):
+        base_bytes     = base_bytes.to_bytes((base_bytes.bit_length()     + 7) // 8, 'big')
+
+    if not prime_bytes:
+        prime_bytes    = _DSA_DEFAULT_PRIME
+        subprime_bytes = _DSA_DEFAULT_SUBPRIME
+        base_bytes     = _DSA_DEFAULT_BASE
+    elif not subprime_bytes:
+        # Minimal fallback: 160-bit subprime relative to the supplied prime
+        subprime_bytes = _DSA_DEFAULT_SUBPRIME
+    if not base_bytes:
+        base_bytes = _DSA_DEFAULT_BASE
+
+    try:
+        key = dsa_generate(prime_bytes, subprime_bytes, base_bytes)
+        pub_value  = key['pub_value']
+        priv_value = key['priv_value']
+    except Exception as exc:
+        # Pure-Python fallback: x random in [2, q-2], y = g^x mod p
+        logger.warning('GKP: OpenSSL dsa_generate failed (%s), falling back to python pow', exc)
+        p_int = int.from_bytes(prime_bytes, 'big')
+        q_int = int.from_bytes(subprime_bytes, 'big')
+        g_int = int.from_bytes(base_bytes, 'big')
+        x_int = secrets.randbelow(q_int - 3) + 2
+        y_int = pow(g_int, x_int, p_int)
+        priv_value = x_int.to_bytes(len(subprime_bytes), 'big')
+        pub_value  = y_int.to_bytes(len(prime_bytes), 'big')
+
+    return make_dsa_keypair_attrs(
+        pub_caller_attrs=pub_attrs,
+        priv_caller_attrs=priv_attrs,
+        prime=prime_bytes,
+        subprime=subprime_bytes,
+        base=base_bytes,
+        pub_value=pub_value,
+        priv_value=priv_value,
+        key_gen_mechanism=CKM_DSA_KEY_PAIR_GEN,
     )
 
 
