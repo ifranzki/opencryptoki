@@ -25,12 +25,13 @@ PKCS#11 v2.40 attribute groups
 
   Common public-key attributes  (Table 19)
       + CKA_SUBJECT, CKA_ENCRYPT, CKA_VERIFY, CKA_VERIFY_RECOVER,
-        CKA_WRAP, CKA_TRUSTED, CKA_WRAP_TEMPLATE
+        CKA_WRAP, CKA_TRUSTED, CKA_WRAP_TEMPLATE, CKA_PUBLIC_KEY_INFO
 
   Common private-key attributes  (Table 20)
       + CKA_SUBJECT, CKA_SENSITIVE, CKA_DECRYPT, CKA_SIGN, CKA_SIGN_RECOVER,
         CKA_UNWRAP, CKA_EXTRACTABLE, CKA_ALWAYS_SENSITIVE, CKA_NEVER_EXTRACTABLE,
-        CKA_WRAP_WITH_TRUSTED, CKA_UNWRAP_TEMPLATE, CKA_ALWAYS_AUTHENTICATE
+        CKA_WRAP_WITH_TRUSTED, CKA_UNWRAP_TEMPLATE, CKA_ALWAYS_AUTHENTICATE,
+        CKA_PUBLIC_KEY_INFO
 
   X.509 certificate attributes  (Table 23)
       CKA_CERTIFICATE_TYPE, CKA_TRUSTED, CKA_CERTIFICATE_CATEGORY,
@@ -79,6 +80,8 @@ from pkcs11_const import (
     CKA_CHECK_VALUE, CKA_URL,
     CKA_HASH_OF_SUBJECT_PUBLIC_KEY, CKA_HASH_OF_ISSUER_PUBLIC_KEY,
     CKA_NAME_HASH_ALGORITHM,
+    # CKA_PUBLIC_KEY_INFO (PKCS#11 v2.40 §4.8 / §4.9)
+    CKA_PUBLIC_KEY_INFO,
     # Classes
     CKO_SECRET_KEY, CKO_PUBLIC_KEY, CKO_PRIVATE_KEY, CKO_CERTIFICATE,
     # Certificate types
@@ -95,6 +98,7 @@ from pkcs11_const import (
     # Booleans
     bool_attr,
 )
+from spki_backend import spki_from_attrs, spki_from_dsa, spki_from_dh
 
 logger = logging.getLogger(__name__)
 
@@ -280,6 +284,13 @@ def _complete_public_key(d):
     elif key_type == CKK_EC:
         _complete_ec_public_key(d)
 
+    # CKA_PUBLIC_KEY_INFO: DER SubjectPublicKeyInfo (PKCS#11 v2.40 §4.9).
+    # Derive from the key material already in d if not supplied by the caller.
+    if CKA_PUBLIC_KEY_INFO not in d:
+        spki = spki_from_attrs(d)
+        if spki:
+            d[CKA_PUBLIC_KEY_INFO] = spki
+
 
 def _complete_rsa_public_key(d):
     """Derive CKA_MODULUS_BITS from CKA_MODULUS if absent."""
@@ -346,6 +357,15 @@ def _complete_private_key(d):
         _complete_dh_private_key(d)
     elif key_type == CKK_EC:
         _complete_ec_private_key(d)
+
+    # CKA_PUBLIC_KEY_INFO: DER SubjectPublicKeyInfo (PKCS#11 v2.40 §4.8).
+    # Derive from the public key material already in d if not supplied by caller.
+    # For RSA and EC the public material is present on private key objects; for
+    # DSA/DH a pub_value must have been injected by the key-pair builder first.
+    if CKA_PUBLIC_KEY_INFO not in d:
+        spki = spki_from_attrs(d)
+        if spki:
+            d[CKA_PUBLIC_KEY_INFO] = spki
 
 
 def _complete_rsa_private_key(d):
@@ -518,6 +538,17 @@ def make_dh_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
 
     Returns (pub_attrs, priv_attrs).
     """
+    # Pre-compute the SPKI once from the known public value so both the public
+    # key object and the private key object receive CKA_PUBLIC_KEY_INFO.  DH
+    # private key objects hold only the private exponent in CKA_VALUE, so
+    # spki_from_attrs() cannot derive it automatically from the private key.
+    dh_spki = None
+    if prime and base and pub_value:
+        try:
+            dh_spki = spki_from_dh(prime, base, pub_value)
+        except Exception as exc:
+            logger.warning('make_dh_keypair_attrs: failed to build SPKI: %s', exc)
+
     # --- Public key ---
     pub_base = list(pub_caller_attrs)
     pub_dict = {t: v for t, v in pub_base}
@@ -531,6 +562,10 @@ def make_dh_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
         pub_base = pub_base + [(CKA_BASE, base)]
     if CKA_VALUE not in pub_dict and pub_value:
         pub_base = pub_base + [(CKA_VALUE, pub_value)]
+    # Inject pre-computed SPKI so complete_key_attrs does not need to re-derive
+    pub_dict2 = {t: v for t, v in pub_base}
+    if CKA_PUBLIC_KEY_INFO not in pub_dict2 and dh_spki:
+        pub_base = pub_base + [(CKA_PUBLIC_KEY_INFO, dh_spki)]
 
     pub_attrs = complete_key_attrs(pub_base, key_gen_mechanism=key_gen_mechanism)
 
@@ -550,6 +585,11 @@ def make_dh_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
     priv_dict2 = {t: v for t, v in priv_base}
     if CKA_DERIVE not in priv_dict2:
         priv_base = priv_base + [(CKA_DERIVE, bool_attr(True))]
+    # Inject pre-computed SPKI: private key CKA_VALUE is the private exponent,
+    # not the public value, so spki_from_attrs cannot derive it automatically.
+    priv_dict3 = {t: v for t, v in priv_base}
+    if CKA_PUBLIC_KEY_INFO not in priv_dict3 and dh_spki:
+        priv_base = priv_base + [(CKA_PUBLIC_KEY_INFO, dh_spki)]
 
     priv_attrs = complete_key_attrs(priv_base, key_gen_mechanism=key_gen_mechanism)
 
@@ -564,6 +604,17 @@ def make_dsa_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
 
     Returns (pub_attrs, priv_attrs).
     """
+    # Pre-compute the SPKI once from the known public value so both the public
+    # key object and the private key object receive CKA_PUBLIC_KEY_INFO.  DSA
+    # private key objects hold only the private scalar x in CKA_VALUE (which
+    # is subprime-sized), so spki_from_attrs() cannot derive it automatically.
+    dsa_spki = None
+    if prime and subprime and base and pub_value:
+        try:
+            dsa_spki = spki_from_dsa(prime, subprime, base, pub_value)
+        except Exception as exc:
+            logger.warning('make_dsa_keypair_attrs: failed to build SPKI: %s', exc)
+
     # --- Public key ---
     pub_base = list(pub_caller_attrs)
     pub_dict = {t: v for t, v in pub_base}
@@ -582,6 +633,9 @@ def make_dsa_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
     pub_dict2 = {t: v for t, v in pub_base}
     if CKA_VERIFY not in pub_dict2:
         pub_base = pub_base + [(CKA_VERIFY, bool_attr(True))]
+    # Inject pre-computed SPKI so complete_key_attrs does not need to re-derive
+    if CKA_PUBLIC_KEY_INFO not in pub_dict2 and dsa_spki:
+        pub_base = pub_base + [(CKA_PUBLIC_KEY_INFO, dsa_spki)]
 
     pub_attrs = complete_key_attrs(pub_base, key_gen_mechanism=key_gen_mechanism)
 
@@ -603,6 +657,11 @@ def make_dsa_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
     priv_dict2 = {t: v for t, v in priv_base}
     if CKA_SIGN not in priv_dict2:
         priv_base = priv_base + [(CKA_SIGN, bool_attr(True))]
+    # Inject pre-computed SPKI: private key CKA_VALUE is the private scalar x,
+    # not the public key y, so spki_from_attrs cannot derive it automatically.
+    priv_dict3 = {t: v for t, v in priv_base}
+    if CKA_PUBLIC_KEY_INFO not in priv_dict3 and dsa_spki:
+        priv_base = priv_base + [(CKA_PUBLIC_KEY_INFO, dsa_spki)]
 
     priv_attrs = complete_key_attrs(priv_base, key_gen_mechanism=key_gen_mechanism)
 
