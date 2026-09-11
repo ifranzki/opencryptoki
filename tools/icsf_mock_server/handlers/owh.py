@@ -49,9 +49,10 @@ from ber_codec import (
     encode_response, encode_octet_string, encode_integer,
     parse_handle, _decode_tlv,
 )
-from pkcs11_const import CKA_KEY_TYPE, CKA_EC_PARAMS, CKK_EC, CKK_DSA
+from pkcs11_const import CKA_KEY_TYPE, CKA_EC_PARAMS, CKA_SUBPRIME, CKK_EC, CKK_DSA
 from rsa_backend import rsa_private_sign, rsa_public_verify
 from ec_backend import ec_max_sig_len, _field_size, _der_sig_to_raw, _raw_sig_to_der
+from dsa_backend import dsa_max_sig_len, dsa_sign, dsa_verify
 
 logger = logging.getLogger(__name__)
 
@@ -331,10 +332,19 @@ def handle_owh(store, request, owh_state=None):
 
 def _do_sign(handle, attrs, data, mech_rule, hash_name, op, key_type,
              token_name, sequence, size_query=False):
-    # Size query for EC: return 2*n without performing a real sign.
+    # Size query for EC/DSA: return the fixed raw signature size without
+    # performing a real sign.
     if size_query and key_type == CKK_EC:
         ec_params = attrs.get(CKA_EC_PARAMS, b'') if isinstance(attrs, dict) else b''
         sig_len = ec_max_sig_len(ec_params)
+        svc_data = (encode_octet_string(b'') +
+                    encode_octet_string(b'') +
+                    encode_integer(sig_len))
+        return encode_response(handle, RC_ERROR, RSN_TOO_SHORT,
+                               ICSF_TAG_CSFPOWH, svc_data)
+    if size_query and key_type == CKK_DSA:
+        sig_len = dsa_max_sig_len(attrs.get(CKA_SUBPRIME, b'')
+                                  if isinstance(attrs, dict) else b'')
         svc_data = (encode_octet_string(b'') +
                     encode_octet_string(b'') +
                     encode_integer(sig_len))
@@ -344,8 +354,9 @@ def _do_sign(handle, attrs, data, mech_rule, hash_name, op, key_type,
     try:
         if key_type == CKK_EC:
             sig = _ec_sign(attrs, data, hash_name)
+        elif key_type == CKK_DSA:
+            sig = dsa_sign(attrs, data)
         else:
-            # RSA (also DSA falls back to RSA error if not supported)
             sig = rsa_private_sign(attrs, data, mech_rule)
     except Exception as exc:
         logger.error('OWH sign failed (op=%r): %s', op, exc, exc_info=True)
@@ -376,6 +387,8 @@ def _do_verify(handle, attrs, data, signature, mech_rule, hash_name, op,
         if key_type == CKK_EC:
             # Build public key attrs from object for verify
             valid = _ec_verify(attrs, data, signature, hash_name)
+        elif key_type == CKK_DSA:
+            valid = dsa_verify(attrs, data, signature)
         else:
             valid = rsa_public_verify(attrs, data, signature, mech_rule)
     except Exception as exc:
