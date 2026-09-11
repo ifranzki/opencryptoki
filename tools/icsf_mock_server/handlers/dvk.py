@@ -69,13 +69,16 @@ from ber_codec import (
 from token_store import OBJ_TYPE_TOKEN
 from pkcs11_const import (
     CKA_VALUE, CKA_KEY_TYPE, CKA_VALUE_LEN, CKA_TOKEN, CKA_EC_PARAMS,
+    CKA_PRIME, CKA_BASE,
     CKK_AES, CKK_DES, CKK_DES2, CKK_DES3, CKK_GENERIC_SECRET,
     CKM_AES_KEY_GEN, CKM_DES_KEY_GEN, CKM_DES2_KEY_GEN, CKM_DES3_KEY_GEN,
     CKM_GENERIC_SECRET_KEY_GEN,
+    CKM_DH_PKCS_DERIVE,
     CKM_SSL3_MASTER_KEY_DERIVE,
 )
 from obj_attrs import make_secret_key_attrs
 from ec_backend import ec_ecdh_derive, decode_ec_public_value
+from dh_backend import dh_derive
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +329,94 @@ def handle_dvk(store, request):
                     'key_type=0x%x len=%d kdf=0x%02x shared_data=%d',
                     token_name, sequence, obj.sequence,
                     key_type, value_len, kdf_code, len(shared_data))
+
+        return encode_response(new_handle, RC_SUCCESS, 0, ICSF_TAG_CSFPDVK, b'')
+
+    # -----------------------------------------------------------------------
+    # PKCS-DH Derivation
+    # -----------------------------------------------------------------------
+    if 'PKCS-DH' in rules:
+        derived_attrs = []
+        peer_public_value = b''
+
+        try:
+            pos = 0
+            # Attribute list SEQUENCE
+            tag, attr_seq_val, pos = _decode_tlv(request.service_data, pos)
+            derived_attrs = decode_attribute_list(encode_sequence(attr_seq_val))
+
+            # PKCS-DH parms: context-primitive [0] OCTET STRING (tag = 0x80)
+            if pos < len(request.service_data):
+                tag, peer_public_value, pos = _decode_tlv(request.service_data, pos)
+        except Exception as exc:
+            logger.warning('DVK: failed to decode DVKInput for PKCS-DH: %s', exc)
+            return encode_response(
+                request.handle, RC_ERROR, 3002, ICSF_TAG_CSFPDVK, b'')
+
+        if not peer_public_value:
+            logger.error('DVK: missing PKCS-DH public value in request')
+            return encode_response(
+                request.handle, RC_ERROR, 3002, ICSF_TAG_CSFPDVK, b'')
+
+        prime_bytes = base_attrs.get(CKA_PRIME, b'')
+        priv_bytes  = base_attrs.get(CKA_VALUE, b'')
+        if not prime_bytes or not priv_bytes:
+            logger.error('DVK: PKCS-DH base key missing CKA_PRIME or CKA_VALUE')
+            return encode_response(
+                request.handle, RC_ERROR, 3002, ICSF_TAG_CSFPDVK, b'')
+
+        try:
+            z_bytes = dh_derive(base_attrs, peer_public_value)
+        except Exception as exc:
+            logger.warning('DVK: OpenSSL dh_derive failed (%s), falling back to python pow', exc)
+            prime_int = int.from_bytes(prime_bytes, 'big')
+            priv_int  = int.from_bytes(priv_bytes, 'big')
+            peer_pub_int = int.from_bytes(peer_public_value, 'big')
+            z_int = pow(peer_pub_int, priv_int, prime_int)
+            z_bytes = z_int.to_bytes(len(prime_bytes), 'big')
+
+        derived_dict = {t: v for t, v in derived_attrs}
+        key_type = derived_dict.get(CKA_KEY_TYPE)
+        if isinstance(key_type, bytes):
+            key_type = int.from_bytes(key_type, 'big')
+        if key_type is None:
+            key_type = CKK_GENERIC_SECRET
+
+        value_len = derived_dict.get(CKA_VALUE_LEN)
+        if isinstance(value_len, bytes):
+            value_len = int.from_bytes(value_len, 'big')
+        if not value_len:
+            value_len = _DEFAULT_KEY_LEN.get(key_type, len(z_bytes))
+
+        # Truncate or zero-pad if necessary
+        if len(z_bytes) >= value_len:
+            key_bytes = z_bytes[:value_len]
+        else:
+            key_bytes = z_bytes + b'\x00' * (value_len - len(z_bytes))
+
+        cka_token = derived_dict.get(CKA_TOKEN, b'\x00')
+        is_token = bool(cka_token[0] if isinstance(cka_token, bytes) else cka_token)
+        obj_type = OBJ_TYPE_TOKEN if is_token else 'S'
+
+        gen_mech = _GEN_MECH.get(key_type, CKM_DH_PKCS_DERIVE)
+        caller_attrs = [(t, v) for t, v in derived_attrs if t != CKA_VALUE_LEN]
+
+        final_attrs = make_secret_key_attrs(
+            key_type=key_type,
+            key_value=key_bytes,
+            caller_attrs=caller_attrs,
+            key_gen_mechanism=gen_mech,
+        )
+
+        obj = store.create_object(token_name, obj_type, final_attrs)
+        if obj is None:
+            logger.error('DVK: failed to create derived key in token %r', token_name)
+            return encode_response(
+                request.handle, RC_ERROR, RSN_TOKEN_NOT_FOUND, ICSF_TAG_CSFPDVK, b'')
+
+        new_handle = make_object_handle(token_name, obj.sequence, obj_type)
+        logger.info('DVK: PKCS-DH token=%r base_seq=%d derived_seq=%d key_type=0x%x len=%d',
+                    token_name, sequence, obj.sequence, key_type, len(key_bytes))
 
         return encode_response(new_handle, RC_SUCCESS, 0, ICSF_TAG_CSFPDVK, b'')
 

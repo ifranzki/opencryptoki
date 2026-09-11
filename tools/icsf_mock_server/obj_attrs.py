@@ -71,6 +71,8 @@ from pkcs11_const import (
     CKA_MODULUS, CKA_MODULUS_BITS, CKA_PUBLIC_EXPONENT,
     # EC
     CKA_EC_PARAMS, CKA_EC_POINT,
+    # DH / DSA domain parameters & key values
+    CKA_PRIME, CKA_SUBPRIME, CKA_BASE, CKA_PRIME_BITS, CKA_SUBPRIME_BITS,
     # Subject / issuer
     CKA_SUBJECT, CKA_ISSUER, CKA_SERIAL_NUMBER,
     CKA_CERTIFICATE_TYPE, CKA_CERTIFICATE_CATEGORY,
@@ -86,7 +88,7 @@ from pkcs11_const import (
     CKK_RSA, CKK_DSA, CKK_DH, CKK_EC,
     # Mechanisms
     CKM_UNAVAILABLE_INFORMATION, CKM_SHA256,
-    CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN,
+    CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_DH_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN,
     CKM_DES_KEY_GEN, CKM_DES2_KEY_GEN, CKM_DES3_KEY_GEN,
     CKM_AES_KEY_GEN, CKM_GENERIC_SECRET_KEY_GEN,
     # Booleans
@@ -108,6 +110,7 @@ _FIXED_KEY_LEN = {
 # not explicitly supplied to complete_key_attrs)
 _DEFAULT_GEN_MECH = {
     CKK_RSA: CKM_RSA_PKCS_KEY_PAIR_GEN,
+    CKK_DH:  CKM_DH_PKCS_KEY_PAIR_GEN,
     CKK_EC:  CKM_EC_KEY_PAIR_GEN,
     CKK_DES: CKM_DES_KEY_GEN,
     CKK_DES2: CKM_DES2_KEY_GEN,
@@ -268,6 +271,8 @@ def _complete_public_key(d):
     key_type = _get_int(d, CKA_KEY_TYPE)
     if key_type == CKK_RSA:
         _complete_rsa_public_key(d)
+    elif key_type == CKK_DH:
+        _complete_dh_public_key(d)
     elif key_type == CKK_EC:
         _complete_ec_public_key(d)
 
@@ -279,6 +284,13 @@ def _complete_rsa_public_key(d):
         mbits = len(mod) * 8 if isinstance(mod, (bytes, bytearray)) else 0
         if mbits > 0:
             d[CKA_MODULUS_BITS] = mbits
+
+
+def _complete_dh_public_key(d):
+    """DH public key: CKA_PRIME and CKA_BASE must be present."""
+    _default(d, CKA_PRIME, b'')
+    _default(d, CKA_BASE,  b'')
+    _default(d, CKA_VALUE, b'')
 
 
 def _complete_ec_public_key(d):
@@ -316,6 +328,8 @@ def _complete_private_key(d):
     key_type = _get_int(d, CKA_KEY_TYPE)
     if key_type == CKK_RSA:
         _complete_rsa_private_key(d)
+    elif key_type == CKK_DH:
+        _complete_dh_private_key(d)
     elif key_type == CKK_EC:
         _complete_ec_private_key(d)
 
@@ -327,6 +341,13 @@ def _complete_rsa_private_key(d):
         mbits = len(mod) * 8 if isinstance(mod, (bytes, bytearray)) else 0
         if mbits > 0:
             d[CKA_MODULUS_BITS] = mbits
+
+
+def _complete_dh_private_key(d):
+    """DH private key: CKA_PRIME and CKA_BASE must be present."""
+    _default(d, CKA_PRIME, b'')
+    _default(d, CKA_BASE,  b'')
+    _default(d, CKA_VALUE, b'')
 
 
 def _complete_ec_private_key(d):
@@ -459,6 +480,52 @@ def make_ec_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
     priv_dict2 = {t: v for t, v in priv_base}
     if CKA_SIGN not in priv_dict2:
         priv_base = priv_base + [(CKA_SIGN, bool_attr(True))]
+    if CKA_DERIVE not in priv_dict2:
+        priv_base = priv_base + [(CKA_DERIVE, bool_attr(True))]
+
+    priv_attrs = complete_key_attrs(priv_base, key_gen_mechanism=key_gen_mechanism)
+
+    return pub_attrs, priv_attrs
+
+
+def make_dh_keypair_attrs(pub_caller_attrs, priv_caller_attrs,
+                          prime, base, pub_value, priv_value,
+                          key_gen_mechanism=CKM_DH_PKCS_KEY_PAIR_GEN):
+    """
+    Build complete attribute lists for a DH key pair.
+
+    Returns (pub_attrs, priv_attrs).
+    """
+    # --- Public key ---
+    pub_base = list(pub_caller_attrs)
+    pub_dict = {t: v for t, v in pub_base}
+    if CKA_CLASS not in pub_dict:
+        pub_base = [(CKA_CLASS, CKO_PUBLIC_KEY)] + pub_base
+    if CKA_KEY_TYPE not in pub_dict:
+        pub_base = pub_base + [(CKA_KEY_TYPE, CKK_DH)]
+    if CKA_PRIME not in pub_dict and prime:
+        pub_base = pub_base + [(CKA_PRIME, prime)]
+    if CKA_BASE not in pub_dict and base:
+        pub_base = pub_base + [(CKA_BASE, base)]
+    if CKA_VALUE not in pub_dict and pub_value:
+        pub_base = pub_base + [(CKA_VALUE, pub_value)]
+
+    pub_attrs = complete_key_attrs(pub_base, key_gen_mechanism=key_gen_mechanism)
+
+    # --- Private key ---
+    priv_base = list(priv_caller_attrs)
+    priv_dict = {t: v for t, v in priv_base}
+    if CKA_CLASS not in priv_dict:
+        priv_base = [(CKA_CLASS, CKO_PRIVATE_KEY)] + priv_base
+    if CKA_KEY_TYPE not in priv_dict:
+        priv_base = priv_base + [(CKA_KEY_TYPE, CKK_DH)]
+    if CKA_PRIME not in priv_dict and prime:
+        priv_base = priv_base + [(CKA_PRIME, prime)]
+    if CKA_BASE not in priv_dict and base:
+        priv_base = priv_base + [(CKA_BASE, base)]
+    if CKA_VALUE not in priv_dict and priv_value:
+        priv_base = priv_base + [(CKA_VALUE, priv_value)]
+    priv_dict2 = {t: v for t, v in priv_base}
     if CKA_DERIVE not in priv_dict2:
         priv_base = priv_base + [(CKA_DERIVE, bool_attr(True))]
 

@@ -41,6 +41,7 @@ Multi-part chaining:
     ONLY   — stateless single-call verify (no session needed)
 """
 
+import hashlib
 import logging
 import hmac as _hmac_mod
 
@@ -70,7 +71,21 @@ _HASH_MAP = {
     'SHA3-256': 'sha3_256',
     'SHA3-384': 'sha3_384',
     'SHA3-512': 'sha3_512',
+    'SSL3-SHA': 'ssl3-sha',
+    'SSL3-MD5': 'ssl3-md5',
 }
+
+
+def _compute_mac(key: bytes, data: bytes, algo: str) -> bytes:
+    """Compute MAC or HMAC according to algo."""
+    if algo == 'ssl3-sha':
+        inner = hashlib.sha1(key + b'\x36' * 40 + data).digest()
+        return hashlib.sha1(key + b'\x5c' * 40 + inner).digest()
+    elif algo == 'ssl3-md5':
+        inner = hashlib.md5(key + b'\x36' * 48 + data).digest()
+        return hashlib.md5(key + b'\x5c' * 48 + inner).digest()
+    else:
+        return _hmac_mod.new(key, data, algo).digest()
 
 
 def handle_hmv(store, request, hmac_state=None):
@@ -140,8 +155,7 @@ def handle_hmv(store, request, hmac_state=None):
         # chain_in is non-empty on ONLY calls (ICSF requirement), but we
         # don't need its value; we only need the key and the text.
         try:
-            mac = _hmac_mod.new(key_value, text, hash_name)
-            expected = mac.digest()
+            expected = _compute_mac(key_value, text, hash_name)
         except Exception as exc:
             logger.warning('HMV ONLY: HMAC failed (%s): %s', hash_name, exc)
             expected = b''
@@ -219,8 +233,7 @@ def handle_hmv(store, request, hmac_state=None):
 
         k, algo, full_data = result
         try:
-            mac = _hmac_mod.new(k, full_data, algo)
-            expected = mac.digest()
+            expected = _compute_mac(k, full_data, algo)
         except Exception as exc:
             logger.warning('HMV LAST: HMAC failed (%s): %s', algo, exc)
             expected = b''

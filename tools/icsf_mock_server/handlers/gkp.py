@@ -37,14 +37,21 @@ from pkcs11_const import (
     CKA_MODULUS, CKA_MODULUS_BITS, CKA_PUBLIC_EXPONENT,
     CKA_PRIVATE_EXPONENT, CKA_PRIME_1, CKA_PRIME_2,
     CKA_EXPONENT_1, CKA_EXPONENT_2, CKA_COEFFICIENT,
+    CKA_PRIME, CKA_BASE,
     CKO_PUBLIC_KEY, CKO_PRIVATE_KEY,
-    CKK_RSA, CKK_EC,
-    CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN,
+    CKK_RSA, CKK_DH, CKK_EC,
+    CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_DH_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN,
     CKA_EC_PARAMS, CKA_EC_POINT, CKA_VALUE,
 )
-from obj_attrs import make_rsa_keypair_attrs, make_ec_keypair_attrs
+import secrets
+from obj_attrs import (
+    make_rsa_keypair_attrs,
+    make_ec_keypair_attrs,
+    make_dh_keypair_attrs,
+)
 from rsa_backend import rsa_generate
 from ec_backend import ec_generate, CurveNotSupportedError
+from dh_backend import dh_generate
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +123,8 @@ def handle_gkp(store, request):
             # rc=8 / reason=874 → CKR_CURVE_NOT_SUPPORTED in icsf_to_ock_err.
             return encode_response(
                 request.handle, RC_ERROR, 874, ICSF_TAG_CSFPGKP, b'')
+    elif key_type == CKK_DH:
+        pub_final, priv_final = _build_dh_attrs(pub_attrs, priv_attrs, pub_dict)
     else:
         # Default to RSA for unknown key types
         pub_final, priv_final = _build_rsa_attrs(pub_attrs, priv_attrs, pub_dict)
@@ -204,6 +213,56 @@ def _build_ec_attrs(pub_attrs, priv_attrs, pub_dict):
         ec_params=key[CKA_EC_PARAMS],
         ec_point=key[CKA_EC_POINT],
         key_gen_mechanism=CKM_EC_KEY_PAIR_GEN,
+    )
+
+
+# ---------------------------------------------------------------------------
+# DH key pair builders
+# ---------------------------------------------------------------------------
+
+def _build_dh_attrs(pub_attrs, priv_attrs, pub_dict):
+    """Generate a DH key pair from domain parameters (p, g) and build attribute lists."""
+    prime_bytes = pub_dict.get(CKA_PRIME, b'')
+    base_bytes  = pub_dict.get(CKA_BASE, b'')
+
+    if not prime_bytes:
+        # Fallback default 1024-bit MODP prime if unspecified
+        prime_int = int(
+            "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+            "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+            "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+            "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+            "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE653E0"
+            "FF2F0B20DF253F3F", 16
+        )
+        prime_len = (prime_int.bit_length() + 7) // 8
+        prime_bytes = prime_int.to_bytes(prime_len, 'big')
+
+    if not base_bytes:
+        base_bytes = b'\x02'
+
+    try:
+        key = dh_generate(prime_bytes, base_bytes)
+        pub_value = key['pub_value']
+        priv_value = key['priv_value']
+    except Exception as exc:
+        logger.warning('GKP: OpenSSL dh_generate failed (%s), falling back to python pow: ', exc)
+        prime_int = int.from_bytes(prime_bytes, 'big')
+        prime_len = len(prime_bytes)
+        base_int = int.from_bytes(base_bytes, 'big')
+        x_int = secrets.randbelow(prime_int - 3) + 2
+        y_int = pow(base_int, x_int, prime_int)
+        priv_value = x_int.to_bytes(prime_len, 'big')
+        pub_value  = y_int.to_bytes(prime_len, 'big')
+
+    return make_dh_keypair_attrs(
+        pub_caller_attrs=pub_attrs,
+        priv_caller_attrs=priv_attrs,
+        prime=prime_bytes,
+        base=base_bytes,
+        pub_value=pub_value,
+        priv_value=priv_value,
+        key_gen_mechanism=CKM_DH_PKCS_KEY_PAIR_GEN,
     )
 
 

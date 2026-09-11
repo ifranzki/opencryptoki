@@ -328,18 +328,26 @@ def handle_dmk(store, request):
                 client_mac_obj.sequence, server_mac_obj.sequence,
                 client_key_obj.sequence, server_key_obj.sequence)
 
-    # Encode DMKOutput:
-    # DMKOutput ::= SEQUENCE {
-    #    parmsListChoice [0] SEQUENCE {
-    #        clientMACHandle     OCTET STRING,
-    #        serverMACHandle     OCTET STRING,
-    #        clientKeyHandle     OCTET STRING,
-    #        serverKeyHandle     OCTET STRING,
-    #        clientIV            OCTET STRING,
-    #        serverIV            OCTET STRING
-    #    }
-    # }
-    parms_seq = (
+    # Encode DMKOutput (service_data contents, placed inside [ICSF_TAG_CSFPDMK] by encode_response):
+    #
+    # The C decoder does:
+    #   ber_scanf(result, "{t{mmmmmm}}", &tag, &bv_client_mac, ...)
+    # where result is positioned after the common header fields.  It opens
+    # the service-tag context TLV ({), reads the inner tag (t = 0xa0), opens
+    # that inner TLV ({), then reads 6 bervals (mmmmmm).
+    #
+    # Therefore svc_data must be exactly:
+    #   [0] CONSTRUCTED {
+    #       clientMACHandle  OCTET STRING,
+    #       serverMACHandle  OCTET STRING,
+    #       clientKeyHandle  OCTET STRING,
+    #       serverKeyHandle  OCTET STRING,
+    #       clientIV         OCTET STRING,
+    #       serverIV         OCTET STRING
+    #   }
+    # with NO outer SEQUENCE wrapper (encode_response provides the outer
+    # context-constructed [ICSF_TAG_CSFPDMK] envelope).
+    parms_contents = (
         encode_octet_string(client_mac_handle) +
         encode_octet_string(server_mac_handle) +
         encode_octet_string(client_key_handle) +
@@ -347,7 +355,6 @@ def handle_dmk(store, request):
         encode_octet_string(client_iv) +
         encode_octet_string(server_iv)
     )
-    choice_tlv = encode_ctx_cons(0, parms_seq)
-    svc_data = encode_sequence(choice_tlv)
+    svc_data = encode_ctx_cons(0, parms_contents)
 
     return encode_response(request.handle, RC_SUCCESS, 0, ICSF_TAG_CSFPDMK, svc_data)
