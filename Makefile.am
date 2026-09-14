@@ -316,15 +316,18 @@ CI_SWTOK_SLOT      = $${OCK_CI_SWTOK_SLOT:-30}
 CI_SWTOK_DATASTORE = $${OCK_CI_SWTOK_DATASTORE:-$(localstatedir)/lib/opencryptoki/sw0}
 
 # ICSF mock server settings used by ci-prepare / ci-installcheck.
-# CI_ICSF_MOCK_PID_FILE  path where the mock server PID is recorded (used to
-#                        stop it after tests).
-# CI_ICSF_MOCK_LOG       log file for the mock server; placed in the testcases
-#                        directory as log-*.txt so the post-process script picks
-#                        it up alongside the other CI log files.
-# CI_ICSF_MOCK_PORT      LDAP listen port for the mock server (default: 1389).
-# CI_ICSF_MOCK_TOKEN     name of the pre-created ICSF token (default: icsf0).
-# CI_ICSF_SLOT           slot number assigned to the ICSF token (default: 50).
-CI_ICSF_MOCK_PID_FILE = /tmp/icsf_mock_server.pid
+# CI_ICSF_MOCK_PID_FILE       path where the mock server PID is recorded (used to
+#                             stop it after tests).
+# CI_ICSF_MOCK_LOG            log file for the mock server; placed in the testcases
+#                             directory as log-*.txt so the post-process script picks
+#                             it up alongside the other CI log files.
+# CI_ICSF_MOCK_PORT           LDAP listen port for the mock server (default: 1389).
+# CI_ICSF_MOCK_TOKEN          name of the pre-created ICSF token (default: icsf0).
+# CI_ICSF_SLOT                slot number assigned to the ICSF token (default: 50).
+# ICSF_MOCK_RACF_PASSWORD     env var: RACF/bind password passed to pkcsicsf -a
+#                             (default: testpassword).  Set in the environment to
+#                             override when testing against a real ICSF server.
+CI_ICSF_MOCK_PID_FILE = ${builddir}/.icsf_mock_server.pid
 CI_ICSF_MOCK_LOG      = ${srcdir}/testcases/log-icsf-mock-server.txt
 CI_ICSF_MOCK_PORT     = 1389
 CI_ICSF_MOCK_TOKEN    = icsf0
@@ -379,12 +382,12 @@ ci-installcheck: ci-prepare installcheck
 	@echo "done"
 
 ci-cleanup:
-	@sbindir@/pkcsstats --delete-all || true
 	$(KILLALL) -HUP pkcsslotd || true
 #	@sbindir@/pkcsslotd
 #	cd ${srcdir}/testcases && PKCS11_USER_PIN=$(PKCS11_USER_PIN) PKCSLIB=$(PKCSLIB) ./cleanup_vhsm.exp 42
 #	$(KILLALL) -HUP pkcsslotd
 	@sbindir@/pkcsep11_session status || true
+	${srcdir}/testcases/cicleanup.sh "@sbindir@" "$(CI_ICSF_MOCK_TOKEN)" "$(CI_ICSF_MOCK_PID_FILE)"
 	rm ${srcdir}/testcases/test_combined_extract.slots -f
 
 ci-uninstall: uninstall
