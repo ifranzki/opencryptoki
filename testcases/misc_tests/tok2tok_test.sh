@@ -145,7 +145,7 @@ echo ""
 # At most MAX_JOBS processes run concurrently to avoid OOM situations.
 # Each run writes its output to log-tok2tok-slots_X_Y.txt.
 # ---------------------------------------------------------------------------
-MAX_JOBS=4
+MAX_JOBS=${MAX_JOBS:-16}
 OVERALL_RC=0
 FAILED_JOBS=()
 PIDS=()
