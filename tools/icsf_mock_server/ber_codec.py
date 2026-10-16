@@ -716,6 +716,78 @@ def pkcs8_to_ec_attrs(pkcs8: bytes) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# DSA (id-dsa) PKCS#8 encode/decode
+#
+#   PrivateKeyInfo ::= SEQUENCE {
+#     version     INTEGER (0),
+#     algorithm   SEQUENCE { OID id-dsa (1.2.840.10040.4.1),
+#                            DSS-Parms SEQUENCE { INTEGER p, INTEGER q, INTEGER g } },
+#     privateKey  OCTET STRING { INTEGER x }
+#   }
+# ---------------------------------------------------------------------------
+
+# id-dsa OID DER encoding: 1.2.840.10040.4.1
+_OID_DSA = bytes.fromhex('06072a8648ce380401')
+# id-dsa OID value bytes (without tag/length), for pkcs8_get_alg_oid()
+DSA_OID_VALUE = _OID_DSA[2:]
+
+_CKA_PRIME    = 0x00000130
+_CKA_SUBPRIME = 0x00000131
+_CKA_BASE_DSA = 0x00000132   # CKA_BASE — named _CKA_BASE_DSA to avoid clash with DH section
+
+
+def dsa_attrs_to_pkcs8(attr_dict: dict) -> bytes:
+    """Encode a DSA private key (CKA_PRIME, CKA_SUBPRIME, CKA_BASE, CKA_VALUE) as PKCS#8."""
+    def _get(cka):
+        v = attr_dict.get(cka, b'\x00')
+        if isinstance(v, int):
+            return _int_to_bytes(v)
+        return v if v else b'\x00'
+
+    dss_params = encode_sequence(
+        _encode_ber_integer(_get(_CKA_PRIME)) +
+        _encode_ber_integer(_get(_CKA_SUBPRIME)) +
+        _encode_ber_integer(_get(_CKA_BASE_DSA))
+    )
+    alg_id = encode_sequence(_OID_DSA + dss_params)
+    priv = _encode_ber_integer(_get(_CKA_VALUE))
+    return encode_sequence(
+        _encode_ber_integer(b'\x00') +
+        alg_id +
+        encode_tlv(LBER_OCTET_STRING, priv)
+    )
+
+
+def pkcs8_to_dsa_attrs(pkcs8: bytes) -> dict:
+    """Decode a DSA PKCS#8 blob; returns CKA_PRIME, CKA_SUBPRIME, CKA_BASE, CKA_VALUE."""
+    tag, outer, _ = _decode_tlv(pkcs8, 0)
+    if tag != LBER_SEQUENCE:
+        raise ValueError('PKCS#8/DSA: expected outer SEQUENCE, got 0x%02x' % tag)
+
+    pos = 0
+    _, pos = _decode_ber_integer_value(outer, pos)           # version
+    tag, alg_seq, pos = _decode_tlv(outer, pos)              # AlgorithmIdentifier
+    if tag != LBER_SEQUENCE:
+        raise ValueError('PKCS#8/DSA: expected AlgorithmIdentifier SEQUENCE')
+    tag, priv_bytes, pos = _decode_tlv(outer, pos)           # privateKey
+    if tag != LBER_OCTET_STRING:
+        raise ValueError('PKCS#8/DSA: expected OCTET STRING for privateKey')
+
+    apos = 0
+    _, _, apos = _decode_tlv(alg_seq, 0)                     # skip OID
+    tag, params, _ = _decode_tlv(alg_seq, apos)
+    if tag != LBER_SEQUENCE:
+        raise ValueError('PKCS#8/DSA: expected DSS-Parms SEQUENCE')
+    ppos = 0
+    p, ppos = _decode_ber_integer_value(params, ppos)
+    q, ppos = _decode_ber_integer_value(params, ppos)
+    g, _    = _decode_ber_integer_value(params, ppos)
+    x, _    = _decode_ber_integer_value(priv_bytes, 0)
+
+    return {_CKA_PRIME: p, _CKA_SUBPRIME: q, _CKA_BASE_DSA: g, _CKA_VALUE: x}
+
+
+# ---------------------------------------------------------------------------
 # DH (PKCS#3 dhKeyAgreement) PKCS#8 encode/decode
 #
 #   PrivateKeyInfo ::= SEQUENCE {
