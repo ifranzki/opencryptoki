@@ -6345,13 +6345,132 @@ done:
     return rc;
 }
 
+/*
+ * Maximum number of attempts to find a blinding value that is coprime to a
+ * composite public exponent. A random value is coprime with a high probability,
+ * so this is only a safety net that also terminates if e and m are not coprime.
+ */
+#define RSA_INV_E_MOD_MAX_TRIES     256
+
+/*
+ * Calculates r = e^-1 mod m, where e is the public exponent (public, odd, > 1)
+ * and m is a secret, non-prime value (e.g. phi(n), p-1 or q-1).
+ *
+ * BN_mod_inverse() runs a Euclidean algorithm whose number of iterations
+ * depends on its operands, even when BN_FLG_CONSTTIME is set. It must thus not
+ * be used with the secret m. Instead, use
+ *
+ *     r = (1 + k * m) / e   with   k = -(m^-1) mod e,   0 < k < e
+ *
+ * which is an exact division and yields e * r = 1 mod m. The only inversion
+ * that is needed is modulo the public e, with t = m mod e as operand:
+ *
+ * - If e is prime, t^-1 = t^(e-2) mod e (Fermat's little theorem), which is
+ *   computed with BN_mod_exp_mont_consttime(). No randomness is used.
+ * - Otherwise, t is blinded with a random value s (t^-1 = ((t*s)^-1 * s) mod e)
+ *   before it is inverted with BN_mod_inverse(). The blinding is done modulo
+ *   the odd, public e, so that a random s is coprime to e with a high
+ *   probability. Note that the blinding must NOT be done modulo m (which is
+ *   always even), since a random value is then not coprime to m in about half
+ *   of the cases. Whether s is coprime to e is determined by the inversion of
+ *   t * s itself, so that s is never an operand of a variable-time operation
+ *   (such as BN_gcd()), which would defeat the blinding.
+ *
+ * Returns 1 on success, 0 on failure (also if gcd(e, m) != 1).
+ *
+ * Note: This relies on the fixed-length BIGNUM operations of OpenSSL, so it is
+ * best-effort hardening and not a formal constant-time guarantee.
+ */
+int rsa_calc_inv_e_mod(BIGNUM *r, const BIGNUM *e, const BIGNUM *m,
+                       BN_CTX *ctx)
+{
+    BIGNUM *t, *s, *w, *u;
+    int found = 0, rc = 0, i;
+
+    if (BN_cmp(e, BN_value_one()) <= 0 || !BN_is_odd(e)) {
+        TRACE_ERROR("Public exponent must be odd and greater than 1\n");
+        return 0;
+    }
+
+    BN_CTX_start(ctx);
+    t = BN_CTX_get(ctx);
+    s = BN_CTX_get(ctx);
+    w = BN_CTX_get(ctx);
+    u = BN_CTX_get(ctx);
+    if (t == NULL || s == NULL || w == NULL || u == NULL) {
+        TRACE_ERROR("BN_CTX_get failed\n");
+        goto out;
+    }
+
+    BN_set_flags(t, BN_FLG_CONSTTIME);
+    BN_set_flags(s, BN_FLG_CONSTTIME);
+    BN_set_flags(r, BN_FLG_CONSTTIME);
+
+    /* t = m mod e. It must be non-zero, otherwise gcd(e, m) != 1. */
+    if (BN_nnmod(t, m, e, ctx) != 1 || BN_is_zero(t)) {
+        TRACE_ERROR("BN_nnmod failed or e and m are not coprime\n");
+        goto out;
+    }
+
+    /* Prime e: u = t^-1 = t^(e-2) mod e, verified by t * u = 1 mod e */
+    ERR_set_mark();
+    if (BN_copy(s, e) != NULL && BN_sub_word(s, 2) == 1 &&
+        BN_mod_exp_mont_consttime(u, t, s, e, ctx, NULL) == 1 &&
+        BN_mod_mul(w, t, u, e, ctx) == 1 && BN_is_one(w))
+        found = 1;
+    ERR_pop_to_mark();
+
+    /* Composite e: u = ((t * s)^-1 * s) mod e with a random blinding value s */
+    for (i = 0; !found && i < RSA_INV_E_MOD_MAX_TRIES; i++) {
+        if (BN_priv_rand_range(s, e) != 1) {
+            TRACE_ERROR("BN_priv_rand_range failed\n");
+            goto out;
+        }
+        if (BN_is_zero(s))
+            continue;
+
+        ERR_set_mark();
+        if (BN_mod_mul(w, t, s, e, ctx) == 1 &&
+            BN_mod_inverse(u, w, e, ctx) != NULL &&
+            BN_mod_mul(u, u, s, e, ctx) == 1)
+            found = 1;
+        ERR_pop_to_mark();
+    }
+    if (!found) {
+        TRACE_ERROR("Failed to invert m mod e, e and m are not coprime\n");
+        goto out;
+    }
+
+    /* k = -u mod e = e - u, since 0 < u < e */
+    if (BN_sub(w, e, u) != 1) {
+        TRACE_ERROR("BN_sub failed\n");
+        goto out;
+    }
+
+    /* r = (1 + k * m) / e, which must be an exact division */
+    if (BN_mul(r, w, m, ctx) != 1 ||
+        BN_add_word(r, 1) != 1 ||
+        BN_div(r, s, r, e, ctx) != 1 ||
+        !BN_is_zero(s)) {
+        TRACE_ERROR("Failed to compute (1 + k * m) / e\n");
+        goto out;
+    }
+
+    rc = 1;
+
+out:
+    BN_CTX_end(ctx);
+
+    return rc;
+}
+
 static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                CK_BYTE *priv_exp, CK_ULONG priv_exp_len)
 {
     CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
     CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
     BN_CTX *bn_ctx;
-    BIGNUM *n, *e, *p, *q, *d;
+    BIGNUM *n, *e, *p, *q, *phi, *d;
     CK_RV rc;
 
     UNUSED(tokdata);
@@ -6362,7 +6481,9 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
         return CKR_FUNCTION_FAILED;
     }
 
-    /* Get modulus a BIGNUM */
+    BN_CTX_start(bn_ctx);
+
+    /* Get modulus as BIGNUM */
     rc = template_attribute_get_non_empty(key_obj->template, CKA_MODULUS,
                                           &modulus);
     if (rc != CKR_OK) {
@@ -6379,7 +6500,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
     BN_set_flags(n, BN_FLG_CONSTTIME);
 
-    /* Get public exponent a BIGNUM */
+    /* Get public exponent as BIGNUM */
     rc = template_attribute_get_non_empty(key_obj->template,
                                           CKA_PUBLIC_EXPONENT, &pub_exp);
     if (rc != CKR_OK) {
@@ -6396,7 +6517,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
     BN_set_flags(e, BN_FLG_CONSTTIME);
 
-    /* Get prime1 a BIGNUM */
+    /* Get prime1 as BIGNUM */
     rc = template_attribute_get_non_empty(key_obj->template, CKA_PRIME_1,
                                           &prime1);
     if (rc != CKR_OK) {
@@ -6413,7 +6534,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
     BN_set_flags(p, BN_FLG_CONSTTIME);
 
-    /* Get prime2 a BIGNUM */
+    /* Get prime2 as BIGNUM */
     rc = template_attribute_get_non_empty(key_obj->template, CKA_PRIME_2,
                                           &prime2);
     if (rc != CKR_OK) {
@@ -6430,23 +6551,30 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
     BN_set_flags(q, BN_FLG_CONSTTIME);
 
+    phi = BN_CTX_get(bn_ctx);
     d = BN_CTX_get(bn_ctx);
-    if (d == NULL) {
-        TRACE_ERROR("BN_CTX_get failed to get d\n");
+    if (phi == NULL || d == NULL) {
+        TRACE_ERROR("BN_CTX_get failed\n");
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
+    BN_set_flags(phi, BN_FLG_CONSTTIME);
     BN_set_flags(d, BN_FLG_CONSTTIME);
 
     /*
-     * phi(n) = (p - 1 )(q - 1) = n - p - q + 1
-     * d = e ^{-1} mod phi(n).
+     * phi(n) = (p - 1)(q - 1) = n - p - q + 1
      */
-    if (BN_copy(d, n) == NULL ||
-        BN_sub(d, d, p) == 0 ||
-        BN_sub(d, d, q) == 0 ||
-        BN_add_word(d, 1) == 0 ||
-        BN_mod_inverse(d, e, d, bn_ctx) == NULL) {
+    if (BN_copy(phi, n) == NULL ||
+        BN_sub(phi, phi, p) == 0 ||
+        BN_sub(phi, phi, q) == 0 ||
+        BN_add_word(phi, 1) == 0) {
+        TRACE_ERROR("Failed to calculate phi(n)\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    /* d = e^-1 mod phi(n), without a variable-time inversion modulo phi(n) */
+    if (rsa_calc_inv_e_mod(d, e, phi, bn_ctx) != 1) {
         TRACE_ERROR("Failed to calculate private key part d\n");
         rc = CKR_FUNCTION_FAILED;
         goto done;
@@ -6459,6 +6587,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
 
 done:
+    BN_CTX_end(bn_ctx);
     BN_CTX_free(bn_ctx);
 
     return rc;

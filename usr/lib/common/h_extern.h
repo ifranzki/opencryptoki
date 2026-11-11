@@ -29,6 +29,7 @@
 #include "pqc_defs.h"
 
 #include <openssl/evp.h>
+#include <openssl/bn.h>
 
 /* Forward declaration to keep dependencies as small as possible. */
 struct policy;
@@ -3668,6 +3669,9 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
                            CK_ATTRIBUTE *priv_exp, CK_ATTRIBUTE **prime1,
                            CK_ATTRIBUTE **prime2, CK_ATTRIBUTE **exponent1,
                            CK_ATTRIBUTE **exponent2, CK_ATTRIBUTE **coef);
+
+int rsa_calc_inv_e_mod(BIGNUM *r, const BIGNUM *e, const BIGNUM *m,
+                       BN_CTX *ctx);
 
 #if OPENSSL_VERSION_PREREQ(3, 0)
 const char *openssl_get_pqc_oid_name(const struct pqc_oid *oid);
