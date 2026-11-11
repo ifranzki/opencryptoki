@@ -1008,7 +1008,7 @@ CK_RV token_specific_dh_pkcs_derive(STDLL_TokData_t *tokdata,
     }
 
     // Initialize context
-    ctx = BN_CTX_new();
+    ctx = BN_CTX_secure_new();
     if (ctx == NULL) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
         rc = CKR_FUNCTION_FAILED;
@@ -1024,7 +1024,8 @@ CK_RV token_specific_dh_pkcs_derive(STDLL_TokData_t *tokdata,
         goto out;
     }
 
-    if (BN_mod_exp(bn_z, bn_y, bn_x, bn_p, ctx) == 0) {
+    BN_set_flags(bn_x, BN_FLG_CONSTTIME);
+    if (!BN_mod_exp_mont_consttime(bn_z, bn_y, bn_x, bn_p, ctx, NULL)) {
         TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
         rc = CKR_FUNCTION_FAILED;
         goto out;
