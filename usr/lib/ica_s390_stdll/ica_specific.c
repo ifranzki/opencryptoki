@@ -2481,26 +2481,45 @@ static CK_RV rsa_calc_private_exponent(ica_rsa_key_mod_expo_t *publKey,
                                        ica_rsa_key_crt_t *privKey,
                                        TEMPLATE *priv_tmpl)
 {
-    BIGNUM *d, *e = NULL, *p = NULL, *q = NULL;
+    BN_CTX *ctx;
+    BIGNUM *n, *e, *p, *q, *phi, *d;
     CK_ATTRIBUTE *attr = NULL;
     int len;
     CK_BYTE *buff = NULL;
     CK_RV rc = CKR_OK;
 
-    d = BN_secure_new();
-    e = BN_secure_new();
-    p = BN_secure_new();
-    q = BN_secure_new();
-    if (d == NULL || e == NULL || p == NULL || q == NULL) {
-        TRACE_DEVEL("BN_secure_new failed\n");
+    ctx = BN_CTX_secure_new();
+    if (ctx == NULL) {
+        TRACE_DEVEL("BN_CTX_secure_new failed\n");
+        return CKR_HOST_MEMORY;
+    }
+
+    BN_CTX_start(ctx);
+    n = BN_CTX_get(ctx);
+    e = BN_CTX_get(ctx);
+    p = BN_CTX_get(ctx);
+    q = BN_CTX_get(ctx);
+    phi = BN_CTX_get(ctx);
+    d = BN_CTX_get(ctx);
+    if (n == NULL || e == NULL || p == NULL || q == NULL || phi == NULL ||
+        d == NULL) {
+        TRACE_DEVEL("BN_CTX_get failed\n");
         rc = CKR_HOST_MEMORY;
         goto done;
     }
+
+    BN_set_flags(n, BN_FLG_CONSTTIME);
+    BN_set_flags(e, BN_FLG_CONSTTIME);
+    BN_set_flags(p, BN_FLG_CONSTTIME);
+    BN_set_flags(q, BN_FLG_CONSTTIME);
+    BN_set_flags(phi, BN_FLG_CONSTTIME);
+    BN_set_flags(d, BN_FLG_CONSTTIME);
+
     /*
-     * Calculate ϕ(n) = (p − 1) * (q − 1) = n − p − q + 1.
-     * Then d = e ^−1 mod ϕ(n)
+     * Calculate phi(n) = (p - 1) * (q - 1) = n - p - q + 1.
+     * Then d = e^-1 mod phi(n).
      */
-    if (BN_bin2bn(publKey->modulus, publKey->key_length, d) == NULL ||
+    if (BN_bin2bn(publKey->modulus, publKey->key_length, n) == NULL ||
         BN_bin2bn(publKey->exponent, publKey->key_length, e) == NULL ||
         BN_bin2bn(privKey->p + 8, privKey->key_length / 2, p) == NULL ||
         BN_bin2bn(privKey->q, privKey->key_length / 2, q) == NULL) {
@@ -2509,11 +2528,18 @@ static CK_RV rsa_calc_private_exponent(ica_rsa_key_mod_expo_t *publKey,
         goto done;
     }
 
-    if (BN_sub(d, d, p) != 1 ||
-        BN_sub(d, d, q) != 1 ||
-        BN_add_word(d, 1) != 1 ||
-        BN_mod_inverse(d, e, d, NULL) == NULL) {
-        TRACE_DEVEL("BN_sub/BN_add_word/BN_mod_inverse failed\n");
+    if (BN_copy(phi, n) == NULL ||
+        BN_sub(phi, phi, p) != 1 ||
+        BN_sub(phi, phi, q) != 1 ||
+        BN_add_word(phi, 1) != 1) {
+        TRACE_DEVEL("Failed to calculate phi(n)\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    /* d = e^-1 mod phi(n), without a variable-time inversion modulo phi(n) */
+    if (rsa_calc_inv_e_mod(d, e, phi, ctx) != 1) {
+        TRACE_DEVEL("rsa_calc_inv_e_mod failed\n");
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
@@ -2545,20 +2571,14 @@ static CK_RV rsa_calc_private_exponent(ica_rsa_key_mod_expo_t *publKey,
     attr = NULL;
 
 done:
-    if (d != NULL)
-        BN_clear_free(d);
-    if (e != NULL)
-        BN_clear_free(e);
-    if (p != NULL)
-        BN_clear_free(p);
-    if (q != NULL)
-        BN_clear_free(q);
+    if (attr != NULL)
+        free(attr);
     if (buff != NULL) {
         OPENSSL_cleanse(buff, len);
         free(buff);
     }
-    if (attr != NULL)
-        free(attr);
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
 
     return rc;
 }
