@@ -390,6 +390,37 @@ static ossl_inline void constant_time_cond_swap_buff(unsigned char mask,
 }
 
 /*
+ * Returns ~0U if big-endian buffer 'a' is less than 'b', and 0 otherwise.
+ * "constant time" is per len.
+ */
+static ossl_inline unsigned int constant_time_lt_bin(const unsigned char *a,
+                                                     const unsigned char *b,
+                                                     size_t len)
+{
+    unsigned int lt = 0, gt = 0, undecided;
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        undecided = (lt | gt) ^ 1;
+        lt |= (((unsigned int)a[i] - b[i]) >> 31) & undecided;
+        gt |= (((unsigned int)b[i] - a[i]) >> 31) & undecided;
+    }
+
+    /* lt is either 0 or 1, turn it into a full mask */
+    return 0 - lt;
+}
+
+/*
+ * Convenience method for getting an 8-bit mask (0xff if a < b, 0x00 otherwise).
+ */
+static ossl_inline unsigned char constant_time_lt_bin_8(const unsigned char *a,
+                                                       const unsigned char *b,
+                                                       size_t len)
+{
+    return (unsigned char)constant_time_lt_bin(a, b, len);
+}
+
+/*
  * table is a two dimensional array of bytes. Each row has rowsize elements.
  * Copies row number idx into out. rowsize and numrows are not considered
  * private.
