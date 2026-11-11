@@ -6016,6 +6016,7 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
+    BN_set_flags(d, BN_FLG_CONSTTIME);
 
     n_minus_1 = BN_CTX_get(bn_ctx);
     two = BN_CTX_get(bn_ctx);
@@ -6052,13 +6053,23 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
      * Schemes Using Integer Factorization Cryptography in Appendix C.
      */
 
-    /* Step 1: Let k = d*e – 1. If k is odd, then go to Step 4. */
+    /*
+     * Note: The secret values (d, k, r, p, q, ...) are flagged with
+     * BN_FLG_CONSTTIME, so that OpenSSL uses its constant-time code paths
+     * where available. BN_copy() does not propagate this flag, so it needs to
+     * be set again on every BIGNUM that receives a secret value via BN_copy().
+     * This algorithm is inherently not fully constant-time (random retries,
+     * early exits, secret dependent loop count), but this reduces the leakage.
+     */
+
+    /* Step 1: Let k = d*e - 1. If k is odd, then go to Step 4. */
     if (BN_mul(k, d, e, bn_ctx) != 1 ||
         BN_sub_word(k, 1) != 1) {
         TRACE_ERROR("BN_mul/BN_sub_word failed for k\n");
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
+    BN_set_flags(k, BN_FLG_CONSTTIME);
 
     if (BN_is_odd(k))
         goto step4_fail;
@@ -6073,11 +6084,12 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
+    BN_set_flags(r, BN_FLG_CONSTTIME);
 
     do {
-        if (BN_div(r, NULL, r, two, bn_ctx) != 1 ||
+        if (BN_rshift1(r, r) != 1 ||
             BN_add_word(t, 1) != 1) {
-            TRACE_ERROR("BN_div/BN_add_word failed\n");
+            TRACE_ERROR("BN_rshift1/BN_add_word failed\n");
             rc = CKR_FUNCTION_FAILED;
             goto done;
         }
@@ -6103,11 +6115,11 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
             goto done;
         }
 
-        /* Step 3c: If y = 1 or y = n – 1, then step 3g */
+        /* Step 3c: If y = 1 or y = n - 1, then step 3g */
         if (BN_cmp(y, BN_value_one()) == 0 || BN_cmp(y,  n_minus_1) == 0)
             goto step_3g;
 
-        /* Step 3d:  For j = 1 to t – 1 do */
+        /* Step 3d:  For j = 1 to t - 1 do */
         for (BN_one(j); BN_cmp(j, t) < 0; BN_add_word(j, 1)) {
             /* Step 3d1: Let x = y^2 mod n */
             if (BN_mod_exp(x, y, two, n, bn_ctx) != 1) {
@@ -6120,7 +6132,7 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
             if (BN_cmp(x, BN_value_one()) == 0)
                 goto step5_success;
 
-            /* Step 3d3: if x = n – 1, goto step 3g */
+            /* Step 3d3: if x = n - 1, goto step 3g */
             if (BN_cmp(x, n_minus_1) == 0)
                 goto step_3g;
 
@@ -6155,7 +6167,10 @@ step4_fail:
     goto done;
 
 step5_success:
-    /* Step 5:  Let p = GCD(y – 1, n) and let q = n/p */
+    /* Step 5:  Let p = GCD(y - 1, n) and let q = n/p */
+    BN_set_flags(y, BN_FLG_CONSTTIME);
+    BN_set_flags(p, BN_FLG_CONSTTIME);
+    BN_set_flags(q, BN_FLG_CONSTTIME);
     if (BN_sub_word(y, 1) != 1 ||
         BN_gcd(p, y, n, bn_ctx) != 1 ||
         BN_div(q, NULL, n, p, bn_ctx) != 1) {
@@ -6164,22 +6179,57 @@ step5_success:
         goto done;
     }
 
-    /* Swap if p < q */
-    if (BN_cmp(p, q) < 0) {
+    /*
+     * Swap if p < q. BN_ucmp() operates in constant time on secret primes
+     * when BN_FLG_CONSTTIME is set (since OpenSSL 3.1).
+     */
+    if (BN_ucmp(p, q) < 0) {
         x = q;
         q = p;
         p = x;
     }
 
-    /* Calculate dp = d mod p−1, dq = d mod q-1, and qinv = q^−1 mod p */
+    /* Calculate dp = d mod p-1, dq = d mod q-1 */
     if (BN_copy(dp, p) == NULL ||
-        BN_sub_word(dp, 1) != 1 ||
-        BN_div(NULL, dp, d, dp, bn_ctx) != 1 ||
-        BN_copy(dq, q) == NULL ||
-        BN_sub_word(dq, 1) != 1 ||
-        BN_div(NULL, dq, d, dq, bn_ctx) != 1 ||
-        BN_mod_inverse(invq, q, p, bn_ctx) == NULL) {
-        TRACE_ERROR("BN_copy/BN_sub_word/BN_div/BN_mod_inverse failed\n");
+        BN_sub_word(dp, 1) != 1) {
+        TRACE_ERROR("BN_copy/BN_sub_word failed\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    BN_set_flags(dp, BN_FLG_CONSTTIME);
+    if (BN_div(NULL, dp, d, dp, bn_ctx) != 1) {
+        TRACE_ERROR("BN_div failed\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    if (BN_copy(dq, q) == NULL ||
+        BN_sub_word(dq, 1) != 1) {
+        TRACE_ERROR("BN_copy/BN_sub_word failed\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    BN_set_flags(dq, BN_FLG_CONSTTIME);
+    if (BN_div(NULL, dq, d, dq, bn_ctx) != 1) {
+        TRACE_ERROR("BN_div failed\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+
+    /*
+     * qInv = (1/q) mod p = q^(p-2) mod p (p is prime).
+     * BN_mod_inverse() is variable-time on secret primes even with
+     * BN_FLG_CONSTTIME. We use BN_mod_exp_mont_consttime() with
+     * BN_FLG_CONSTTIME set on the exponent.
+     */
+    if (BN_copy(k, p) == NULL || !BN_sub_word(k, 2)) {
+        TRACE_ERROR("Failed to compute p - 2\n");
+        rc = CKR_FUNCTION_FAILED;
+        goto done;
+    }
+    BN_set_flags(k, BN_FLG_CONSTTIME);
+    if (!BN_mod_exp_mont_consttime(invq, q, k, p, bn_ctx, NULL)) {
+        TRACE_ERROR("BN_mod_exp_mont_consttime failed\n");
         rc = CKR_FUNCTION_FAILED;
         goto done;
     }
