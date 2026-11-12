@@ -182,7 +182,11 @@ def _build_rsa_attrs(pub_attrs, priv_attrs, pub_dict):
     if isinstance(mod_bits, bytes):
         mod_bits = int.from_bytes(mod_bits, 'big')
 
-    key = rsa_generate(mod_bits)
+    pub_exp = pub_dict.get(CKA_PUBLIC_EXPONENT)
+    if not isinstance(pub_exp, (bytes, bytearray)):
+        pub_exp = None
+
+    key = rsa_generate(mod_bits, pub_exp)
 
     # Inject all CRT components into the private-key caller attrs so that
     # make_rsa_keypair_attrs / complete_key_attrs stores them on the object.
