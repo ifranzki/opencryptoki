@@ -42,6 +42,7 @@ testcases_crypto_dsa_tests_LDADD = testcases/common/libcommon.la
 testcases_crypto_dsa_tests_SOURCES = testcases/crypto/dsa_func.c
 
 testcases_crypto_rsa_tests_CFLAGS = ${testcases_inc}
+testcases_crypto_rsa_tests_LDFLAGS = -lcrypto
 testcases_crypto_rsa_tests_LDADD = testcases/common/libcommon.la
 testcases_crypto_rsa_tests_SOURCES = testcases/crypto/rsa_func.c
 
