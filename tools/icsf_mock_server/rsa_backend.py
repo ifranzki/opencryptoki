@@ -502,6 +502,9 @@ if _OPENSSL3:
     _EVP_PKEY_CTX_set_rsa_keygen_bits = _bind('EVP_PKEY_CTX_set_rsa_keygen_bits',
                                                ctypes.c_int,
                                                [ctypes.c_void_p, ctypes.c_int])
+    _EVP_PKEY_CTX_set1_rsa_keygen_pubexp = _bind(
+        'EVP_PKEY_CTX_set1_rsa_keygen_pubexp', ctypes.c_int,
+        [ctypes.c_void_p, ctypes.c_void_p])
     _EVP_PKEY_keygen        = _brequire('EVP_PKEY_keygen',      ctypes.c_int,
                                           [ctypes.c_void_p,
                                            ctypes.POINTER(ctypes.c_void_p)])
@@ -737,30 +740,49 @@ def _build_pkey_ossl1(n, e, d, p, q, dp, dq, qi):
 # Public API
 # ---------------------------------------------------------------------------
 
-def rsa_generate(bits: int = 2048) -> dict:
-    """Generate a real RSA key pair. Returns dict mapping CKA_* ints → bytes."""
+def rsa_generate(bits: int = 2048, public_exponent: bytes = None) -> dict:
+    """Generate a real RSA key pair. Returns dict mapping CKA_* ints → bytes.
+
+    public_exponent is the big-endian public exponent to use; the OpenSSL
+    default (65537) is used if it is None or empty.
+    """
+    if public_exponent is not None and int.from_bytes(public_exponent,
+                                                      'big') == 0:
+        public_exponent = None
     if _OPENSSL3:
-        return _rsa_generate_ossl3(bits)
+        return _rsa_generate_ossl3(bits, public_exponent)
     else:
-        return _rsa_generate_ossl1(bits)
+        return _rsa_generate_ossl1(bits, public_exponent)
 
 
-def _rsa_generate_ossl3(bits):
+def _rsa_generate_ossl3(bits, public_exponent=None):
     if _EVP_PKEY_CTX_new_from_name is not None:
         pctx = _EVP_PKEY_CTX_new_from_name(None, b'RSA', None)
     else:
         pctx = _EVP_PKEY_CTX_new_id(_EVP_PKEY_RSA, None)
     if not pctx:
         raise RuntimeError('EVP_PKEY_CTX_new_from_name/new_id(RSA) failed')
+    e_bn = None
     try:
         if _EVP_PKEY_keygen_init(pctx) != 1:
             raise RuntimeError('EVP_PKEY_keygen_init failed')
         if _EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, bits) <= 0:
             raise RuntimeError('EVP_PKEY_CTX_set_rsa_keygen_bits failed')
+        if public_exponent:
+            if _EVP_PKEY_CTX_set1_rsa_keygen_pubexp is None:
+                raise RuntimeError('EVP_PKEY_CTX_set1_rsa_keygen_pubexp '
+                                   'not available')
+            # set1 duplicates the BIGNUM, it is freed below
+            e_bn = _bytes_to_bn(public_exponent)
+            if _EVP_PKEY_CTX_set1_rsa_keygen_pubexp(pctx, e_bn) <= 0:
+                raise RuntimeError('EVP_PKEY_CTX_set1_rsa_keygen_pubexp '
+                                   'failed: %s' % _ossl_err_str())
         pkey = ctypes.c_void_p(None)
         if _EVP_PKEY_keygen(pctx, ctypes.byref(pkey)) != 1:
             raise RuntimeError('EVP_PKEY_keygen failed')
     finally:
+        if e_bn:
+            _BN_free(e_bn)
         _EVP_PKEY_CTX_free(pctx)
 
     try:
@@ -786,9 +808,10 @@ def _rsa_generate_ossl3(bits):
         _EVP_PKEY_free(pkey)
 
 
-def _rsa_generate_ossl1(bits):
+def _rsa_generate_ossl1(bits, public_exponent=None):
     e_bn = _BN_new()
-    _BN_set_word(e_bn, 65537)
+    _BN_set_word(e_bn, int.from_bytes(public_exponent, 'big')
+                 if public_exponent else 65537)
     rsa = _RSA_new()
     if not rsa:
         _BN_free(e_bn)
