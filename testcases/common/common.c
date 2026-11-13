@@ -423,7 +423,7 @@ CK_RV create_RSAPrivateKey(CK_SESSION_HANDLE session,
     CK_RV rc;
 
     CK_BBOOL true = TRUE;
-    CK_ATTRIBUTE template[] = {
+    CK_ATTRIBUTE template[17] = {
         {CKA_CLASS, &class, sizeof(class)},
         {CKA_KEY_TYPE, &keyType, sizeof(keyType)},
         {CKA_TOKEN, &true, sizeof(true)},
@@ -435,21 +435,41 @@ CK_RV create_RSAPrivateKey(CK_SESSION_HANDLE session,
         {CKA_SIGN, &true, sizeof(true)},
         {CKA_MODULUS, modulus, modulus_len},
         {CKA_PUBLIC_EXPONENT, publicExponent, publicExponent_len},
-        {CKA_PRIVATE_EXPONENT, privateExponent, privateExponent_len},
-        {CKA_PRIME_1, prime1, prime1_len},
-        {CKA_PRIME_2, prime2, prime2_len},
-        {CKA_EXPONENT_1, exponent1, exponent1_len},
-        {CKA_EXPONENT_2, exponent2, exponent2_len},
-        {CKA_COEFFICIENT, coefficient, coefficient_len}
     };
-    CK_ULONG template_len = sizeof(template) / sizeof(CK_ATTRIBUTE);
+    CK_ULONG template_len = 11;
 
-    if (prime1 == NULL || prime1_len == 0 ||
-        prime2 == NULL || prime2_len == 0 ||
-        exponent1 == NULL || exponent1_len == 0 ||
-        exponent2 == NULL || exponent2_len == 0 ||
-        coefficient == NULL || coefficient_len == 0)
-        template_len -= 5;
+    if (privateExponent != NULL && privateExponent_len > 0) {
+        template[template_len].type = CKA_PRIVATE_EXPONENT;
+        template[template_len].pValue = privateExponent;
+        template[template_len].ulValueLen = privateExponent_len;
+        template_len++;
+    }
+    if (prime1 != NULL && prime1_len > 0 &&
+        prime2 != NULL && prime2_len > 0 &&
+        exponent1 != NULL && exponent1_len > 0 &&
+        exponent2 != NULL && exponent2_len > 0 &&
+        coefficient != NULL && coefficient_len > 0) {
+        template[template_len].type = CKA_PRIME_1;
+        template[template_len].pValue = prime1;
+        template[template_len].ulValueLen = prime1_len;
+        template_len++;
+        template[template_len].type = CKA_PRIME_2;
+        template[template_len].pValue = prime2;
+        template[template_len].ulValueLen = prime2_len;
+        template_len++;
+        template[template_len].type = CKA_EXPONENT_1;
+        template[template_len].pValue = exponent1;
+        template[template_len].ulValueLen = exponent1_len;
+        template_len++;
+        template[template_len].type = CKA_EXPONENT_2;
+        template[template_len].pValue = exponent2;
+        template[template_len].ulValueLen = exponent2_len;
+        template_len++;
+        template[template_len].type = CKA_COEFFICIENT;
+        template[template_len].pValue = coefficient;
+        template[template_len].ulValueLen = coefficient_len;
+        template_len++;
+    }
 
     // create key
     rc = funcs->C_CreateObject(session, template, template_len, priv_key);
