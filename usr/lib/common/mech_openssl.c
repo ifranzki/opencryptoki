@@ -764,6 +764,12 @@ out:
     return pkey;
 }
 
+static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                               CK_BYTE *priv_exp, CK_ULONG priv_exp_len);
+static CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                                      const CK_BYTE *priv_exp,
+                                      CK_ULONG priv_exp_len);
+
 static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 {
     CK_ATTRIBUTE *modulus = NULL;
@@ -830,8 +836,12 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 
     // CRT key?
     if (prime1) {
+        CK_ULONG mod_len;
+
         if (!prime2 || !exp_1 || !exp_2 || !coeff)
             goto out;
+
+        mod_len = modulus->ulValueLen;
 
         // Even though this is CRT key, OpenSSL requires the
         // modulus and exponents filled in or encrypt and decrypt will
@@ -840,15 +850,32 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
                   bn_mod);
         BN_bin2bn((unsigned char *) pub_exp->pValue, pub_exp->ulValueLen,
                   bn_pub_exp);
-        BN_bin2bn((unsigned char *) priv_exp->pValue, priv_exp->ulValueLen,
-                  bn_priv_exp);
-
         BN_bin2bn((unsigned char *) prime1->pValue, prime1->ulValueLen, bn_p1);
         BN_bin2bn((unsigned char *) prime2->pValue, prime2->ulValueLen, bn_p2);
-
         BN_bin2bn((unsigned char *) exp_1->pValue, exp_1->ulValueLen, bn_e1);
         BN_bin2bn((unsigned char *) exp_2->pValue, exp_2->ulValueLen, bn_e2);
         BN_bin2bn((unsigned char *) coeff->pValue, coeff->ulValueLen, bn_cf);
+
+        if (priv_exp != NULL && priv_exp->ulValueLen > 0) {
+            BN_bin2bn((unsigned char *) priv_exp->pValue, priv_exp->ulValueLen,
+                      bn_priv_exp);
+        } else {
+            CK_BYTE *d_buf;
+
+            d_buf = calloc(1, mod_len);
+            if (d_buf == NULL)
+                goto out;
+
+            if (calc_rsa_priv_exp(NULL, key_obj, d_buf, mod_len) != CKR_OK) {
+                free(d_buf);
+                goto out;
+            }
+
+            BN_bin2bn(d_buf, mod_len, bn_priv_exp);
+            save_rsa_priv_exp_in_key(NULL, key_obj, d_buf, mod_len);
+            OPENSSL_cleanse(d_buf, mod_len);
+            free(d_buf);
+        }
 
 #if !OPENSSL_VERSION_PREREQ(3, 0)
         RSA_set0_key(rsa, bn_mod, bn_pub_exp, bn_priv_exp);
@@ -6633,7 +6660,7 @@ static CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
             goto unlock;
         }
 
-        if (object_is_token_object(key_obj)) {
+        if (tokdata != NULL && object_is_token_object(key_obj)) {
             rc = object_mgr_save_token_object(tokdata, key_obj);
             if (rc != CKR_OK) {
                 TRACE_WARNING("object_mgr_save_token_object failed: 0x%lx\n", rc);

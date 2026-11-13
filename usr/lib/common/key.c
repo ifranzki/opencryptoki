@@ -2573,12 +2573,8 @@ CK_RV rsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     }
 
     rc = template_attribute_get_non_empty(tmpl, CKA_PRIVATE_EXPONENT, &attr);
-    if (rc != CKR_OK) {
-        if (mode == MODE_CREATE) {
-            TRACE_ERROR("Could not find CKA_PRIVATE_EXPONENT\n");
-            return rc;
-        }
-    }
+    if (rc != CKR_OK)
+        attr = NULL;
 
     /* The RSA CRT components are optional, no return code checking */
     template_attribute_get_non_empty(tmpl, CKA_PRIME_1, &prime1);
@@ -2587,14 +2583,22 @@ CK_RV rsa_priv_check_required_attributes(TEMPLATE *tmpl, CK_ULONG mode)
     template_attribute_get_non_empty(tmpl, CKA_EXPONENT_2, &exp2);
     template_attribute_get_non_empty(tmpl, CKA_COEFFICIENT, &coef);
 
-    /* For CREATE either all CRT components or none of them must be specified */
-    if (mode == MODE_CREATE &&
-        !((prime1 == NULL && prime2 == NULL && exp1 == NULL &&
-           exp2 == NULL && coef == NULL) ||
-          (prime1 != NULL && prime2 != NULL && exp1 != NULL &&
-           exp2 != NULL && coef != NULL))) {
-        TRACE_ERROR("Either all CRT attrs must be specified or none of them\n");
-        return CKR_TEMPLATE_INCONSISTENT;
+    /* For CREATE either CKA_PRIVATE_EXPONENT or all CRT components must be specified */
+    if (mode == MODE_CREATE) {
+        CK_BBOOL all_crt = (prime1 != NULL && prime2 != NULL && exp1 != NULL &&
+                            exp2 != NULL && coef != NULL);
+        CK_BBOOL any_crt = (prime1 != NULL || prime2 != NULL || exp1 != NULL ||
+                            exp2 != NULL || coef != NULL);
+
+        if (attr == NULL && !all_crt) {
+            TRACE_ERROR("Either CKA_PRIVATE_EXPONENT or all CRT attributes must be specified\n");
+            return CKR_TEMPLATE_INCOMPLETE;
+        }
+
+        if (any_crt && !all_crt) {
+            TRACE_ERROR("Either all CRT attrs must be specified or none of them\n");
+            return CKR_TEMPLATE_INCONSISTENT;
+        }
     }
 
     return priv_key_check_required_attributes(tmpl, mode);
