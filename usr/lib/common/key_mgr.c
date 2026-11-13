@@ -1177,8 +1177,13 @@ CK_RV key_mgr_wrap_key(STDLL_TokData_t *tokdata,
         }
         break;
     case CKK_RSA:
+        /*
+         * The READ_LOCK of key_obj is held here. It is temporarily released
+         * by rsa_priv_wrap_get_data() if calculated CRT components are stored
+         * in key_obj. No pointers to key_obj's attributes are used afterwards.
+         */
         rc = rsa_priv_wrap_get_data(key_obj->template, FALSE, &data,
-                                    &data_len);
+                                    &data_len, tokdata, key_obj);
         if (rc != CKR_OK) {
             TRACE_DEVEL("rsa_priv_wrap_get_data failed.\n");
             goto done;

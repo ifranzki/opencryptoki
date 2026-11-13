@@ -2764,9 +2764,15 @@ CK_BBOOL rsa_priv_check_exportability(CK_ATTRIBUTE_TYPE type)
 //   coefficient INTEGER
 // }
 //
+// If 'key_obj' is not NULL, the calculated CRT components are stored in the
+// key object. In this case the caller must hold the READ_LOCK of the key
+// object, which is temporarily released while storing the components. The
+// 'tmpl' must be the template of 'key_obj'.
+//
 CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
                              CK_BBOOL length_only,
-                             CK_BYTE **data, CK_ULONG *data_len)
+                             CK_BYTE **data, CK_ULONG *data_len,
+                             STDLL_TokData_t *tokdata, OBJECT *key_obj)
 {
     CK_ATTRIBUTE *modulus = NULL;
     CK_ATTRIBUTE *publ_exp = NULL, *priv_exp = NULL;
@@ -2774,7 +2780,7 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
     CK_ATTRIBUTE *exponent1 = NULL, *exponent2 = NULL;
     CK_ATTRIBUTE *coeff = NULL;
     CK_BBOOL crt_alloced = FALSE;
-    CK_RV rc;
+    CK_RV rc, rc2;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
     if (rc != CKR_OK) {
@@ -2801,7 +2807,12 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
     template_attribute_get_non_empty(tmpl, CKA_COEFFICIENT, &coeff);
     if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
         exponent2 == NULL || coeff == NULL) {
-        /* no CRT components, calculate them */
+        /*
+         * No (or only some) CRT components, calculate them. Do not use the
+         * pointers to existing template attributes as output, they are owned
+         * by the template.
+         */
+        prime1 = prime2 = exponent1 = exponent2 = coeff = NULL;
         rc = calc_rsa_crt_from_me(modulus, publ_exp, priv_exp, &prime1,
                                   &prime2, &exponent1, &exponent2, &coeff);
         if (rc != CKR_OK) {
@@ -2819,6 +2830,21 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
     }
 
     if (crt_alloced) {
+        /*
+         * Store the calculated CRT components in the key object, so that the
+         * (not fully constant-time) calculation is done only once per key.
+         * This releases and re-obtains the lock of the key object, so the
+         * pointers to the template attributes (modulus, publ_exp, priv_exp)
+         * must not be used after this point.
+         */
+        if (rc == CKR_OK && key_obj != NULL) {
+            rc2 = rsa_save_crt_in_key(tokdata, key_obj, prime1, prime2,
+                                      exponent1, exponent2, coeff);
+            if (rc2 != CKR_OK)
+                TRACE_WARNING("Failed to store CRT components in key object: "
+                              "0x%lx\n", rc2);
+        }
+
         OPENSSL_cleanse(prime1->pValue, prime1->ulValueLen);
         free(prime1);
         OPENSSL_cleanse(prime2->pValue, prime2->ulValueLen);

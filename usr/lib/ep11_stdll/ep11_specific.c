@@ -4644,7 +4644,7 @@ static CK_RV import_RSA_key(STDLL_TokData_t *tokdata, SESSION *sess,
          * since this is AES_CBC_PAD, padding is done in mechanism.
          */
         rc = rsa_priv_wrap_get_data(rsa_key_obj->template, FALSE,
-                                    &data, &data_len);
+                                    &data, &data_len, NULL, NULL);
         if (rc != CKR_OK) {
             TRACE_DEVEL("%s RSA wrap get data failed\n", __func__);
             goto import_RSA_key_end;

@@ -2845,7 +2845,8 @@ CK_RV rsa_priv_set_default_attributes(TEMPLATE *tmpl, CK_ULONG mode);
 CK_RV rsa_priv_validate_attribute(STDLL_TokData_t *tokdata, TEMPLATE *tmpl,
                                   CK_ATTRIBUTE *attr, CK_ULONG mode);
 CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl, CK_BBOOL length_only,
-                             CK_BYTE **data, CK_ULONG *data_len);
+                             CK_BYTE **data, CK_ULONG *data_len,
+                             STDLL_TokData_t *tokdata, OBJECT *key_obj);
 CK_RV rsa_priv_unwrap(TEMPLATE *tmpl, CK_BYTE *data, CK_ULONG data_len);
 CK_RV rsa_priv_unwrap_get_data(TEMPLATE *tmpl,
                                CK_BYTE *data, CK_ULONG total_length,
@@ -3669,6 +3670,10 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
                            CK_ATTRIBUTE *priv_exp, CK_ATTRIBUTE **prime1,
                            CK_ATTRIBUTE **prime2, CK_ATTRIBUTE **exponent1,
                            CK_ATTRIBUTE **exponent2, CK_ATTRIBUTE **coef);
+CK_RV rsa_save_crt_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                          CK_ATTRIBUTE *prime1, CK_ATTRIBUTE *prime2,
+                          CK_ATTRIBUTE *exponent1, CK_ATTRIBUTE *exponent2,
+                          CK_ATTRIBUTE *coeff);
 
 int rsa_calc_inv_e_mod(BIGNUM *r, const BIGNUM *e, const BIGNUM *m,
                        BN_CTX *ctx);

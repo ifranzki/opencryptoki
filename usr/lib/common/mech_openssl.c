@@ -6685,6 +6685,95 @@ unlock:
     return rc;
 }
 
+/*
+ * Store the CRT components, that have been calculated from n, e and d, in the
+ * key object, so that the (not fully constant-time) calculation needs to be
+ * done only once for a key.
+ *
+ * ATTENTION: This function releases and re-obtains the lock of the key object!
+ * The caller must hold the READ_LOCK of the key object. Any pointers to
+ * attributes of the object or its values must not be used anymore after
+ * calling this function.
+ */
+CK_RV rsa_save_crt_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                          CK_ATTRIBUTE *prime1, CK_ATTRIBUTE *prime2,
+                          CK_ATTRIBUTE *exponent1, CK_ATTRIBUTE *exponent2,
+                          CK_ATTRIBUTE *coeff)
+{
+    CK_ATTRIBUTE *crt[] = { prime1, prime2, exponent1, exponent2, coeff };
+    const CK_ULONG num = sizeof(crt) / sizeof(crt[0]);
+    CK_ATTRIBUTE *attr = NULL;
+    CK_BBOOL complete = TRUE;
+    CK_ULONG i;
+    CK_RV rc, lock_rc;
+
+    /* Release READ_LOCK */
+    rc = object_unlock(key_obj);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("object_unlock failed: 0x%lx\n", rc);
+        return rc;
+    }
+
+    /* Acquire WRITE_LOCK */
+    rc = object_lock(key_obj, WRITE_LOCK);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("object_lock(WRITE_LOCK) failed: 0x%lx\n", rc);
+        /* Try restoring the READ_LOCK before returning */
+        object_lock(key_obj, READ_LOCK);
+        return rc;
+    }
+
+    /* Re-check under WRITE_LOCK (double-checked locking) */
+    for (i = 0; i < num; i++) {
+        if (template_attribute_get_non_empty(key_obj->template, crt[i]->type,
+                                             &attr) != CKR_OK) {
+            complete = FALSE;
+            break;
+        }
+    }
+    if (complete) {
+        /* Another thread set them during the lock transition */
+        rc = CKR_OK;
+        goto unlock;
+    }
+
+    for (i = 0; i < num; i++) {
+        rc = template_build_update_attribute(key_obj->template, crt[i]->type,
+                                             crt[i]->pValue,
+                                             crt[i]->ulValueLen);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("template_build_update_attribute failed: 0x%lx\n", rc);
+            /*
+             * Never leave a partial set of CRT attributes in the key, a key
+             * with only some of the CRT attributes can not be used.
+             */
+            for (i = 0; i < num; i++)
+                template_remove_attribute(key_obj->template, crt[i]->type);
+            goto unlock;
+        }
+    }
+
+    if (tokdata != NULL && object_is_token_object(key_obj)) {
+        rc = object_mgr_save_token_object(tokdata, key_obj);
+        if (rc != CKR_OK) {
+            TRACE_WARNING("object_mgr_save_token_object failed: 0x%lx\n", rc);
+            rc = CKR_OK;
+        }
+    }
+
+unlock:
+    /* Release WRITE_LOCK and restore READ_LOCK */
+    lock_rc = object_unlock(key_obj);
+    if (lock_rc != CKR_OK)
+        TRACE_ERROR("object_unlock(WRITE_LOCK) failed: 0x%lx\n", lock_rc);
+
+    lock_rc = object_lock(key_obj, READ_LOCK);
+    if (lock_rc != CKR_OK)
+        TRACE_ERROR("object_lock(READ_LOCK) restore failed: 0x%lx\n", lock_rc);
+
+    return rc;
+}
+
 CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                       const CK_BYTE *in, CK_ULONG inlen,
                                       CK_BYTE *kdk, CK_ULONG kdklen)
