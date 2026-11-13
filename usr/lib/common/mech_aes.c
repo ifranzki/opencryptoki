@@ -4698,7 +4698,7 @@ static CK_RV aeskw_unwrap(STDLL_TokData_t *tokdata, SESSION *sess,
     if (iv == NULL)
         iv = aeskw_default_iv;
 
-    if (memcmp(ret_iv, iv, AES_KEY_WRAP_IV_SIZE) != 0) {
+    if (CRYPTO_memcmp(ret_iv, iv, AES_KEY_WRAP_IV_SIZE) != 0) {
         OPENSSL_cleanse(out_data, *out_data_len);
         return CKR_ENCRYPTED_DATA_INVALID;
     }
@@ -4852,7 +4852,7 @@ static CK_RV aeskw_unwrap_pad(STDLL_TokData_t *tokdata, SESSION *sess,
      */
     if (exp_iv == NULL)
         exp_iv =  aeskw_default_aiv;
-    if (memcmp(aiv, exp_iv, AES_KEY_WRAP_KWP_IV_SIZE) != 0) {
+    if (CRYPTO_memcmp(aiv, exp_iv, AES_KEY_WRAP_KWP_IV_SIZE) != 0) {
         OPENSSL_cleanse(out_data, *out_data_len);
         return CKR_ENCRYPTED_DATA_INVALID;
     }
@@ -4876,7 +4876,7 @@ static CK_RV aeskw_unwrap_pad(STDLL_TokData_t *tokdata, SESSION *sess,
      * zero.
      */
     padding_len = padded_len - ptext_len;
-    if (memcmp(out_data + ptext_len, zeros, padding_len) != 0) {
+    if (CRYPTO_memcmp(out_data + ptext_len, zeros, padding_len) != 0) {
         OPENSSL_cleanse(out_data, *out_data_len);
         return CKR_ENCRYPTED_DATA_INVALID;
     }
