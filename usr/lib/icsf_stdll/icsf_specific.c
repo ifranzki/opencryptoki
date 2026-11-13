@@ -1101,8 +1101,8 @@ CK_RV icsftok_init_token(STDLL_TokData_t * tokdata, CK_SLOT_ID slot_id,
         rc = compute_sha1(tokdata, pin, pin_len, hash_sha);
         if (rc != CKR_OK)
             goto done;
-        if (memcmp(tokdata->nv_token_data->so_pin_sha, hash_sha,
-                   SHA1_HASH_SIZE) != 0) {
+        if (CRYPTO_memcmp(tokdata->nv_token_data->so_pin_sha, hash_sha,
+                          SHA1_HASH_SIZE) != 0) {
             TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
             rc = CKR_PIN_INCORRECT;
             goto done;
@@ -1373,19 +1373,19 @@ CK_RV icsftok_set_pin(STDLL_TokData_t * tokdata, SESSION * sess,
                 TRACE_ERROR("Hash Computation Failed.\n");
                 goto done;
             }
-            if (memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) {
+            if (CRYPTO_memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INVALID));
                 rc = CKR_PIN_INVALID;
                 goto done;
             }
-            if (memcmp(user_pin_sha_snap, old_hash_sha, SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(user_pin_sha_snap, old_hash_sha, SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
                 rc = CKR_PIN_INCORRECT;
                 goto done;
             }
             /* check that new pin is not the default */
-            if (memcmp(new_hash_sha, default_user_pin_sha,
-                       SHA1_HASH_SIZE) == 0) {
+            if (CRYPTO_memcmp(new_hash_sha, default_user_pin_sha,
+                              SHA1_HASH_SIZE) == 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INVALID));
                 rc = CKR_PIN_INVALID;
                 goto done;
@@ -1520,18 +1520,18 @@ CK_RV icsftok_set_pin(STDLL_TokData_t * tokdata, SESSION * sess,
                 TRACE_ERROR("Hash Computation Failed.\n");
                 goto done;
             }
-            if (memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) {
+            if (CRYPTO_memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INVALID));
                 rc = CKR_PIN_INVALID;
                 goto done;
             }
-            if (memcmp(so_pin_sha_snap, old_hash_sha, SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(so_pin_sha_snap, old_hash_sha, SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
                 rc = CKR_PIN_INCORRECT;
                 goto done;
             }
             /* check that new pin is not the default */
-            if (memcmp(new_hash_sha, default_so_pin_sha, SHA1_HASH_SIZE) == 0) {
+            if (CRYPTO_memcmp(new_hash_sha, default_so_pin_sha, SHA1_HASH_SIZE) == 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INVALID));
                 rc = CKR_PIN_INVALID;
                 goto done;
@@ -2071,14 +2071,14 @@ CK_RV icsftok_login(STDLL_TokData_t * tokdata, SESSION * sess,
                 TRACE_ERROR("Hash Computation Failed.\n");
                 goto done_locked;
             }
-            if (memcmp(tokdata->nv_token_data->user_pin_sha,
-                       "00000000000000000000", SHA1_HASH_SIZE) == 0) {
+            if (CRYPTO_memcmp(tokdata->nv_token_data->user_pin_sha,
+                              "00000000000000000000", SHA1_HASH_SIZE) == 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_USER_PIN_NOT_INITIALIZED));
                 rc = CKR_USER_PIN_NOT_INITIALIZED;
                 goto done_locked;
             }
-            if (memcmp(tokdata->nv_token_data->user_pin_sha, hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(tokdata->nv_token_data->user_pin_sha, hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
                 rc = CKR_PIN_INCORRECT;
                 goto done_locked;
@@ -2183,8 +2183,8 @@ CK_RV icsftok_login(STDLL_TokData_t * tokdata, SESSION * sess,
                 TRACE_ERROR("Hash Computation Failed.\n");
                 goto done_locked;
             }
-            if (memcmp(tokdata->nv_token_data->so_pin_sha, hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(tokdata->nv_token_data->so_pin_sha, hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
                 rc = CKR_PIN_INCORRECT;
                 goto done_locked;

@@ -33,6 +33,7 @@
 #include <syslog.h>
 #include <grp.h>
 
+#include <openssl/crypto.h>
 #include <openssl/des.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
@@ -1748,7 +1749,7 @@ CK_RV token_specific_login(STDLL_TokData_t * tokdata, SESSION * sess,
                             CKO_PRIVATE_KEY, &tpm_data->ckPrivateRootKey);
         if (rc != CKR_OK) {
             /* user's key chain not found, this must be the initial login */
-            if (memcmp(hash_sha, default_user_pin_sha, SHA1_HASH_SIZE)) {
+            if (CRYPTO_memcmp(hash_sha, default_user_pin_sha, SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("token_find_key failed and PIN != default\n");
                 OPENSSL_cleanse(hash_sha, sizeof(hash_sha));
                 return CKR_PIN_INCORRECT;
@@ -1843,7 +1844,7 @@ CK_RV token_specific_login(STDLL_TokData_t * tokdata, SESSION * sess,
         if (rc != CKR_OK) {
             /* The SO hasn't set her PIN yet, compare the login pin with
              * the hard-coded value */
-            if (memcmp(default_so_pin_sha, hash_sha, SHA1_HASH_SIZE)) {
+            if (CRYPTO_memcmp(default_so_pin_sha, hash_sha, SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("token_find_key failed and PIN != default\n");
                 OPENSSL_cleanse(hash_sha, sizeof(hash_sha));
                 return CKR_PIN_INCORRECT;
@@ -1949,12 +1950,12 @@ CK_RV check_pin_properties(CK_USER_TYPE userType, CK_BYTE * pinHash,
 {
     /* make sure the new PIN is different */
     if (userType == CKU_USER) {
-        if (!memcmp(pinHash, default_user_pin_sha, SHA1_HASH_SIZE)) {
+        if (CRYPTO_memcmp(pinHash, default_user_pin_sha, SHA1_HASH_SIZE) == 0) {
             TRACE_ERROR("new PIN must not be the default\n");
             return CKR_PIN_INVALID;
         }
     } else {
-        if (!memcmp(pinHash, default_so_pin_sha, SHA1_HASH_SIZE)) {
+        if (CRYPTO_memcmp(pinHash, default_so_pin_sha, SHA1_HASH_SIZE) == 0) {
             TRACE_ERROR("new PIN must not be the default\n");
             return CKR_PIN_INVALID;
         }
@@ -2062,7 +2063,7 @@ CK_RV token_specific_set_pin(STDLL_TokData_t * tokdata, SESSION * sess,
     if (sess->session_info.state == CKS_RW_USER_FUNCTIONS ||
         sess->session_info.state == CKS_RW_PUBLIC_SESSION) {
         if (tpm_data->not_initialized) {
-            if (memcmp(oldpin_hash, default_user_pin_sha, SHA1_HASH_SIZE)) {
+            if (CRYPTO_memcmp(oldpin_hash, default_user_pin_sha, SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("old PIN != default for an "
                             "uninitialized user\n");
                 OPENSSL_cleanse(oldpin_hash, sizeof(oldpin_hash));
@@ -2098,8 +2099,8 @@ CK_RV token_specific_set_pin(STDLL_TokData_t * tokdata, SESSION * sess,
 
         if (sess->session_info.state == CKS_RW_USER_FUNCTIONS) {
             /* if we're already logged in, just verify the hash */
-            if (memcmp(tpm_data->current_user_pin_sha, oldpin_hash,
-                       SHA1_HASH_SIZE)) {
+            if (CRYPTO_memcmp(tpm_data->current_user_pin_sha, oldpin_hash,
+                              SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("USER pin incorrect\n");
                 OPENSSL_cleanse(oldpin_hash, sizeof(oldpin_hash));
                 OPENSSL_cleanse(newpin_hash, sizeof(newpin_hash));
@@ -2171,7 +2172,7 @@ CK_RV token_specific_set_pin(STDLL_TokData_t * tokdata, SESSION * sess,
         EVP_PKEY_free(pkey_root);
     } else if (sess->session_info.state == CKS_RW_SO_FUNCTIONS) {
         if (tpm_data->not_initialized) {
-            if (memcmp(default_so_pin_sha, oldpin_hash, SHA1_HASH_SIZE)) {
+            if (CRYPTO_memcmp(default_so_pin_sha, oldpin_hash, SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("old PIN != default for an " "uninitialized SO\n");
                 OPENSSL_cleanse(oldpin_hash, sizeof(oldpin_hash));
                 OPENSSL_cleanse(newpin_hash, sizeof(newpin_hash));
@@ -2202,7 +2203,7 @@ CK_RV token_specific_set_pin(STDLL_TokData_t * tokdata, SESSION * sess,
             return save_token_data(tokdata, sess->session_info.slotID);
         }
 
-        if (memcmp(tpm_data->current_so_pin_sha, oldpin_hash, SHA1_HASH_SIZE)) {
+        if (CRYPTO_memcmp(tpm_data->current_so_pin_sha, oldpin_hash, SHA1_HASH_SIZE) != 0) {
             TRACE_ERROR("SO PIN incorrect\n");
             OPENSSL_cleanse(oldpin_hash, sizeof(oldpin_hash));
             OPENSSL_cleanse(newpin_hash, sizeof(newpin_hash));
@@ -2344,7 +2345,7 @@ CK_RV token_specific_init_token(STDLL_TokData_t * tokdata, CK_SLOT_ID sid,
     if (rc != CKR_OK) {
         /* The SO hasn't set her PIN yet, compare the login pin with
          * the hard-coded value */
-        if (memcmp(default_so_pin_sha, hash_sha, SHA1_HASH_SIZE)) {
+        if (CRYPTO_memcmp(default_so_pin_sha, hash_sha, SHA1_HASH_SIZE) != 0) {
             TRACE_ERROR("token_find_key failed and PIN != default\n");
             return CKR_PIN_INCORRECT;
         }

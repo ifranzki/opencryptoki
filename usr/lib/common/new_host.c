@@ -493,7 +493,7 @@ CK_RV SC_InitToken(STDLL_TokData_t *tokdata, CK_SLOT_ID sid, CK_CHAR_PTR pPin,
             TRACE_DEVEL("compute_sha1 failed.\n");
             goto done;
         }
-        if (memcmp(so_pin_sha_snap, hash_sha, SHA1_HASH_SIZE) != 0) {
+        if (CRYPTO_memcmp(so_pin_sha_snap, hash_sha, SHA1_HASH_SIZE) != 0) {
             TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
             rc = CKR_PIN_INCORRECT;
             goto done;
@@ -842,8 +842,8 @@ CK_RV SC_SetPIN(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
         (sess->session_info.state == CKS_RW_PUBLIC_SESSION)) {
 
         if (tokdata->version < TOK_NEW_DATA_STORE) {
-            if (memcmp(pin_sha_snap, old_hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(pin_sha_snap, old_hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
                 rc = CKR_PIN_INCORRECT;
                 goto done;
@@ -856,8 +856,8 @@ CK_RV SC_SetPIN(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
             }
             /* The old PIN matches, now make sure its different
              * than the new and is not the default. */
-            if ((memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) ||
-                (memcmp(new_hash_sha, default_user_pin_sha, SHA1_HASH_SIZE)
+            if ((CRYPTO_memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) ||
+                (CRYPTO_memcmp(new_hash_sha, default_user_pin_sha, SHA1_HASH_SIZE)
                  == 0)) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INVALID));
                 rc = CKR_PIN_INVALID;
@@ -972,8 +972,8 @@ CK_RV SC_SetPIN(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
     } else if (sess->session_info.state == CKS_RW_SO_FUNCTIONS) {
 
         if (tokdata->version < TOK_NEW_DATA_STORE) {
-            if (memcmp(so_pin_sha_snap, old_hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(so_pin_sha_snap, old_hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 rc = CKR_PIN_INCORRECT;
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INCORRECT));
                 goto done;
@@ -987,8 +987,8 @@ CK_RV SC_SetPIN(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
             /* The old PIN matches, now make sure its different
              * than the new and is not the default.
              */
-            if ((memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) ||
-                (memcmp(new_hash_sha, default_so_pin_sha, SHA1_HASH_SIZE)
+            if ((CRYPTO_memcmp(old_hash_sha, new_hash_sha, SHA1_HASH_SIZE) == 0) ||
+                (CRYPTO_memcmp(new_hash_sha, default_so_pin_sha, SHA1_HASH_SIZE)
                  == 0)) {
                 TRACE_ERROR("%s\n", ock_err(ERR_PIN_INVALID));
                 rc = CKR_PIN_INVALID;
@@ -1572,8 +1572,8 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
                 TRACE_ERROR("Failed to get process lock.\n");
                 goto done;
             }
-            if (memcmp(tokdata->nv_token_data->user_pin_sha, hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(tokdata->nv_token_data->user_pin_sha, hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 set_login_flags(userType, flags);
                 rc = XProcUnLock(tokdata);
                 if (rc != CKR_OK) {
@@ -1718,8 +1718,8 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
                 TRACE_ERROR("Failed to get process lock.\n");
                 goto done;
             }
-            if (memcmp(tokdata->nv_token_data->so_pin_sha, hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(tokdata->nv_token_data->so_pin_sha, hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 set_login_flags(userType, flags);
                 rc = XProcUnLock(tokdata);
                 if (rc != CKR_OK) {
@@ -1851,8 +1851,8 @@ CK_RV SC_Login(STDLL_TokData_t *tokdata, ST_SESSION_HANDLE *sSession,
                 TRACE_ERROR("Failed to get process lock.\n");
                 goto done;
             }
-            if (memcmp(tokdata->nv_token_data->user_pin_sha, hash_sha,
-                       SHA1_HASH_SIZE) != 0) {
+            if (CRYPTO_memcmp(tokdata->nv_token_data->user_pin_sha, hash_sha,
+                              SHA1_HASH_SIZE) != 0) {
                 set_login_flags(userType, flags);
                 rc = XProcUnLock(tokdata);
                 if (rc != CKR_OK) {
