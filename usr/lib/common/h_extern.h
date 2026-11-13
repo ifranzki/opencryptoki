@@ -3674,6 +3674,10 @@ CK_RV rsa_save_crt_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                           CK_ATTRIBUTE *prime1, CK_ATTRIBUTE *prime2,
                           CK_ATTRIBUTE *exponent1, CK_ATTRIBUTE *exponent2,
                           CK_ATTRIBUTE *coeff);
+CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                        CK_ULONG priv_exp_len);
+CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                               const CK_BYTE *priv_exp, CK_ULONG priv_exp_len);
 
 int rsa_calc_inv_e_mod(BIGNUM *r, const BIGNUM *e, const BIGNUM *m,
                        BN_CTX *ctx);

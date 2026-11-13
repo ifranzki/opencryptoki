@@ -764,12 +764,6 @@ out:
     return pkey;
 }
 
-static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
-                               CK_BYTE *priv_exp, CK_ULONG priv_exp_len);
-static CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
-                                      const CK_BYTE *priv_exp,
-                                      CK_ULONG priv_exp_len);
-
 static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 {
     CK_ATTRIBUTE *modulus = NULL;
@@ -866,7 +860,8 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
             if (d_buf == NULL)
                 goto out;
 
-            if (calc_rsa_priv_exp(NULL, key_obj, d_buf, mod_len) != CKR_OK) {
+            if (calc_rsa_priv_exp(key_obj->template, d_buf,
+                                  mod_len) != CKR_OK) {
                 free(d_buf);
                 goto out;
             }
@@ -6491,16 +6486,14 @@ out:
     return rc;
 }
 
-static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
-                               CK_BYTE *priv_exp, CK_ULONG priv_exp_len)
+CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                        CK_ULONG priv_exp_len)
 {
     CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
     CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
     BN_CTX *bn_ctx;
     BIGNUM *n, *e, *p, *q, *phi, *d;
     CK_RV rc;
-
-    UNUSED(tokdata);
 
     bn_ctx = BN_CTX_secure_new();
     if (bn_ctx == NULL) {
@@ -6511,8 +6504,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_CTX_start(bn_ctx);
 
     /* Get modulus as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template, CKA_MODULUS,
-                                          &modulus);
+    rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_MODULUS\n");
         goto done;
@@ -6528,8 +6520,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_set_flags(n, BN_FLG_CONSTTIME);
 
     /* Get public exponent as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template,
-                                          CKA_PUBLIC_EXPONENT, &pub_exp);
+    rc = template_attribute_get_non_empty(tmpl, CKA_PUBLIC_EXPONENT, &pub_exp);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_PUBLIC_EXPONENT\n");
         goto done;
@@ -6545,8 +6536,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_set_flags(e, BN_FLG_CONSTTIME);
 
     /* Get prime1 as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template, CKA_PRIME_1,
-                                          &prime1);
+    rc = template_attribute_get_non_empty(tmpl, CKA_PRIME_1, &prime1);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_PRIME_1\n");
         goto done;
@@ -6562,8 +6552,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_set_flags(p, BN_FLG_CONSTTIME);
 
     /* Get prime2 as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template, CKA_PRIME_2,
-                                          &prime2);
+    rc = template_attribute_get_non_empty(tmpl, CKA_PRIME_2, &prime2);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_PRIME_2\n");
         goto done;
@@ -6625,9 +6614,8 @@ done:
  * Any pointers to attributes of the object or its values must not be used
  * anymore after calling this function.
  */
-static CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
-                                      const CK_BYTE *priv_exp,
-                                      CK_ULONG priv_exp_len)
+CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                               const CK_BYTE *priv_exp, CK_ULONG priv_exp_len)
 {
     CK_ATTRIBUTE *priv_exp_attr = NULL;
     CK_RV rc, lock_rc;
@@ -6835,7 +6823,7 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
          */
         modulus = NULL;
 
-        rc = calc_rsa_priv_exp(tokdata, key_obj, buf, modulus_len);
+        rc = calc_rsa_priv_exp(key_obj->template, buf, modulus_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("calc_rsa_priv_exp failed\n");
             goto out;
