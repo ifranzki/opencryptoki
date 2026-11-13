@@ -764,7 +764,27 @@ out:
     return pkey;
 }
 
-static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
+static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                               CK_BYTE *priv_exp, CK_ULONG priv_exp_len);
+static CK_RV save_rsa_priv_exp_in_key(OBJECT *key_obj, const CK_BYTE *priv_exp,
+                                      CK_ULONG priv_exp_len);
+/*
+ * Convert the RSA private key attributes of the key object into an EVP_PKEY.
+ * If the key is a CRT-only key (no CKA_PRIVATE_EXPONENT), the private
+ * exponent is calculated, and ownership of the allocated buffer is passed
+ * back to the caller via calc_priv_exp/calc_priv_exp_len. The caller must
+ * store it in the key object (via save_rsa_priv_exp_in_key) only after the
+ * ex_data lock of the key object has been released, and must cleanse and
+ * free the buffer afterwards. On error, or if the key is not CRT-only, the
+ * caller gets NULL.
+ *
+ * ATTENTION: The caller must hold the ex_data lock of the key object, and
+ * must not acquire the object lock while holding it (lock order is object
+ * lock -> ex_data lock).
+ */
+static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj,
+                                         CK_BYTE **calc_priv_exp,
+                                         CK_ULONG *calc_priv_exp_len)
 {
     CK_ATTRIBUTE *modulus = NULL;
     CK_ATTRIBUTE *pub_exp = NULL;
@@ -774,6 +794,7 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
     CK_ATTRIBUTE *exp_1 = NULL;
     CK_ATTRIBUTE *exp_2 = NULL;
     CK_ATTRIBUTE *coeff = NULL;
+    CK_BYTE *d_buf = NULL;
     EVP_PKEY *pkey = NULL;
 #if OPENSSL_VERSION_PREREQ(3, 0)
     EVP_PKEY_CTX *pctx = NULL;
@@ -784,6 +805,9 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 #endif
     BIGNUM *bn_mod, *bn_pub_exp, *bn_priv_exp, *bn_p1, *bn_p2, *bn_e1, *bn_e2,
         *bn_cf;
+
+    *calc_priv_exp = NULL;
+    *calc_priv_exp_len = 0;
 
     template_attribute_get_non_empty(key_obj->template, CKA_MODULUS, &modulus);
     template_attribute_get_non_empty(key_obj->template,  CKA_PUBLIC_EXPONENT,
@@ -830,8 +854,12 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 
     // CRT key?
     if (prime1) {
+        CK_ULONG mod_len;
+
         if (!prime2 || !exp_1 || !exp_2 || !coeff)
             goto out;
+
+        mod_len = modulus->ulValueLen;
 
         // Even though this is CRT key, OpenSSL requires the
         // modulus and exponents filled in or encrypt and decrypt will
@@ -840,15 +868,32 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
                   bn_mod);
         BN_bin2bn((unsigned char *) pub_exp->pValue, pub_exp->ulValueLen,
                   bn_pub_exp);
-        BN_bin2bn((unsigned char *) priv_exp->pValue, priv_exp->ulValueLen,
-                  bn_priv_exp);
-
         BN_bin2bn((unsigned char *) prime1->pValue, prime1->ulValueLen, bn_p1);
         BN_bin2bn((unsigned char *) prime2->pValue, prime2->ulValueLen, bn_p2);
-
         BN_bin2bn((unsigned char *) exp_1->pValue, exp_1->ulValueLen, bn_e1);
         BN_bin2bn((unsigned char *) exp_2->pValue, exp_2->ulValueLen, bn_e2);
         BN_bin2bn((unsigned char *) coeff->pValue, coeff->ulValueLen, bn_cf);
+
+        if (priv_exp != NULL && priv_exp->ulValueLen > 0) {
+            BN_bin2bn((unsigned char *) priv_exp->pValue, priv_exp->ulValueLen,
+                      bn_priv_exp);
+        } else {
+            d_buf = calloc(1, mod_len);
+            if (d_buf == NULL)
+                goto out;
+
+            if (calc_rsa_priv_exp(NULL, key_obj, d_buf, mod_len) != CKR_OK) {
+                free(d_buf);
+                goto out;
+            }
+
+            BN_bin2bn(d_buf, mod_len, bn_priv_exp);
+
+            /* Pass ownership to the caller, it stores it in the key object
+             * after the ex_data lock has been released. */
+            *calc_priv_exp = d_buf;
+            *calc_priv_exp_len = mod_len;
+        }
 
 #if !OPENSSL_VERSION_PREREQ(3, 0)
         RSA_set0_key(rsa, bn_mod, bn_pub_exp, bn_priv_exp);
@@ -1058,8 +1103,10 @@ CK_RV openssl_specific_rsa_decrypt(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
     struct openssl_ex_data *ex_data = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     EVP_PKEY *pkey = NULL;
+    CK_BYTE *calc_priv_exp = NULL;
+    CK_ULONG calc_priv_exp_len = 0;
     size_t outlen = in_data_len;
-    CK_RV rc;
+    CK_RV rc, rc2;
 
     UNUSED(tokdata);
 
@@ -1070,7 +1117,8 @@ CK_RV openssl_specific_rsa_decrypt(STDLL_TokData_t *tokdata, CK_BYTE *in_data,
         return rc;
 
     if (ex_data->pkey == NULL) {
-        ex_data->pkey = rsa_convert_private_key(key_obj);
+        ex_data->pkey = rsa_convert_private_key(key_obj, &calc_priv_exp,
+                                                &calc_priv_exp_len);
         if (ex_data->pkey == NULL) {
             TRACE_ERROR("%s\n", ock_err(ERR_FUNCTION_FAILED));
             rc = CKR_FUNCTION_FAILED;
@@ -1116,6 +1164,31 @@ done:
     if (ctx != NULL)
         EVP_PKEY_CTX_free(ctx);
     object_ex_data_unlock(key_obj);
+
+    /*
+     * Store the calculated private exponent in the key object, so that the
+     * (not fully constant-time) calculation needs to be done only once for
+     * a key. This must be done after the ex_data lock has been released,
+     * because it upgrades the object lock from READ to WRITE, and the lock
+     * order is object lock -> ex_data lock (never the other way around).
+     * The caller still holds the READ lock of the key object here.
+     */
+    if (calc_priv_exp != NULL) {
+        rc2 = save_rsa_priv_exp_in_key(key_obj, calc_priv_exp,
+                                       calc_priv_exp_len);
+        if (rc2 == CKR_CANT_LOCK) {
+            /* The lock state of the key object is broken, this is fatal */
+            TRACE_ERROR("Failed to store private exponent in key "
+                        "object: 0x%lx\n", rc2);
+            rc = rc2;
+        } else if (rc2 != CKR_OK) {
+            TRACE_WARNING("Failed to store private exponent in key "
+                          "object: 0x%lx\n", rc2);
+        }
+        OPENSSL_cleanse(calc_priv_exp, calc_priv_exp_len);
+        free(calc_priv_exp);
+    }
+
     return rc;
 }
 
