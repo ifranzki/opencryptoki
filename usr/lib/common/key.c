@@ -2789,7 +2789,9 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
     CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
     CK_ATTRIBUTE *exponent1 = NULL, *exponent2 = NULL;
     CK_ATTRIBUTE *coeff = NULL;
-    CK_BBOOL crt_alloced = FALSE;
+    CK_BBOOL crt_alloced = FALSE, priv_exp_alloced = FALSE;
+    CK_BYTE *d_buf = NULL;
+    CK_ULONG d_len = 0;
     CK_RV rc, rc2;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
@@ -2802,21 +2804,45 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
         TRACE_ERROR("Could not find CKA_PUBLIC_EXPONENT for the key.\n");
         return rc;
     }
-    rc = template_attribute_get_non_empty(tmpl, CKA_PRIVATE_EXPONENT,
-                                          &priv_exp);
-    if (rc != CKR_OK) {
-        TRACE_ERROR("Could not find CKA_PRIVATE_EXPONENT for the key.\n");
-        return rc;
-    }
 
-    /* CRT attributes are optional */
+    /* The private exponent and the CRT attributes are optional */
+    template_attribute_get_non_empty(tmpl, CKA_PRIVATE_EXPONENT, &priv_exp);
     template_attribute_get_non_empty(tmpl, CKA_PRIME_1, &prime1);
     template_attribute_get_non_empty(tmpl, CKA_PRIME_2, &prime2);
     template_attribute_get_non_empty(tmpl, CKA_EXPONENT_1, &exponent1);
     template_attribute_get_non_empty(tmpl, CKA_EXPONENT_2, &exponent2);
     template_attribute_get_non_empty(tmpl, CKA_COEFFICIENT, &coeff);
-    if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
-        exponent2 == NULL || coeff == NULL) {
+
+    if (priv_exp == NULL) {
+        /* CRT-only key, the CRT components must all be there */
+        if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
+            exponent2 == NULL || coeff == NULL) {
+            TRACE_ERROR("Neither CKA_PRIVATE_EXPONENT nor all CRT attributes "
+                        "found for the key.\n");
+            return CKR_TEMPLATE_INCOMPLETE;
+        }
+
+        d_len = modulus->ulValueLen;
+        d_buf = calloc(1, d_len);
+        if (d_buf == NULL) {
+            TRACE_ERROR("%s\n", ock_err(ERR_HOST_MEMORY));
+            return CKR_HOST_MEMORY;
+        }
+
+        rc = calc_rsa_priv_exp(tmpl, d_buf, d_len);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("calc_rsa_priv_exp failed\n");
+            goto out;
+        }
+
+        rc = build_attribute(CKA_PRIVATE_EXPONENT, d_buf, d_len, &priv_exp);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("build_attribute failed\n");
+            goto out;
+        }
+        priv_exp_alloced = TRUE;
+    } else if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
+               exponent2 == NULL || coeff == NULL) {
         /*
          * No (or only some) CRT components, calculate them. Do not use the
          * pointers to existing template attributes as output, they are owned
@@ -2839,20 +2865,44 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
         TRACE_DEVEL("ber_encode_RSAPrivateKey failed\n");
     }
 
+    /*
+     * Store the calculated values in the key object, so that the (not fully
+     * constant-time) calculation is done only once per key. This releases
+     * and re-obtains the lock of the key object, so the pointers to the
+     * template attributes (modulus, publ_exp, ...) must not be used after
+     * this point. Only one of priv_exp_alloced and crt_alloced can be set.
+     */
+    if (priv_exp_alloced) {
+        if (rc == CKR_OK && key_obj != NULL) {
+            rc2 = save_rsa_priv_exp_in_key(key_obj, priv_exp->pValue,
+                                           priv_exp->ulValueLen);
+            if (rc2 == CKR_CANT_LOCK) {
+                /* The lock state of the key object is broken, this is
+                 * fatal */
+                TRACE_ERROR("Failed to store private exponent in key "
+                            "object: 0x%lx\n", rc2);
+                rc = rc2;
+            } else if (rc2 != CKR_OK) {
+                TRACE_WARNING("Failed to store private exponent in key "
+                              "object: 0x%lx\n", rc2);
+            }
+        }
+    }
+
     if (crt_alloced) {
-        /*
-         * Store the calculated CRT components in the key object, so that the
-         * (not fully constant-time) calculation is done only once per key.
-         * This releases and re-obtains the lock of the key object, so the
-         * pointers to the template attributes (modulus, publ_exp, priv_exp)
-         * must not be used after this point.
-         */
         if (rc == CKR_OK && key_obj != NULL) {
             rc2 = rsa_save_crt_in_key(key_obj, prime1, prime2,
                                       exponent1, exponent2, coeff);
-            if (rc2 != CKR_OK)
+            if (rc2 == CKR_CANT_LOCK) {
+                /* The lock state of the key object is broken, this is
+                 * fatal */
+                TRACE_ERROR("Failed to store CRT components in key object: "
+                            "0x%lx\n", rc2);
+                rc = rc2;
+            } else if (rc2 != CKR_OK) {
                 TRACE_WARNING("Failed to store CRT components in key object: "
                               "0x%lx\n", rc2);
+            }
         }
 
         OPENSSL_cleanse(prime1->pValue, prime1->ulValueLen);
@@ -2865,6 +2915,26 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
         free(exponent2);
         OPENSSL_cleanse(coeff->pValue, coeff->ulValueLen);
         free(coeff);
+    }
+
+    if (rc == CKR_CANT_LOCK && *data != NULL) {
+        /*
+         * The lock state of the key object is broken. The caller does not
+         * free the data when the function fails, so free it here.
+         */
+        OPENSSL_cleanse(*data, *data_len);
+        free(*data);
+        *data = NULL;
+    }
+
+out:
+    if (priv_exp_alloced && priv_exp != NULL) {
+        OPENSSL_cleanse(priv_exp->pValue, priv_exp->ulValueLen);
+        free(priv_exp);
+    }
+    if (d_buf != NULL) {
+        OPENSSL_cleanse(d_buf, d_len);
+        free(d_buf);
     }
 
     return rc;
