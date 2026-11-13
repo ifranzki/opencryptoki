@@ -6593,6 +6593,71 @@ done:
     return rc;
 }
 
+/*
+ * ATTENTION: This function releases and re-obtains the lock of the key object!
+ * Any pointers to attributes of the object or its values must not be used
+ * anymore after calling this function.
+ */
+static CK_RV save_rsa_priv_exp_in_key(STDLL_TokData_t *tokdata, OBJECT *key_obj,
+                                      const CK_BYTE *priv_exp,
+                                      CK_ULONG priv_exp_len)
+{
+    CK_ATTRIBUTE *priv_exp_attr = NULL;
+    CK_RV rc, lock_rc;
+
+    /* Release READ_LOCK */
+    rc = object_unlock(key_obj);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("object_unlock failed: 0x%lx\n", rc);
+        return rc;
+    }
+
+    /* Acquire WRITE_LOCK */
+    rc = object_lock(key_obj, WRITE_LOCK);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("object_lock(WRITE_LOCK) failed: 0x%lx\n", rc);
+        /* Try restoring the READ_LOCK before returning */
+        object_lock(key_obj, READ_LOCK);
+        return rc;
+    }
+
+    /* Re-check under WRITE_LOCK (double-checked locking) */
+    rc = template_attribute_get_non_empty(key_obj->template,
+                                          CKA_PRIVATE_EXPONENT, &priv_exp_attr);
+    if (rc != CKR_OK || priv_exp_attr == NULL) {
+        rc = template_build_update_attribute(key_obj->template,
+                                             CKA_PRIVATE_EXPONENT,
+                                             (CK_BYTE *)priv_exp, priv_exp_len);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("template_build_update_attribute failed: 0x%lx\n", rc);
+            goto unlock;
+        }
+
+        if (object_is_token_object(key_obj)) {
+            rc = object_mgr_save_token_object(tokdata, key_obj);
+            if (rc != CKR_OK) {
+                TRACE_WARNING("object_mgr_save_token_object failed: 0x%lx\n", rc);
+                rc = CKR_OK;
+            }
+        }
+    } else {
+        /* Another thread set it during the lock transition */
+        rc = CKR_OK;
+    }
+
+unlock:
+    /* Release WRITE_LOCK and restore READ_LOCK */
+    lock_rc = object_unlock(key_obj);
+    if (lock_rc != CKR_OK)
+        TRACE_ERROR("object_unlock(WRITE_LOCK) failed: 0x%lx\n", lock_rc);
+
+    lock_rc = object_lock(key_obj, READ_LOCK);
+    if (lock_rc != CKR_OK)
+        TRACE_ERROR("object_lock(READ_LOCK) restore failed: 0x%lx\n", lock_rc);
+
+    return rc;
+}
+
 CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                       const CK_BYTE *in, CK_ULONG inlen,
                                       CK_BYTE *kdk, CK_ULONG kdklen)
@@ -6604,6 +6669,7 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     const EVP_MD *md = NULL;
     size_t md_len;
     unsigned char d_hash[SHA256_HASH_SIZE] = { 0 };
+    CK_ULONG modulus_len;
     CK_RV rc;
 
     /*
@@ -6630,8 +6696,9 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
         TRACE_ERROR("Failed to get CKA_MODULUS\n");
         return rc;
     }
+    modulus_len = modulus->ulValueLen;
 
-    buf = calloc(1, modulus->ulValueLen);
+    buf = calloc(1, modulus_len);
     if (buf == NULL) {
         TRACE_ERROR("Failed to allocate a buffer for private exponent\n");
         return CKR_HOST_MEMORY;
@@ -6646,21 +6713,39 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
 
     if (priv_exp_attr == NULL) {
-        rc = calc_rsa_priv_exp(tokdata, key_obj, buf, modulus->ulValueLen);
+        /*
+         * Invalidate attribute pointers before calculating and upgrading locks
+         * so we don't hold any pointers that could become stale across lock changes.
+         */
+        modulus = NULL;
+
+        rc = calc_rsa_priv_exp(tokdata, key_obj, buf, modulus_len);
         if (rc != CKR_OK) {
             TRACE_ERROR("calc_rsa_priv_exp failed\n");
             goto out;
         }
+
+        /* Store computed private exponent in the key object for future operations */
+        rc = save_rsa_priv_exp_in_key(tokdata, key_obj, buf, modulus_len);
+        if (rc != CKR_OK) {
+            TRACE_WARNING("Failed to store private exponent in key object: 0x%lx\n",
+                          rc);
+            /* Non-fatal: continue deriving KDK using buf */
+            rc = CKR_OK;
+        }
+
         priv_exp = buf;
     } else {
-        if (priv_exp_attr->ulValueLen < modulus->ulValueLen) {
-            memcpy(buf + modulus->ulValueLen - priv_exp_attr->ulValueLen,
+        if (priv_exp_attr->ulValueLen < modulus_len) {
+            memcpy(buf + modulus_len - priv_exp_attr->ulValueLen,
                    priv_exp_attr->pValue, priv_exp_attr->ulValueLen);
             priv_exp = buf;
         } else {
             priv_exp = (CK_BYTE *)priv_exp_attr->pValue +
-                            priv_exp_attr->ulValueLen - modulus->ulValueLen;
+                            priv_exp_attr->ulValueLen - modulus_len;
         }
+        modulus = NULL;
+        priv_exp_attr = NULL;
     }
 
     /*
@@ -6677,7 +6762,7 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
         goto out;
     }
 
-    if (EVP_Digest(priv_exp, modulus->ulValueLen, d_hash, NULL,
+    if (EVP_Digest(priv_exp, modulus_len, d_hash, NULL,
                    md, NULL) <= 0) {
         TRACE_ERROR("EVP_Digest failed\n");
         rc = CKR_FUNCTION_FAILED;
@@ -6704,9 +6789,9 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
         goto out;
     }
 
-    if (inlen < modulus->ulValueLen) {
-        memset(buf, 0, modulus->ulValueLen - inlen);
-        if (EVP_DigestSignUpdate(mdctx, buf, modulus->ulValueLen - inlen)!= 1) {
+    if (inlen < modulus_len) {
+        memset(buf, 0, modulus_len - inlen);
+        if (EVP_DigestSignUpdate(mdctx, buf, modulus_len - inlen)!= 1) {
             TRACE_ERROR("EVP_DigestSignUpdate failed\n");
             rc = CKR_FUNCTION_FAILED;
             goto out;
@@ -6729,8 +6814,10 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     rc = CKR_OK;
 
 out:
-    if (buf != NULL)
+    if (buf != NULL) {
+        OPENSSL_cleanse(buf, modulus_len);
         free(buf);
+    }
     if (pkey != NULL)
         EVP_PKEY_free(pkey);
     if (mdctx != NULL)
