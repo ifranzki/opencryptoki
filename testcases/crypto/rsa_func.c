@@ -3192,6 +3192,414 @@ testcase_cleanup:
     return rc;
 }
 
+#define WRAPPED_RSA_MAX_LEN     8192
+
+/* This function should test:
+ * C_WrapKey of an RSA private key, which is imported in the given key format
+ * C_UnwrapKey of the wrapped RSA private key
+ *
+ * If the private exponent (CRT-only key) or the CRT components (ME-only key)
+ * are missing in the imported key, they need to be calculated when the key is
+ * wrapped. The calculated values are stored in the key object, so wrapping
+ * the key a second time uses the stored values.
+ *
+ * 1. Import the RSA private key in the given key format
+ * 2. Wrap the RSA private key twice with an AES key
+ * 3. Compare both wrapped keys, they must be identical
+ * 4. Unwrap the first wrapped key
+ * 5. Sign the message from the test vector with the unwrapped key and compare
+ *    the signature with the signature from the test vector
+ * 6. Verify that the private exponent of the unwrapped key is valid
+ *    (if the token allows to read it)
+ */
+CK_RV do_WrapPrivateKeyRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
+                           enum rsa_key_format format)
+{
+    unsigned int i;
+    CK_BYTE message[MAX_MESSAGE_SIZE];
+    CK_BYTE actual[MAX_SIGNATURE_SIZE];
+    CK_BYTE expected[MAX_SIGNATURE_SIZE];
+    CK_ULONG message_len, actual_len, expected_len;
+    CK_BYTE wrapped1[WRAPPED_RSA_MAX_LEN], wrapped2[WRAPPED_RSA_MAX_LEN];
+    CK_ULONG wrapped1_len, wrapped2_len;
+    CK_BYTE d[PRIVEXP_MAX_LEN], p[PRIVEXP_MAX_LEN], q[PRIVEXP_MAX_LEN];
+    CK_BYTE e[PRIVEXP_MAX_LEN];
+    CK_ATTRIBUTE get_tmpl[4];
+
+    CK_MECHANISM mech;
+    CK_MECHANISM aes_keygen_mech = { CKM_AES_KEY_GEN, NULL, 0 };
+    CK_MECHANISM wrap_mech = { CKM_AES_CBC_PAD, aes_iv, AES_IV_SIZE };
+    CK_OBJECT_HANDLE priv_key, wrap_key, unwrapped_key;
+
+    CK_BBOOL ck_true = CK_TRUE, ck_false = CK_FALSE;
+    CK_ULONG aes_keylen = 32;
+    CK_OBJECT_CLASS wk_class = CKO_SECRET_KEY;
+    CK_OBJECT_CLASS priv_class = CKO_PRIVATE_KEY;
+    CK_KEY_TYPE key_type = CKK_RSA;
+    CK_ATTRIBUTE wrap_tmpl[] = {
+        {CKA_CLASS, &wk_class, sizeof(wk_class)},
+        {CKA_VALUE_LEN, &aes_keylen, sizeof(aes_keylen)},
+        {CKA_TOKEN, &ck_false, sizeof(ck_false)},
+        {CKA_WRAP, &ck_true, sizeof(ck_true)},
+        {CKA_UNWRAP, &ck_true, sizeof(ck_true)},
+    };
+    CK_ATTRIBUTE unwrap_tmpl[] = {
+        {CKA_CLASS, &priv_class, sizeof(priv_class)},
+        {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
+        {CKA_TOKEN, &ck_false, sizeof(ck_false)},
+        {CKA_SIGN, &ck_true, sizeof(ck_true)},
+        {CKA_SENSITIVE, &ck_false, sizeof(ck_false)},
+        {CKA_EXTRACTABLE, &ck_true, sizeof(ck_true)},
+    };
+
+    CK_SLOT_ID slot_id = SLOT_ID;
+    CK_SESSION_HANDLE session;
+    CK_FLAGS flags;
+    CK_BYTE user_pin[PKCS11_MAX_PIN_LEN];
+    CK_ULONG user_pin_len;
+    CK_RV rc, loc_rc;
+
+    // begin testsuite
+    testsuite_begin("%s Wrap Private Key%s. ", tsuite->name,
+                    rsa_key_format_str(format));
+    testcase_rw_session();
+    testcase_user_login();
+
+    // skip tests if the slot doesn't support the required mechanisms
+    if (!mech_supported(slot_id, tsuite->mech.mechanism) ||
+        !mech_supported(slot_id, CKM_AES_KEY_GEN) ||
+        !mech_supported(slot_id, CKM_AES_CBC_PAD)) {
+        testsuite_skip(tsuite->tvcount,
+                       "Slot %u doesn't support %s, %s or %s",
+                       (unsigned int) slot_id,
+                       mech_to_str(tsuite->mech.mechanism),
+                       mech_to_str(CKM_AES_KEY_GEN),
+                       mech_to_str(CKM_AES_CBC_PAD));
+        goto testcase_cleanup;
+    }
+
+    if (is_icsf_token(slot_id) && format != RSA_KEY_FORMAT_FULL) {
+        testsuite_skip(tsuite->tvcount,
+                       "ICSF Token cannot wrap RSA private keys imported "
+                       "without CRT components");
+        goto testcase_cleanup;
+    }
+
+    // iterate over test vectors
+    for (i = 0; i < tsuite->tvcount; i++) {
+        testcase_begin("%s Wrap Private Key%s with test vector %u.",
+                       tsuite->name, rsa_key_format_str(format), i);
+
+        rc = CKR_OK;            // set return value
+        priv_key = CK_INVALID_HANDLE;
+        wrap_key = CK_INVALID_HANDLE;
+        unwrapped_key = CK_INVALID_HANDLE;
+
+        if (tsuite->tv[i].mod_len * 8 > 4096 && !rsa8k) {
+            testcase_skip("Tests with  modbits='%lu' are not enabled",
+                          tsuite->tv[i].mod_len * 8);
+            continue;
+        }
+        if (!keysize_supported(slot_id, tsuite->mech.mechanism,
+                               tsuite->tv[i].mod_len * 8)) {
+            testcase_skip("Token in slot %lu cannot be used with modbits='%lu'",
+                          SLOT_ID, tsuite->tv[i].mod_len * 8);
+            continue;
+        }
+
+        // special case for ica
+        // prime1, prime2, exp1, exp2, coef
+        // must be size mod_len/2 or smaller
+        if (is_ica_token(slot_id)) {
+            if ((tsuite->tv[i].prime1_len > (tsuite->tv[i].mod_len / 2)) ||
+                (tsuite->tv[i].prime2_len > (tsuite->tv[i].mod_len / 2)) ||
+                (tsuite->tv[i].exp1_len > (tsuite->tv[i].mod_len / 2)) ||
+                (tsuite->tv[i].exp2_len > (tsuite->tv[i].mod_len / 2)) ||
+                (tsuite->tv[i].coef_len > (tsuite->tv[i].mod_len / 2))) {
+                testcase_skip("ICA Token cannot be used with this test vector.");
+                continue;
+            }
+        }
+
+        // special case for EP11 + ICSF
+        // modulus length must be multiple of 128 byte
+        if (is_ep11_token(slot_id) || is_icsf_token(slot_id)) {
+            if ((tsuite->tv[i].mod_len % 128) != 0) {
+                testcase_skip("EP11/ICSF Token cannot be used with this test vector.");
+                continue;
+            }
+        }
+
+        if (is_tpm_token(slot_id)) {
+            if ((!is_valid_tpm_pubexp(tsuite->tv[i].pub_exp,
+                                      tsuite->tv[i].pubexp_len))
+                || (!is_valid_tpm_modbits(tsuite->tv[i].mod_len))) {
+                testcase_skip("TPM Token cannot be used with this test vector.");
+                continue;
+            }
+        }
+
+        if (is_cca_token(slot_id)) {
+            if (!is_valid_cca_pubexp(tsuite->tv[i].pub_exp,
+                                     tsuite->tv[i].pubexp_len)) {
+                testcase_skip("CCA Token cannot be used with this test vector.");
+                continue;
+            }
+        }
+
+        if (is_soft_token(slot_id)) {
+            if (!is_valid_soft_pubexp(tsuite->tv[i].pub_exp,
+                                      tsuite->tv[i].pubexp_len)) {
+                testcase_skip("Soft Token cannot be used with this test vector.");
+                continue;
+            }
+        }
+
+        if (format == RSA_KEY_FORMAT_CRT && tsuite->tv[i].prime1_len == 0) {
+            testcase_skip("Test vector does not have CRT components");
+            continue;
+        }
+
+        // clear buffers
+        memset(message, 0, MAX_MESSAGE_SIZE);
+        memset(actual, 0, MAX_SIGNATURE_SIZE);
+        memset(expected, 0, MAX_SIGNATURE_SIZE);
+
+        actual_len = MAX_SIGNATURE_SIZE;        // set buffer size
+
+        // get message
+        message_len = tsuite->tv[i].msg_len;
+        memcpy(message, tsuite->tv[i].msg, message_len);
+
+        // get (expected) signature
+        expected_len = tsuite->tv[i].sig_len;
+        memcpy(expected, tsuite->tv[i].sig, expected_len);
+
+        // create (private) key handle
+        rc = create_RSAPrivateKey(session,
+                                  tsuite->tv[i].mod,
+                                  tsuite->tv[i].pub_exp,
+                                  format == RSA_KEY_FORMAT_CRT ? NULL : tsuite->tv[i].priv_exp,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].prime1,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].prime2,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].exp1,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].exp2,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].coef,
+                                  tsuite->tv[i].mod_len,
+                                  tsuite->tv[i].pubexp_len,
+                                  format == RSA_KEY_FORMAT_CRT ? 0 : tsuite->tv[i].privexp_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].prime1_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].prime2_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].exp1_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].exp2_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].coef_len,
+                                  &priv_key);
+        if (rc != CKR_OK) {
+            priv_key = CK_INVALID_HANDLE;
+            if (rc == CKR_POLICY_VIOLATION) {
+                testcase_skip("RSA key import is not allowed by policy");
+                rc = CKR_OK;
+                continue;
+            }
+            if (rc == CKR_KEY_SIZE_RANGE) {
+                testcase_skip("RSA key size is not in supported range");
+                rc = CKR_OK;
+                continue;
+            }
+            if (rc == CKR_MECHANISM_INVALID ||
+                rc == CKR_TEMPLATE_INCOMPLETE ||
+                rc == CKR_TEMPLATE_INCONSISTENT ||
+                rc == CKR_FUNCTION_NOT_SUPPORTED) {
+                testcase_skip("RSA key format not supported by token");
+                rc = CKR_OK;
+                continue;
+            }
+
+            testcase_error("create_RSAPrivateKey(), rc=%s", p11_get_ckr(rc));
+            goto testcase_cleanup;
+        }
+
+        // generate the wrapping key
+        rc = funcs->C_GenerateKey(session, &aes_keygen_mech, wrap_tmpl,
+                                  ARRAY_SIZE(wrap_tmpl), &wrap_key);
+        if (rc != CKR_OK) {
+            wrap_key = CK_INVALID_HANDLE;
+            if (is_rejected_by_policy(rc, session)) {
+                testcase_skip("AES key generation is not allowed by policy");
+                rc = CKR_OK;
+            } else {
+                testcase_error("C_GenerateKey(), rc=%s", p11_get_ckr(rc));
+            }
+            goto tv_cleanup;
+        }
+
+        /*
+         * Wrap the key the first time. This calculates the private exponent
+         * or the CRT components, if they are missing in the key object, and
+         * stores them in the key object.
+         */
+        wrapped1_len = sizeof(wrapped1);
+        rc = funcs->C_WrapKey(session, &wrap_mech, wrap_key, priv_key,
+                              wrapped1, &wrapped1_len);
+        if (rc != CKR_OK) {
+            if (rc == CKR_KEY_NOT_WRAPPABLE || rc == CKR_KEY_UNEXTRACTABLE ||
+                rc == CKR_KEY_FUNCTION_NOT_PERMITTED ||
+                rc == CKR_MECHANISM_INVALID ||
+                rc == CKR_FUNCTION_NOT_SUPPORTED) {
+                testcase_skip("Token does not support to wrap RSA private "
+                              "keys, rc=%s", p11_get_ckr(rc));
+                rc = CKR_OK;
+            } else if (is_rejected_by_policy(rc, session)) {
+                testcase_skip("Wrapping is not allowed by policy");
+                rc = CKR_OK;
+            } else {
+                testcase_error("C_WrapKey(), rc=%s", p11_get_ckr(rc));
+            }
+            goto tv_cleanup;
+        }
+
+        // wrap the key the second time, this uses the values stored in the key
+        wrapped2_len = sizeof(wrapped2);
+        rc = funcs->C_WrapKey(session, &wrap_mech, wrap_key, priv_key,
+                              wrapped2, &wrapped2_len);
+        if (rc != CKR_OK) {
+            testcase_error("C_WrapKey() (2nd), rc=%s", p11_get_ckr(rc));
+            goto tv_cleanup;
+        }
+
+        // check results
+        testcase_new_assertion();
+
+        if (wrapped1_len != wrapped2_len) {
+            testcase_fail("%s Wrap Private Key with test vector %u failed. "
+                          "Wrapped key length differs: first=%lu, second=%lu.",
+                          tsuite->name, i, wrapped1_len, wrapped2_len);
+        } else if (memcmp(wrapped1, wrapped2, wrapped1_len) != 0) {
+            testcase_fail("%s Wrap Private Key with test vector %u failed. "
+                          "Wrapped key differs between first and second wrap.",
+                          tsuite->name, i);
+        } else {
+            testcase_pass("C_WrapKey twice%s.", rsa_key_format_str(format));
+        }
+
+        // unwrap the key
+        rc = funcs->C_UnwrapKey(session, &wrap_mech, wrap_key,
+                                wrapped1, wrapped1_len,
+                                unwrap_tmpl, ARRAY_SIZE(unwrap_tmpl),
+                                &unwrapped_key);
+        if (rc != CKR_OK) {
+            unwrapped_key = CK_INVALID_HANDLE;
+            if (is_rejected_by_policy(rc, session)) {
+                testcase_skip("Unwrapping is not allowed by policy");
+                rc = CKR_OK;
+            } else {
+                testcase_fail("C_UnwrapKey(), rc=%s", p11_get_ckr(rc));
+            }
+            goto tv_cleanup;
+        }
+
+        // sign with the unwrapped key
+        mech = tsuite->mech;
+        rc = funcs->C_SignInit(session, &mech, unwrapped_key);
+        if (rc != CKR_OK) {
+            testcase_error("C_SignInit(), rc=%s.", p11_get_ckr(rc));
+            goto tv_cleanup;
+        }
+        rc = funcs->C_Sign(session, message, message_len, actual, &actual_len);
+        if (rc != CKR_OK) {
+            testcase_error("C_Sign(), rc=%s.", p11_get_ckr(rc));
+            goto tv_cleanup;
+        }
+
+        testcase_new_assertion();
+
+        if (actual_len != expected_len) {
+            testcase_fail("%s Sign with unwrapped key with test vector %u "
+                          "failed. Expected len=%lu, found len=%lu.",
+                          tsuite->name, i, expected_len, actual_len);
+        } else if (memcmp(actual, expected, expected_len)) {
+            testcase_fail("%s Sign with unwrapped key with test vector %u "
+                          "failed. Signature data does not match test vector "
+                          "signature.", tsuite->name, i);
+        } else {
+            testcase_pass("C_UnwrapKey and C_Sign%s.",
+                          rsa_key_format_str(format));
+        }
+
+        /*
+         * Signing uses the CRT components only, so also check the private
+         * exponent of the unwrapped key, if the token allows to read it.
+         */
+        memset(d, 0, sizeof(d));
+        memset(p, 0, sizeof(p));
+        memset(q, 0, sizeof(q));
+        memset(e, 0, sizeof(e));
+        get_tmpl[0].type = CKA_PRIVATE_EXPONENT;
+        get_tmpl[0].pValue = d;
+        get_tmpl[0].ulValueLen = sizeof(d);
+        get_tmpl[1].type = CKA_PRIME_1;
+        get_tmpl[1].pValue = p;
+        get_tmpl[1].ulValueLen = sizeof(p);
+        get_tmpl[2].type = CKA_PRIME_2;
+        get_tmpl[2].pValue = q;
+        get_tmpl[2].ulValueLen = sizeof(q);
+        get_tmpl[3].type = CKA_PUBLIC_EXPONENT;
+        get_tmpl[3].pValue = e;
+        get_tmpl[3].ulValueLen = sizeof(e);
+
+        rc = funcs->C_GetAttributeValue(session, unwrapped_key, get_tmpl, 4);
+        if (rc == CKR_OK) {
+            testcase_new_assertion();
+
+            if (rsa_privexp_is_valid(e, get_tmpl[3].ulValueLen,
+                                     d, get_tmpl[0].ulValueLen,
+                                     p, get_tmpl[1].ulValueLen,
+                                     q, get_tmpl[2].ulValueLen))
+                testcase_pass("CKA_PRIVATE_EXPONENT of unwrapped key is "
+                              "valid%s.", rsa_key_format_str(format));
+            else
+                testcase_fail("CKA_PRIVATE_EXPONENT of unwrapped key is not "
+                              "the inverse of CKA_PUBLIC_EXPONENT modulo p-1 "
+                              "and q-1 with test vector %u.", i);
+        }
+        rc = CKR_OK;
+
+tv_cleanup:
+        if (unwrapped_key != CK_INVALID_HANDLE) {
+            loc_rc = funcs->C_DestroyObject(session, unwrapped_key);
+            if (loc_rc != CKR_OK) {
+                testcase_error("C_DestroyObject(), rc=%s.", p11_get_ckr(loc_rc));
+                rc = loc_rc;
+            }
+        }
+        if (wrap_key != CK_INVALID_HANDLE) {
+            loc_rc = funcs->C_DestroyObject(session, wrap_key);
+            if (loc_rc != CKR_OK) {
+                testcase_error("C_DestroyObject(), rc=%s.", p11_get_ckr(loc_rc));
+                rc = loc_rc;
+            }
+        }
+        if (priv_key != CK_INVALID_HANDLE) {
+            loc_rc = funcs->C_DestroyObject(session, priv_key);
+            if (loc_rc != CKR_OK) {
+                testcase_error("C_DestroyObject(), rc=%s.", p11_get_ckr(loc_rc));
+                rc = loc_rc;
+            }
+        }
+        if (rc != CKR_OK)
+            goto testcase_cleanup;
+    }
+
+testcase_cleanup:
+    testcase_user_logout();
+    loc_rc = funcs->C_CloseAllSessions(slot_id);
+    if (loc_rc != CKR_OK) {
+        testcase_error("C_CloseAllSessions, rc=%s.", p11_get_ckr(loc_rc));
+    }
+
+    return rc;
+}
+
 CK_RV rsa_funcs(void)
 {
     unsigned int i;
@@ -3293,6 +3701,19 @@ CK_RV rsa_funcs(void)
 
     // Private exponent test
     rv = do_RSAPrivateExponent();
+    if (rv != CKR_OK && (!no_stop))
+        return rv;
+
+    // Wrap private key tests, with all RSA key formats
+    rv = do_WrapPrivateKeyRSA(&published_test_suites[2], RSA_KEY_FORMAT_FULL);
+    if (rv != CKR_OK && (!no_stop))
+        return rv;
+
+    rv = do_WrapPrivateKeyRSA(&published_test_suites[2], RSA_KEY_FORMAT_ME);
+    if (rv != CKR_OK && (!no_stop))
+        return rv;
+
+    rv = do_WrapPrivateKeyRSA(&published_test_suites[2], RSA_KEY_FORMAT_CRT);
     if (rv != CKR_OK && (!no_stop))
         return rv;
 
