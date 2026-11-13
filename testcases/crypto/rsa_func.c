@@ -31,6 +31,25 @@
 
 #include "rsa.h"
 
+enum rsa_key_format {
+    RSA_KEY_FORMAT_FULL = 0,
+    RSA_KEY_FORMAT_ME,
+    RSA_KEY_FORMAT_CRT,
+};
+
+static const char *rsa_key_format_str(enum rsa_key_format format)
+{
+    switch (format) {
+    case RSA_KEY_FORMAT_ME:
+        return " (ME-format)";
+    case RSA_KEY_FORMAT_CRT:
+        return " (CRT-only)";
+    case RSA_KEY_FORMAT_FULL:
+    default:
+        return "";
+    }
+}
+
 /**
  * Note: do_EncryptDecryptRSA fails if we don't manually
  * remove padding from decrypted values. This might be a bug.
@@ -374,7 +393,7 @@ testcase_cleanup:
  *
  */
 CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
-                                 CK_BBOOL me_only)
+                                 enum rsa_key_format format)
 {
     unsigned int i, j;
     CK_BYTE original[BIG_REQUEST];
@@ -396,7 +415,7 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
 
     // begin testsuite
     testsuite_begin("%s Encrypt Decrypt Import%s.", tsuite->name,
-                    me_only ? " (ME-format)" : "");
+                    rsa_key_format_str(format));
     testcase_rw_session();
     testcase_user_login();
 
@@ -407,6 +426,13 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
                        (unsigned int) slot_id,
                        mech_to_str(tsuite->mech.mechanism),
                        (unsigned int) tsuite->mech.mechanism);
+        goto testcase_cleanup;
+    }
+
+    if (is_icsf_token(slot_id) && format != RSA_KEY_FORMAT_FULL) {
+        testsuite_skip(tsuite->tvcount,
+                       "ICSF Token does not support RSA private keys in "
+                       "ME-only or CRT-only format");
         goto testcase_cleanup;
     }
 
@@ -451,7 +477,7 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
         // begin testcase
         testcase_begin("%s Encrypt and Decrypt Import with test vector %u%s."
                        "\npubl_exp='%s', modbits=%lu, publ_exp_len=%lu.",
-                       tsuite->name, i, me_only ? " (ME-format)" : "", s,
+                       tsuite->name, i, rsa_key_format_str(format), s,
                        tsuite->tv[i].mod_len * 8,
                        tsuite->tv[i].pubexp_len);
 
@@ -566,6 +592,11 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
 
         free(s);
 
+        if (format == RSA_KEY_FORMAT_CRT && tsuite->tv[i].prime1_len == 0) {
+            testcase_skip("Test vector does not have CRT components");
+            continue;
+        }
+
         // clear buffers
         memset(original, 0, BIG_REQUEST);
         memset(crypt, 0, BIG_REQUEST);
@@ -577,20 +608,20 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
         rc = create_RSAPrivateKey(session,
                                   tsuite->tv[i].mod,
                                   tsuite->tv[i].pub_exp,
-                                  tsuite->tv[i].priv_exp,
-                                  me_only ? NULL : tsuite->tv[i].prime1,
-                                  me_only ? NULL : tsuite->tv[i].prime2,
-                                  me_only ? NULL : tsuite->tv[i].exp1,
-                                  me_only ? NULL : tsuite->tv[i].exp2,
-                                  me_only ? NULL : tsuite->tv[i].coef,
+                                  format == RSA_KEY_FORMAT_CRT ? NULL : tsuite->tv[i].priv_exp,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].prime1,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].prime2,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].exp1,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].exp2,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].coef,
                                   tsuite->tv[i].mod_len,
                                   tsuite->tv[i].pubexp_len,
-                                  tsuite->tv[i].privexp_len,
-                                  me_only ? 0 : tsuite->tv[i].prime1_len,
-                                  me_only ? 0 : tsuite->tv[i].prime2_len,
-                                  me_only ? 0 : tsuite->tv[i].exp1_len,
-                                  me_only ? 0 : tsuite->tv[i].exp2_len,
-                                  me_only ? 0 : tsuite->tv[i].coef_len,
+                                  format == RSA_KEY_FORMAT_CRT ? 0 : tsuite->tv[i].privexp_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].prime1_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].prime2_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].exp1_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].exp2_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].coef_len,
                                   &priv_key);
         if (rc != CKR_OK) {
             if (rc == CKR_POLICY_VIOLATION) {
@@ -599,6 +630,13 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
             }
             if (rc == CKR_KEY_SIZE_RANGE) {
                 testcase_skip("RSA key size is not in supported range");
+                continue;
+            }
+            if (rc == CKR_MECHANISM_INVALID ||
+                rc == CKR_TEMPLATE_INCOMPLETE ||
+                rc == CKR_TEMPLATE_INCONSISTENT ||
+                rc == CKR_FUNCTION_NOT_SUPPORTED) {
+                testcase_skip("RSA key format not supported by token");
                 continue;
             }
 
@@ -730,7 +768,7 @@ CK_RV do_EncryptDecryptImportRSA(struct PUBLISHED_TEST_SUITE_INFO *tsuite,
             testcase_fail("decrypted data does not match " "original data.");
         } else {
             testcase_pass("C_Encrypt and C_Decrypt%s.",
-                          me_only ? " (ME-format)" : "");
+                          rsa_key_format_str(format));
         }
 
         // clean up
@@ -1840,7 +1878,8 @@ testcase_cleanup:
  * 4. Compare expected signature with actual signature
  *
  */
-CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
+CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite,
+                 enum rsa_key_format format)
 {
     unsigned int i;
     CK_BYTE message[MAX_MESSAGE_SIZE];
@@ -1859,7 +1898,7 @@ CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
     CK_RV rc, loc_rc;
 
     // begin testsuite
-    testsuite_begin("%s Sign%s. ", tsuite->name, me_only ? " (ME-format)" : "");
+    testsuite_begin("%s Sign%s. ", tsuite->name, rsa_key_format_str(format));
     testcase_rw_session();
     testcase_user_login();
 
@@ -1872,10 +1911,18 @@ CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
                        (unsigned int) tsuite->mech.mechanism);
         goto testcase_cleanup;
     }
+
+    if (is_icsf_token(slot_id) && format != RSA_KEY_FORMAT_FULL) {
+        testsuite_skip(tsuite->tvcount,
+                       "ICSF Token does not support RSA private keys in "
+                       "ME-only or CRT-only format");
+        goto testcase_cleanup;
+    }
+
     // iterate over test vectors
     for (i = 0; i < tsuite->tvcount; i++) {
         testcase_begin("%s Sign%s with test vector %u.", tsuite->name,
-                       me_only ? " (ME-format)" : "", i);
+                       rsa_key_format_str(format), i);
 
         rc = CKR_OK;            // set return value
 
@@ -1947,6 +1994,11 @@ CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
             }
         }
 
+        if (format == RSA_KEY_FORMAT_CRT && tsuite->tv[i].prime1_len == 0) {
+            testcase_skip("Test vector does not have CRT components");
+            continue;
+        }
+
         // clear buffers
         memset(message, 0, MAX_MESSAGE_SIZE);
         memset(actual, 0, MAX_SIGNATURE_SIZE);
@@ -1966,20 +2018,20 @@ CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
         rc = create_RSAPrivateKey(session,
                                   tsuite->tv[i].mod,
                                   tsuite->tv[i].pub_exp,
-                                  tsuite->tv[i].priv_exp,
-                                  me_only ? NULL : tsuite->tv[i].prime1,
-                                  me_only ? NULL : tsuite->tv[i].prime2,
-                                  me_only ? NULL : tsuite->tv[i].exp1,
-                                  me_only ? NULL : tsuite->tv[i].exp2,
-                                  me_only ? NULL : tsuite->tv[i].coef,
+                                  format == RSA_KEY_FORMAT_CRT ? NULL : tsuite->tv[i].priv_exp,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].prime1,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].prime2,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].exp1,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].exp2,
+                                  format == RSA_KEY_FORMAT_ME ? NULL : tsuite->tv[i].coef,
                                   tsuite->tv[i].mod_len,
                                   tsuite->tv[i].pubexp_len,
-                                  tsuite->tv[i].privexp_len,
-                                  me_only ? 0 : tsuite->tv[i].prime1_len,
-                                  me_only ? 0 : tsuite->tv[i].prime2_len,
-                                  me_only ? 0 : tsuite->tv[i].exp1_len,
-                                  me_only ? 0 : tsuite->tv[i].exp2_len,
-                                  me_only ? 0 : tsuite->tv[i].coef_len,
+                                  format == RSA_KEY_FORMAT_CRT ? 0 : tsuite->tv[i].privexp_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].prime1_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].prime2_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].exp1_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].exp2_len,
+                                  format == RSA_KEY_FORMAT_ME ? 0 : tsuite->tv[i].coef_len,
                                   &priv_key);
         if (rc != CKR_OK) {
             if (rc == CKR_POLICY_VIOLATION) {
@@ -1988,6 +2040,13 @@ CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
             }
             if (rc == CKR_KEY_SIZE_RANGE) {
                 testcase_skip("RSA key size is not in supported range");
+                continue;
+            }
+            if (rc == CKR_MECHANISM_INVALID ||
+                rc == CKR_TEMPLATE_INCOMPLETE ||
+                rc == CKR_TEMPLATE_INCONSISTENT ||
+                rc == CKR_FUNCTION_NOT_SUPPORTED) {
+                testcase_skip("RSA key format not supported by token");
                 continue;
             }
 
@@ -2023,7 +2082,7 @@ CK_RV do_SignRSA(struct PUBLISHED_TEST_SUITE_INFO * tsuite, CK_BBOOL me_only)
                           "signature.", tsuite->name, i);
 
         } else {
-            testcase_pass("C_Sign%s.", me_only ? " (ME-format)" : "");
+            testcase_pass("C_Sign%s.", rsa_key_format_str(format));
         }
 skip:
         // clean up
@@ -3140,11 +3199,15 @@ CK_RV rsa_funcs(void)
 
     // published (known answer) tests
     for (i = 0; i < NUM_OF_PUBLISHED_TESTSUITES; i++) {
-        rv = do_SignRSA(&published_test_suites[i], FALSE);
+        rv = do_SignRSA(&published_test_suites[i], RSA_KEY_FORMAT_FULL);
         if (rv != CKR_OK && (!no_stop))
             break;
 
-        rv = do_SignRSA(&published_test_suites[i], TRUE);
+        rv = do_SignRSA(&published_test_suites[i], RSA_KEY_FORMAT_ME);
+        if (rv != CKR_OK && (!no_stop))
+            break;
+
+        rv = do_SignRSA(&published_test_suites[i], RSA_KEY_FORMAT_CRT);
         if (rv != CKR_OK && (!no_stop))
             break;
 
@@ -3202,14 +3265,21 @@ CK_RV rsa_funcs(void)
     // key import tests
     for (i = 0; i < NUM_OF_ENCDEC_IMPORT_TESTSUITES; i++) {
         rv = do_EncryptDecryptImportRSA(&rsa_encdec_import_test_suites[i],
-                                        FALSE);
+                                        RSA_KEY_FORMAT_FULL);
         if (rv != CKR_OK && (!no_stop))
             break;
     }
 
     for (i = 0; i < NUM_OF_ENCDEC_IMPORT_TESTSUITES; i++) {
         rv = do_EncryptDecryptImportRSA(&rsa_encdec_import_test_suites[i],
-                                        TRUE);
+                                        RSA_KEY_FORMAT_ME);
+        if (rv != CKR_OK && (!no_stop))
+            break;
+    }
+
+    for (i = 0; i < NUM_OF_ENCDEC_IMPORT_TESTSUITES; i++) {
+        rv = do_EncryptDecryptImportRSA(&rsa_encdec_import_test_suites[i],
+                                        RSA_KEY_FORMAT_CRT);
         if (rv != CKR_OK && (!no_stop))
             break;
     }
