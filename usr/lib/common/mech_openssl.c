@@ -765,6 +765,9 @@ out:
     return pkey;
 }
 
+static CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                               CK_ULONG priv_exp_len);
+
 static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 {
     CK_ATTRIBUTE *modulus = NULL;
@@ -775,6 +778,7 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
     CK_ATTRIBUTE *exp_1 = NULL;
     CK_ATTRIBUTE *exp_2 = NULL;
     CK_ATTRIBUTE *coeff = NULL;
+    CK_BYTE *d_buf = NULL;
     EVP_PKEY *pkey = NULL;
 #if OPENSSL_VERSION_PREREQ(3, 0)
     EVP_PKEY_CTX *pctx = NULL;
@@ -831,8 +835,12 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 
     // CRT key?
     if (prime1) {
+        CK_ULONG mod_len;
+
         if (!prime2 || !exp_1 || !exp_2 || !coeff)
             goto out;
+
+        mod_len = modulus->ulValueLen;
 
         // Even though this is CRT key, OpenSSL requires the
         // modulus and exponents filled in or encrypt and decrypt will
@@ -841,8 +849,6 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
                   bn_mod);
         BN_bin2bn((unsigned char *) pub_exp->pValue, pub_exp->ulValueLen,
                   bn_pub_exp);
-        BN_bin2bn((unsigned char *) priv_exp->pValue, priv_exp->ulValueLen,
-                  bn_priv_exp);
 
         BN_bin2bn((unsigned char *) prime1->pValue, prime1->ulValueLen, bn_p1);
         BN_bin2bn((unsigned char *) prime2->pValue, prime2->ulValueLen, bn_p2);
@@ -850,6 +856,34 @@ static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
         BN_bin2bn((unsigned char *) exp_1->pValue, exp_1->ulValueLen, bn_e1);
         BN_bin2bn((unsigned char *) exp_2->pValue, exp_2->ulValueLen, bn_e2);
         BN_bin2bn((unsigned char *) coeff->pValue, coeff->ulValueLen, bn_cf);
+
+        if (priv_exp != NULL && priv_exp->ulValueLen > 0) {
+            BN_bin2bn((unsigned char *) priv_exp->pValue, priv_exp->ulValueLen,
+                      bn_priv_exp);
+        } else {
+            /*
+             * CRT-only key without CKA_PRIVATE_EXPONENT. Such keys are
+             * completed at object creation time via
+             * openssl_specific_rsa_complete_key(), so the private exponent
+             * should be available here. Calculate it transiently as a
+             * fallback, in case the key object was created by an older
+             * version, or by a token that does not complete RSA keys.
+             */
+            d_buf = OPENSSL_secure_zalloc(mod_len);
+            if (d_buf == NULL)
+                goto out;
+
+            if (calc_rsa_priv_exp(key_obj->template, d_buf, mod_len)
+                != CKR_OK) {
+                OPENSSL_clear_free(d_buf, mod_len);
+                goto out;
+            }
+
+            BN_bin2bn(d_buf, mod_len, bn_priv_exp);
+
+            OPENSSL_clear_free(d_buf, mod_len);
+            d_buf = NULL;
+        }
 
 #if !OPENSSL_VERSION_PREREQ(3, 0)
         RSA_set0_key(rsa, bn_mod, bn_pub_exp, bn_priv_exp);
@@ -6527,16 +6561,14 @@ out:
     return rc;
 }
 
-static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
-                               CK_BYTE *priv_exp, CK_ULONG priv_exp_len)
+static CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                               CK_ULONG priv_exp_len)
 {
     CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
     CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
     BN_CTX *bn_ctx;
     BIGNUM *n, *e, *p, *q, *phi, *d;
     CK_RV rc;
-
-    UNUSED(tokdata);
 
     bn_ctx = BN_CTX_secure_new();
     if (bn_ctx == NULL) {
@@ -6547,8 +6579,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_CTX_start(bn_ctx);
 
     /* Get modulus as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template, CKA_MODULUS,
-                                          &modulus);
+    rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_MODULUS\n");
         goto done;
@@ -6564,8 +6595,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_set_flags(n, BN_FLG_CONSTTIME);
 
     /* Get public exponent as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template,
-                                          CKA_PUBLIC_EXPONENT, &pub_exp);
+    rc = template_attribute_get_non_empty(tmpl, CKA_PUBLIC_EXPONENT, &pub_exp);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_PUBLIC_EXPONENT\n");
         goto done;
@@ -6581,8 +6611,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_set_flags(e, BN_FLG_CONSTTIME);
 
     /* Get prime1 as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template, CKA_PRIME_1,
-                                          &prime1);
+    rc = template_attribute_get_non_empty(tmpl, CKA_PRIME_1, &prime1);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_PRIME_1\n");
         goto done;
@@ -6598,8 +6627,7 @@ static CK_RV calc_rsa_priv_exp(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     BN_set_flags(p, BN_FLG_CONSTTIME);
 
     /* Get prime2 as BIGNUM */
-    rc = template_attribute_get_non_empty(key_obj->template, CKA_PRIME_2,
-                                          &prime2);
+    rc = template_attribute_get_non_empty(tmpl, CKA_PRIME_2, &prime2);
     if (rc != CKR_OK) {
         TRACE_ERROR("Failed to get CKA_PRIME_2\n");
         goto done;
@@ -6656,6 +6684,156 @@ done:
     return rc;
 }
 
+/*
+ * Complete an RSA private key template at object creation time:
+ * - Normalize the key into the privileged format (p > q) via
+ *   rsa_priv_check_and_swap_pq(), if the CRT components are present.
+ * - Calculate CKA_PRIVATE_EXPONENT from the CRT components, if it is
+ *   missing.
+ * - Calculate the CRT components from n, e and d, if they are missing.
+ *
+ * The calculated attributes are stored in the template, so that they are
+ * saved together with the created object, and thus persisted for token
+ * objects. They never need to be recalculated.
+ *
+ * Because this runs at object creation time, the (not fully constant-time)
+ * calculations are not subject to timing attacks: in contrast to a private
+ * key operation, there is no attacker-chosen input that is processed
+ * together with the key material, whose processing time could be observed
+ * by an attacker.
+ *
+ * On error, a partially completed template may be left behind, but the
+ * whole object is discarded by the object creation code in that case.
+ */
+CK_RV openssl_specific_rsa_complete_key(TEMPLATE *tmpl)
+{
+    CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL, *priv_exp = NULL;
+    CK_ATTRIBUTE *crt[5] = { NULL, NULL, NULL, NULL, NULL };
+    CK_ATTRIBUTE_TYPE crt_types[5] = { CKA_PRIME_1, CKA_PRIME_2,
+                                       CKA_EXPONENT_1, CKA_EXPONENT_2,
+                                       CKA_COEFFICIENT };
+    CK_ATTRIBUTE *attr = NULL;
+    CK_BBOOL any_crt = FALSE, all_crt = TRUE;
+    CK_BYTE *d_buf = NULL;
+    CK_ULONG d_len = 0, i;
+    CK_RV rc;
+
+    rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Could not find CKA_MODULUS for the key.\n");
+        return rc;
+    }
+
+    rc = template_attribute_get_non_empty(tmpl, CKA_PUBLIC_EXPONENT,
+                                          &pub_exp);
+    if (rc != CKR_OK) {
+        TRACE_ERROR("Could not find CKA_PUBLIC_EXPONENT for the key.\n");
+        return rc;
+    }
+
+    /* The private exponent and the CRT components are optional here */
+    template_attribute_get_non_empty(tmpl, CKA_PRIVATE_EXPONENT, &priv_exp);
+
+    for (i = 0; i < 5; i++) {
+        template_attribute_get_non_empty(tmpl, crt_types[i], &crt[i]);
+        if (crt[i] != NULL)
+            any_crt = TRUE;
+        else
+            all_crt = FALSE;
+    }
+
+    if (any_crt && !all_crt) {
+        TRACE_ERROR("Either all CRT attrs must be specified or none of "
+                    "them\n");
+        return CKR_TEMPLATE_INCONSISTENT;
+    }
+
+    if (!all_crt && priv_exp == NULL) {
+        TRACE_ERROR("Neither CKA_PRIVATE_EXPONENT nor all CRT attributes "
+                    "found for the key.\n");
+        return CKR_TEMPLATE_INCOMPLETE;
+    }
+
+    if (all_crt) {
+        /*
+         * Normalize into the privileged format (p > q) before calculating
+         * the private exponent. This may swap the types of the prime and
+         * exponent attributes in the template, so the local attribute
+         * pointers must not be used afterwards.
+         */
+        rc = rsa_priv_check_and_swap_pq(tmpl);
+        if (rc != CKR_OK) {
+            TRACE_DEVEL("rsa_priv_check_and_swap_pq failed\n");
+            return rc;
+        }
+
+        if (priv_exp == NULL) {
+            d_len = modulus->ulValueLen;
+            d_buf = OPENSSL_secure_zalloc(d_len);
+            if (d_buf == NULL) {
+                TRACE_ERROR("%s\n", ock_err(ERR_HOST_MEMORY));
+                return CKR_HOST_MEMORY;
+            }
+
+            rc = calc_rsa_priv_exp(tmpl, d_buf, d_len);
+            if (rc != CKR_OK) {
+                TRACE_ERROR("calc_rsa_priv_exp failed\n");
+                goto out;
+            }
+
+            rc = build_attribute(CKA_PRIVATE_EXPONENT, d_buf, d_len, &attr);
+            if (rc != CKR_OK) {
+                TRACE_ERROR("build_attribute failed\n");
+                goto out;
+            }
+
+            rc = template_update_attribute(tmpl, attr);
+            if (rc != CKR_OK) {
+                TRACE_ERROR("template_update_attribute failed\n");
+                OPENSSL_cleanse(attr->pValue, attr->ulValueLen);
+                free(attr);
+                goto out;
+            }
+        }
+    } else {
+        /*
+         * No CRT components, but a private exponent: calculate them. Do not
+         * use the pointers to existing template attributes as output, they
+         * are owned by the template.
+         */
+        rc = calc_rsa_crt_from_me(modulus, pub_exp, priv_exp,
+                                  &crt[0], &crt[1], &crt[2], &crt[3],
+                                  &crt[4]);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("calc_rsa_crt_from_me failed\n");
+            return rc;
+        }
+
+        for (i = 0; i < 5; i++) {
+            rc = template_update_attribute(tmpl, crt[i]);
+            if (rc != CKR_OK) {
+                TRACE_ERROR("template_update_attribute failed\n");
+                /* Free the attributes not taken over by the template */
+                for (; i < 5; i++) {
+                    OPENSSL_cleanse(crt[i]->pValue, crt[i]->ulValueLen);
+                    free(crt[i]);
+                    crt[i] = NULL;
+                }
+                goto out;
+            }
+            crt[i] = NULL;
+        }
+    }
+
+    rc = CKR_OK;
+
+out:
+    if (d_buf != NULL)
+        OPENSSL_clear_free(d_buf, d_len);
+
+    return rc;
+}
+
 CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
                                       const CK_BYTE *in, CK_ULONG inlen,
                                       CK_BYTE *kdk, CK_ULONG kdklen)
@@ -6668,6 +6846,8 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     size_t md_len;
     unsigned char d_hash[SHA256_HASH_SIZE] = { 0 };
     CK_RV rc;
+
+    UNUSED(tokdata);
 
     /*
      * The implementation of this function is copied from OpenSSL's function
@@ -6709,7 +6889,14 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     }
 
     if (priv_exp_attr == NULL) {
-        rc = calc_rsa_priv_exp(tokdata, key_obj, buf, modulus->ulValueLen);
+        /*
+         * RSA private keys are completed at object creation time via
+         * openssl_specific_rsa_complete_key(), so CKA_PRIVATE_EXPONENT
+         * should be available here. Calculate it transiently as a fallback,
+         * in case the key object was created by an older version, or by a
+         * token that does not complete RSA keys.
+         */
+        rc = calc_rsa_priv_exp(key_obj->template, buf, modulus->ulValueLen);
         if (rc != CKR_OK) {
             TRACE_ERROR("calc_rsa_priv_exp failed\n");
             goto out;
@@ -6792,8 +6979,10 @@ CK_RV openssl_specific_rsa_derive_kdk(STDLL_TokData_t *tokdata, OBJECT *key_obj,
     rc = CKR_OK;
 
 out:
-    if (buf != NULL)
+    if (buf != NULL) {
+        OPENSSL_cleanse(buf, modulus->ulValueLen);
         free(buf);
+    }
     if (pkey != NULL)
         EVP_PKEY_free(pkey);
     if (mdctx != NULL)

@@ -164,7 +164,7 @@ token_spec_t token_specific = {
     NULL,                       // en_decapsulate_dh_ecdh_derive_key
     NULL,                       // reencrypt_single
     NULL,                       // set_attribute_values
-    NULL,                       // set_attrs_for_new_object
+    &token_specific_set_attrs_for_new_object,
     NULL,                       // handle_event
     NULL,                       // check_obj_access
 };

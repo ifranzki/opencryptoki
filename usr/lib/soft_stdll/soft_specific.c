@@ -1929,8 +1929,23 @@ CK_RV token_specific_set_attrs_for_new_object(STDLL_TokData_t *tokdata,
 #else
 
     UNUSED(tokdata);
-    UNUSED(class);
 #endif
+
+    /*
+     * Complete RSA private keys at object creation time: normalize the key
+     * into the privileged format (p > q), and calculate the missing
+     * components (the private exponent or the CRT components). This is
+     * done at creation time, rather than lazily at first use, so that the
+     * (not fully constant-time) calculations are not subject to timing
+     * attacks, and so that the calculated attributes are saved together
+     * with the created object.
+     */
+    if ((mode == MODE_CREATE || mode == MODE_UNWRAPPED) &&
+        class == CKO_PRIVATE_KEY) {
+        rc = template_attribute_get_ulong(tmpl, CKA_KEY_TYPE, &keytype);
+        if (rc == CKR_OK && keytype == CKK_RSA)
+            return openssl_specific_rsa_complete_key(tmpl);
+    }
 
     if (mode != MODE_UNWRAPPED)
         return CKR_OK;

@@ -2968,6 +2968,33 @@ pubkey_cleanup:
     return rc;
 }
 
+CK_RV token_specific_set_attrs_for_new_object(STDLL_TokData_t *tokdata,
+                                              CK_OBJECT_CLASS class,
+                                              CK_ULONG mode, TEMPLATE *tmpl)
+{
+    CK_KEY_TYPE keytype;
+
+    UNUSED(tokdata);
+
+    /*
+     * Complete RSA private keys at object creation time: normalize the key
+     * into the privileged format (p > q), and calculate the missing
+     * components (the private exponent or the CRT components). This is
+     * done at creation time, rather than lazily at first use, so that the
+     * (not fully constant-time) calculations are not subject to timing
+     * attacks, and so that the calculated attributes are saved together
+     * with the created object.
+     */
+    if ((mode == MODE_CREATE || mode == MODE_UNWRAPPED) &&
+        class == CKO_PRIVATE_KEY) {
+        if (template_attribute_get_ulong(tmpl, CKA_KEY_TYPE, &keytype)
+            == CKR_OK && keytype == CKK_RSA)
+            return openssl_specific_rsa_complete_key(tmpl);
+    }
+
+    return CKR_OK;
+}
+
 CK_RV token_specific_rsa_generate_keypair(STDLL_TokData_t *tokdata,
                                           TEMPLATE *publ_tmpl,
                                           TEMPLATE *priv_tmpl)
