@@ -765,8 +765,8 @@ out:
     return pkey;
 }
 
-static CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
-                               CK_ULONG priv_exp_len);
+CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                        CK_ULONG priv_exp_len);
 
 static EVP_PKEY *rsa_convert_private_key(OBJECT *key_obj)
 {
@@ -6561,8 +6561,8 @@ out:
     return rc;
 }
 
-static CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
-                               CK_ULONG priv_exp_len)
+CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                        CK_ULONG priv_exp_len)
 {
     CK_ATTRIBUTE *modulus = NULL, *pub_exp = NULL;
     CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;

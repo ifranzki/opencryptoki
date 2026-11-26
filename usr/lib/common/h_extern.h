@@ -3669,6 +3669,8 @@ CK_RV calc_rsa_crt_from_me(CK_ATTRIBUTE *modulus, CK_ATTRIBUTE *pub_exp,
                            CK_ATTRIBUTE *priv_exp, CK_ATTRIBUTE **prime1,
                            CK_ATTRIBUTE **prime2, CK_ATTRIBUTE **exponent1,
                            CK_ATTRIBUTE **exponent2, CK_ATTRIBUTE **coef);
+CK_RV calc_rsa_priv_exp(TEMPLATE *tmpl, CK_BYTE *priv_exp,
+                        CK_ULONG priv_exp_len);
 CK_RV openssl_specific_rsa_complete_key(TEMPLATE *tmpl);
 
 int rsa_calc_inv_e_mod(BIGNUM *r, const BIGNUM *e, const BIGNUM *m,

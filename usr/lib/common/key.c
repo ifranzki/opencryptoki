@@ -2771,6 +2771,11 @@ CK_BBOOL rsa_priv_check_exportability(CK_ATTRIBUTE_TYPE type)
 //   coefficient INTEGER
 // }
 //
+// The private exponent or the CRT components may be missing in 'tmpl', but
+// not both. A missing private exponent is calculated from the CRT
+// components, and missing CRT components are calculated from the private
+// exponent.
+//
 CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
                              CK_BBOOL length_only,
                              CK_BYTE **data, CK_ULONG *data_len)
@@ -2780,7 +2785,9 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
     CK_ATTRIBUTE *prime1 = NULL, *prime2 = NULL;
     CK_ATTRIBUTE *exponent1 = NULL, *exponent2 = NULL;
     CK_ATTRIBUTE *coeff = NULL;
-    CK_BBOOL crt_alloced = FALSE;
+    CK_BBOOL crt_alloced = FALSE, priv_exp_alloced = FALSE;
+    CK_BYTE *d_buf = NULL;
+    CK_ULONG d_len = 0;
     CK_RV rc;
 
     rc = template_attribute_get_non_empty(tmpl, CKA_MODULUS, &modulus);
@@ -2793,27 +2800,56 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
         TRACE_ERROR("Could not find CKA_PUBLIC_EXPONENT for the key.\n");
         return rc;
     }
-    rc = template_attribute_get_non_empty(tmpl, CKA_PRIVATE_EXPONENT,
-                                          &priv_exp);
-    if (rc != CKR_OK) {
-        TRACE_ERROR("Could not find CKA_PRIVATE_EXPONENT for the key.\n");
-        return rc;
-    }
 
-    /* CRT attributes are optional */
+    /* The private exponent and the CRT attributes are optional */
+    template_attribute_get_non_empty(tmpl, CKA_PRIVATE_EXPONENT, &priv_exp);
     template_attribute_get_non_empty(tmpl, CKA_PRIME_1, &prime1);
     template_attribute_get_non_empty(tmpl, CKA_PRIME_2, &prime2);
     template_attribute_get_non_empty(tmpl, CKA_EXPONENT_1, &exponent1);
     template_attribute_get_non_empty(tmpl, CKA_EXPONENT_2, &exponent2);
     template_attribute_get_non_empty(tmpl, CKA_COEFFICIENT, &coeff);
-    if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
-        exponent2 == NULL || coeff == NULL) {
-        /* no CRT components, calculate them */
+
+    if (priv_exp == NULL) {
+        /* CRT-only key, the CRT components must all be there */
+        if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
+            exponent2 == NULL || coeff == NULL) {
+            TRACE_ERROR("Neither CKA_PRIVATE_EXPONENT nor all CRT attributes "
+                        "found for the key.\n");
+            return CKR_TEMPLATE_INCOMPLETE;
+        }
+
+        d_len = modulus->ulValueLen;
+        d_buf = OPENSSL_secure_zalloc(d_len);
+        if (d_buf == NULL) {
+            TRACE_ERROR("%s\n", ock_err(ERR_HOST_MEMORY));
+            return CKR_HOST_MEMORY;
+        }
+
+        rc = calc_rsa_priv_exp(tmpl, d_buf, d_len);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("calc_rsa_priv_exp failed\n");
+            goto out;
+        }
+
+        rc = build_attribute(CKA_PRIVATE_EXPONENT, d_buf, d_len, &priv_exp);
+        if (rc != CKR_OK) {
+            TRACE_ERROR("build_attribute failed\n");
+            goto out;
+        }
+        priv_exp_alloced = TRUE;
+    } else if (prime1 == NULL || prime2 == NULL || exponent1 == NULL ||
+               exponent2 == NULL || coeff == NULL) {
+        /*
+         * No (or only some) CRT components, calculate them. Do not use the
+         * pointers to existing template attributes as output, they are owned
+         * by the template.
+         */
+        prime1 = prime2 = exponent1 = exponent2 = coeff = NULL;
         rc = calc_rsa_crt_from_me(modulus, publ_exp, priv_exp, &prime1,
                                   &prime2, &exponent1, &exponent2, &coeff);
         if (rc != CKR_OK) {
             TRACE_ERROR("calc_rsa_crt_from_me failed\n");
-            return rc;
+            goto out;
         }
         crt_alloced = TRUE;
     }
@@ -2837,6 +2873,14 @@ CK_RV rsa_priv_wrap_get_data(TEMPLATE *tmpl,
         OPENSSL_cleanse(coeff->pValue, coeff->ulValueLen);
         free(coeff);
     }
+
+out:
+    if (priv_exp_alloced && priv_exp != NULL) {
+        OPENSSL_cleanse(priv_exp->pValue, priv_exp->ulValueLen);
+        free(priv_exp);
+    }
+    if (d_buf != NULL)
+        OPENSSL_clear_free(d_buf, d_len);
 
     return rc;
 }
